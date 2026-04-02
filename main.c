@@ -1,6 +1,5 @@
 #include "drivers.h"
-#include "lv_port_disp_template.h"
-#include "lv_port_indev_template.h"
+#include "ui.h"
 
 int main()
 {
@@ -14,6 +13,11 @@ int main()
     lv_init();
     lv_port_disp_init();
     lv_port_indev_init();
+	
+	
+	/** UI Initializaiton **/
+	ui_init();
+	/** **/
 
     while (1)
     {
