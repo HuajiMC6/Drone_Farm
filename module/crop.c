@@ -57,11 +57,11 @@ static double get_damage_possibility(crop_damage_t damage,double growing_percent
 }
 
 //找最大可能病
-static crop_damage_t max_possibility(field_t* crop){
+static crop_damage_t max_possibility(field_t* field){
     double max=0;
     crop_damage_t result=CROP_DAMAGE_APHID;
     for(crop_damage_t i=CROP_DAMAGE_APHID;i<CROP_DAMAGE_NONE;i++){
-        double current=get_damage_possibility(i,crop->growing_percent,crop->tolerance);
+        double current=get_damage_possibility(i,field->growing_percent,field->tolerance);
         if(max<current){
             max=current;
             result=i;
@@ -71,92 +71,92 @@ static crop_damage_t max_possibility(field_t* crop){
 }
 
 //种植
-void crop_plant(field_t *crop,crop_type_t type){
+void field_plant(field_t *field,crop_type_t type){
     if(type==CROP_TYPE_NONE) { // 清空田地
-        crop->crop_type=type;
-        crop->growing_time=0;
-        crop->growing_percent=0;
-        crop->stage=SEED;
-        crop->damage=CROP_DAMAGE_NONE;
-        crop->is_damaged=false;
-        crop->base_output=0;
-        crop->factor=1;
-        crop->extra_factor=0.0;
-        crop->tolerance=0.0;
+        field->crop_type=type;
+        field->growing_time=0;
+        field->growing_percent=0;
+        field->stage=SEED;
+        field->damage=CROP_DAMAGE_NONE;
+        field->is_damaged=false;
+        field->base_output=0;
+        field->factor=1;
+        field->extra_factor=0.0;
+        field->tolerance=0.0;
         return;
     }
-    crop->crop_type=type;
-    crop->ready_time=ready_time(crop->crop_type);
-    crop->growing_time=0;
-    crop->growing_percent=0;
-    crop->stage=SEED;
-    crop->damage=max_possibility(crop);
-    crop->is_damaged=false;
-    crop->base_output=100;
-    crop->factor=1;
-    crop->extra_factor=0;
-    crop->tolerance=0;
-    load_output_update(crop);
-    load_ready_time_update(crop);
-    load_tolerance_update(crop);
+    field->crop_type=type;
+    field->ready_time=ready_time(field->crop_type);
+    field->growing_time=0;
+    field->growing_percent=0;
+    field->stage=SEED;
+    field->damage=max_possibility(field);
+    field->is_damaged=false;
+    field->base_output=100;
+    field->factor=1;
+    field->extra_factor=0;
+    field->tolerance=0;
+    load_output_update(field);
+    load_ready_time_update(field);
+    load_tolerance_update(field);
 }
 
 //阶段判断与更新
-static void stage_update(field_t* crop){//也就1刻的事儿，不管1e-6了
-    double percent=crop->growing_percent;
-    if(percent<0.1) crop->stage=SEED;
-    else if(percent<0.3) crop->stage=YOUNG;
-    else if(percent<0.7) crop->stage=GROW;
-    else if(percent<0.9) crop->stage=BLOOM;
-    else if(percent<1.0) crop->stage=RIPE;
-    else crop->stage=READY;
+static void stage_update(field_t* field){//也就1刻的事儿，不管1e-6了
+    double percent=field->growing_percent;
+    if(percent<0.1) field->stage=SEED;
+    else if(percent<0.3) field->stage=YOUNG;
+    else if(percent<0.7) field->stage=GROW;
+    else if(percent<0.9) field->stage=BLOOM;
+    else if(percent<1.0) field->stage=RIPE;
+    else field->stage=READY;
 }
 
 //生长
-void crop_grow(field_t* crop){
-    if(crop->crop_type==CROP_TYPE_NONE||crop->stage==READY) return;
-    if(crop->factor<0.5){
-        crop_plant(crop,CROP_TYPE_NONE);//植物死亡
+void field_grow(field_t* field){
+    if(field->crop_type==CROP_TYPE_NONE||field->stage==READY) return;
+    if(field->factor<0.5){
+        crop_plant(field,CROP_TYPE_NONE);//植物死亡
         return;
     }
 
     //生长时间++
-    crop->growing_time++;
-    crop->growing_percent=(double)crop->growing_time/crop->ready_time;
+    field->growing_time++;
+    field->growing_percent=(double)field->growing_time/field->ready_time;
 
     //产量因子变化
-    if(crop->is_damaged) crop->factor-=0.01;
-    else if(crop->factor+0.005>1) crop->factor=1;
-    else crop->factor+=0.005;
+    if(field->is_damaged) field->factor-=0.01;
+    else if(field->factor+0.005>1) field->factor=1;
+    else field->factor+=0.005;
 
     //生长阶段变化
-    crop_stage_t pre=crop->stage;
-    stage_update(crop);
-    if(!crop->is_damaged&&pre!=crop->stage){//没患病且生长阶段更新，刷新患病概率
-        crop->damage=max_possibility(crop);
+    crop_stage_t pre=field->stage;
+    stage_update(field);
+    if(!field->is_damaged&&pre!=field->stage){//没患病且生长阶段更新，刷新患病概率
+        field->damage=max_possibility(field);
     }
 
     //随机数结算患病情况
     //srand(time(NULL));这句话一定要在main.c里面用
-    if(!crop->is_damaged){
+    if(!field->is_damaged){
         int random=rand()%100;
-        if(100*get_damage_possibility(crop->damage,crop->growing_percent,crop->tolerance)>random) crop->is_damaged=true;
+        if(100*get_damage_possibility(field->damage,field->growing_percent,field->tolerance)>random) field->is_damaged=true;
     }
 }
 
 //收获
-int crop_harvest(field_t* crop){
-    if(crop->crop_type==CROP_TYPE_NONE||crop->stage!=READY) return 0;
-    int output=crop->base_output*(crop->factor+crop->extra_factor);
-    crop_plant(crop,CROP_TYPE_NONE);//移除植物
+int field_harvest(field_t* field){
+    if(field->crop_type==CROP_TYPE_NONE||field->stage!=READY) return 0;
+    int output=field->base_output*(field->factor+field->extra_factor);
+    crop_plant(field,CROP_TYPE_NONE);//移除植物
     return output;
 }
 
 //喷农药
-void use_pesticide(field_t* crop){
-    if(crop->crop_type==CROP_TYPE_NONE||crop->stage==READY) return;
-    crop->is_damaged=false;
-    crop->damage=max_possibility(crop);//打农药，刷新患病概率
+void use_pesticide(field_t* field){
+    if(field->crop_type==CROP_TYPE_NONE||field->stage==READY) return;
+    field->is_damaged=false;
+    field->damage=max_possibility(field);//打农药，刷新患病概率
 }
 
 //产量等级数据获取
@@ -205,6 +205,6 @@ void tolerance_update(field_t* field){
 }
 
 //监测是否患病及其类型
-crop_damage_t get_damage(field_t* crop){
-    return crop->damage;
+crop_damage_t get_damage(field_t* field){
+    return field->damage;
 }
