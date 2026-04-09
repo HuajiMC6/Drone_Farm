@@ -2,15 +2,20 @@
 #include "farm.h"
 #include "stdlib.h"
 
-farm_t* farm_get_instance(){
-	static farm_t *farm = NULL;
-	if(farm == NULL) {
-		farm=(farm_t*)malloc(sizeof(farm_t));
-		for(int i=0;i<10;i++) for(int j=0;j<10;j++) farm->fields[i][j]=field_init();
-		farm->current_size=5;
-		farm->size_level=0;
+static farm_t *s_farm = NULL;
+
+int farm_init(){
+	if(s_farm == NULL) {
+		s_farm=(farm_t*)malloc(sizeof(farm_t));
+		for(int i=0;i<10;i++) for(int j=0;j<10;j++) s_farm->fields[i][j]=field_init();
+		s_farm->current_size=5;
+		s_farm->size_level=0;
 	}
-    return farm;
+    return 0;
+}
+
+farm_t *farm_get_instance() {
+	return s_farm;
 }
 
 void size_update(farm_t* farm){
