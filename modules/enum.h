@@ -30,7 +30,8 @@ typedef enum{//生长阶段
     CROP_STAGE_GROW,//30-70
     CROP_STAGE_BLOOM,//70-90
     CROP_STAGE_RIPE,//90-100
-    CROP_STAGE_READY//100
+    CROP_STAGE_READY,//100
+	CROP_STAGE_NONE
 }crop_stage_t;
 
 #endif

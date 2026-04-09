@@ -2,6 +2,9 @@
 #include "ui.h"
 #include "farm.h"
 
+#include <stdlib.h>
+#include <time.h>
+
 void heartbeat_timer_cb(lv_timer_t *timer);
 
 int main()
@@ -19,12 +22,14 @@ int main()
 	
 	/* Farm instance initialization */
 	farm_init();
-	/** UI Initializaiton **/
+	/* UI Initializaiton */
 	ui_init();
-	/** **/
-	
-	lv_timer_create(heartbeat_timer_cb, 100, NULL);
-
+	ui_update_timer_init();
+	/* Heartbeat timer init */
+	lv_timer_create(heartbeat_timer_cb, 1000, NULL);
+	/* Random init */
+	srand((unsigned int) SysTick->VAL);
+	 
     while (1)
     {
         delay_us(2000);
@@ -34,5 +39,5 @@ int main()
 
 
 void heartbeat_timer_cb(lv_timer_t *timer) {
-	ui_update();
+	farm_grow(farm_get_instance());
 }

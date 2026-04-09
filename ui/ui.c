@@ -4,33 +4,27 @@
 #include "sdram_malloc.h"
 #include "enum.h"
 
-#define FARM_GRID_N 5
+#define FARM_GRID_N farm_get_instance()->current_size
 #define FARM_BLOCK_SIZE 80
 
 static lv_obj_t *g_screen_load;
 static lv_obj_t *g_screen_main;
 
-static lv_obj_t *farm_grid;
+static lv_obj_t *farm_grid = NULL;
 
-typedef struct {
-	lv_obj_t *obj;
-	lv_obj_t *window;
-	bool is_planted;
-	uint8_t x;
-	uint8_t y;
-	icon_pest_type_t pest_type;
-} farm_block_t;
-
-static farm_block_t g_farm_blocks[FARM_GRID_N][FARM_GRID_N];
+static farm_block_t g_farm_blocks[10][10];
 
 static lv_obj_t *ui_div_create(lv_obj_t *parent);
 	
 static void ui_screen_main_create();
 static void ui_farm_grid_create(lv_obj_t *parent);
+static void ui_farm_grid_update();
+static lv_obj_t *ui_crop_grwoing_bar(lv_obj_t *parent);
 static void ui_gold_bar_create(lv_obj_t *parent);
 static lv_obj_t *ui_icon_btn_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h, const void *img, lv_coord_t x, lv_coord_t y);
 static lv_obj_t *ui_seed_table_create(lv_obj_t *parent);
 static lv_obj_t *ui_plant_window_create();
+static void ui_update();
 
 void ui_init(void) {
 	ui_screen_main_create();
@@ -67,10 +61,8 @@ static void ui_screen_main_create() {
 	lv_obj_set_style_bg_img_tiled(g_screen_main, true, 0);
 	
 	/* 田地 */
-	farm_grid = ui_div_create(g_screen_main);
-	lv_obj_set_size(farm_grid, FARM_GRID_N * FARM_BLOCK_SIZE, FARM_GRID_N * FARM_BLOCK_SIZE);
-	lv_obj_center(farm_grid);
-	ui_farm_grid_create(farm_grid);
+	
+	ui_farm_grid_create(g_screen_main);
 	lv_obj_add_event_cb(g_screen_main, screen_main_click_cb, LV_EVENT_CLICKED, farm_grid);
 	
 	/* 金币显示 */
@@ -88,15 +80,23 @@ static void ui_screen_main_create() {
 }
 
 static void ui_farm_grid_create(lv_obj_t *parent) {
+	if(farm_grid != NULL) return;
+	
+	farm_grid = ui_div_create(parent);
+	lv_obj_set_size(farm_grid, FARM_GRID_N * FARM_BLOCK_SIZE, FARM_GRID_N * FARM_BLOCK_SIZE + 160);
+	lv_obj_set_align(farm_grid, LV_ALIGN_TOP_MID);
+	lv_obj_set_style_pad_ver(farm_grid, 80, 0);
+
 	for(int i=0; i<FARM_GRID_N; i++) {
 		for(int j=0; j<FARM_GRID_N; j++) {
+			field_t *field = farm_get_instance()->fields[i][j];
 			farm_block_t *block = &g_farm_blocks[i][j];
-			block->obj = ui_div_create(parent);
+			block->obj = ui_div_create(farm_grid);
 			block->window = NULL;
-			block->is_planted = 0;
+			block->field = field;
+			block->is_planted = field->crop_type != CROP_TYPE_NONE;
 			block->x = i;
 			block->y = j;
-			block->pest_type = ICON_PEST_UNKNOWN;
 			
 			lv_obj_set_size(block->obj, FARM_BLOCK_SIZE, FARM_BLOCK_SIZE);
 			lv_obj_set_pos(block->obj, FARM_BLOCK_SIZE * i, FARM_BLOCK_SIZE * j);
@@ -105,23 +105,54 @@ static void ui_farm_grid_create(lv_obj_t *parent) {
 			lv_obj_add_flag(block->obj, LV_OBJ_FLAG_CLICKABLE);
 			lv_obj_set_style_border_width(block->obj, 2, LV_STATE_CHECKED);
 			lv_obj_add_event_cb(block->obj, farm_block_click_cb, LV_EVENT_CLICKED, block);
-			
-			/** for test **/
-			lv_obj_t *crop = lv_img_create(block->obj);
-			lv_obj_center(crop);
-			if(i == j) 
-				lv_img_set_src(crop, &icon_crop_corn_ripe);
-			else
-				lv_img_set_src(crop, &icon_crop_wheat_ripe);
+			lv_obj_set_user_data(block->obj, block);
 		}
 	}
 }
+
+
+static void ui_farm_grid_update() {
+	for(int i=0; i<FARM_GRID_N; i++) {
+		for(int j=0; j<FARM_GRID_N; j++) {
+			field_t *field = farm_get_instance()->fields[i][j];
+			farm_block_t *block = &g_farm_blocks[i][j];
+			block->field = field;
+			block->is_planted = field->crop_type != CROP_TYPE_NONE;
+			
+			lv_obj_clean(block->obj);
+			
+			if(block->is_planted) {
+				/* 作物贴图 */
+				lv_obj_t *crop = lv_img_create(block->obj);
+				lv_obj_center(crop);
+				lv_img_set_src(crop, icon_get_crop(field->crop_type, field->stage));
+				
+				/* 生长进度条 */
+				lv_obj_t *bar = ui_crop_grwoing_bar(block->obj);
+				lv_bar_set_range(bar, 0, field->ready_time);
+				lv_bar_set_value(bar, field->growing_time, LV_ANIM_OFF);
+			}
+		}
+	}
+}
+
+static lv_obj_t *ui_crop_grwoing_bar(lv_obj_t *parent) {
+    lv_obj_t *bar = lv_bar_create(parent);
+    lv_obj_add_event_cb(bar, crop_growing_bar_event, LV_EVENT_DRAW_PART_END, NULL);
+    lv_obj_set_size(bar, 75, 10);
+    lv_obj_set_align(bar, LV_ALIGN_BOTTOM_MID);
+	lv_obj_set_pos(bar, 0, -2);
+	lv_obj_set_style_bg_color(bar, lv_color_white(), LV_PART_MAIN);
+	lv_obj_set_style_bg_opa(bar, LV_OPA_50, LV_PART_MAIN);
+}
+
 
 static void ui_gold_bar_create(lv_obj_t *parent) {
 	lv_obj_t *bar = ui_div_create(parent);
 	lv_obj_set_size(bar, 120, 40);
 	lv_obj_set_pos(bar, 200, 8);
 	lv_obj_set_style_bg_img_src(bar, &icon_gold_bar_bg, 0);
+	lv_obj_add_flag(bar, LV_OBJ_FLAG_FLOATING);
 }
 
 static lv_obj_t *ui_icon_btn_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h, const void *img, lv_coord_t x, lv_coord_t y) {
@@ -130,6 +161,7 @@ static lv_obj_t *ui_icon_btn_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h
 	lv_obj_set_style_bg_img_src(btn, img, 0);
 	lv_obj_set_pos(btn, x, y);
 	lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
+	lv_obj_add_flag(btn, LV_OBJ_FLAG_FLOATING);
 	
 	return btn;
 }
@@ -232,4 +264,16 @@ static lv_obj_t *ui_plant_window_create() {
 
 
 	return div;
+}
+
+void ui_update_timer_init() {
+	lv_timer_create(ui_update, 100, NULL);
+}
+
+static void ui_update() {
+	// farm_t *farm = farm_get_instance();
+	
+	/* UPDATE farm grid */
+	ui_farm_grid_update();
+	
 }
