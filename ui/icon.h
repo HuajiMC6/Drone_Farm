@@ -10,5 +10,15 @@ typedef enum {
 
 
 LV_IMG_DECLARE(icon_field_bg);
+LV_IMG_DECLARE(icon_farm_bg);
+LV_IMG_DECLARE(icon_gold_bar_bg);
+LV_IMG_DECLARE(icon_plant_btn);
+LV_IMG_DECLARE(icon_shop_btn);
+LV_IMG_DECLARE(icon_storage_btn);
+LV_IMG_DECLARE(icon_setting_btn);
+LV_IMG_DECLARE(icon_crop_corn);
+LV_IMG_DECLARE(icon_crop_wheat_young);
+LV_IMG_DECLARE(icon_crop_wheat_ripe);
+LV_IMG_DECLARE(icon_crop_corn_ripe);
 
 #endif

@@ -1,5 +1,8 @@
 #include "drivers.h"
 #include "ui.h"
+#include "farm.h"
+
+void heartbeat_timer_cb(lv_timer_t *timer);
 
 int main()
 {
@@ -14,14 +17,22 @@ int main()
     lv_port_disp_init();
     lv_port_indev_init();
 	
-	
+	/* Farm instance initialization */
+	farm_init();
 	/** UI Initializaiton **/
 	ui_init();
 	/** **/
+	
+	lv_timer_create(heartbeat_timer_cb, 100, NULL);
 
     while (1)
     {
         delay_us(2000);
         lv_timer_handler();
     }
+}
+
+
+void heartbeat_timer_cb(lv_timer_t *timer) {
+	ui_update();
 }

@@ -14,5 +14,7 @@ typedef enum {
 void ui_init(void);
 // 界面切换
 void ui_screen_switch(ui_screen_type_t screen);
+// UI数据刷新
+void ui_update();
 
 #endif
