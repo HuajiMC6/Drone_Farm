@@ -11,8 +11,8 @@ typedef struct{//农场结构体
 
 int farm_init();
 farm_t *farm_get_instance();
-void size_update(farm_t* farm);
-void farm_grow(farm_t* farm);
-int get_farm_size(farm_t* farm);
+void size_update();
+void farm_grow();
+int get_farm_size();
 
 #endif

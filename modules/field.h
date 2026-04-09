@@ -36,4 +36,5 @@ crop_damage_t get_damage(field_t* field);
 void output_update(field_t* field);
 void ready_time_update(field_t* field);
 void tolerance_update(field_t* field);
+
 #endif

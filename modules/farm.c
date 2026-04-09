@@ -18,19 +18,19 @@ farm_t *farm_get_instance() {
 	return s_farm;
 }
 
-void size_update(farm_t* farm){
-    if(farm->size_level>=3) return;
-    farm->size_level++;
-    if(farm->size_level==0) farm->current_size=5;
-    else if(farm->size_level==1) farm->current_size=7;
-    else if(farm->size_level==2) farm->current_size=9;
-    else if(farm->size_level==3) farm->current_size=10;
+void size_update(){
+    if(s_farm->size_level>=3) return;
+    s_farm->size_level++;
+    if(s_farm->size_level==0) s_farm->current_size=5;
+    else if(s_farm->size_level==1) s_farm->current_size=7;
+    else if(s_farm->size_level==2) s_farm->current_size=9;
+    else if(s_farm->size_level==3) s_farm->current_size=10;
 }
 
-void farm_grow(farm_t* farm){
-    for(int i=0;i<farm->current_size;i++) for(int j=0;j<farm->current_size;j++) if(farm->fields[i][j]->crop_type!=CROP_TYPE_NONE) field_grow(farm->fields[i][j]);
+void farm_grow(){
+    for(int i=0;i<s_farm->current_size;i++) for(int j=0;j<s_farm->current_size;j++) if(s_farm->fields[i][j]->crop_type!=CROP_TYPE_NONE) field_grow(s_farm->fields[i][j]);
 }
 
-int get_farm_size(farm_t* farm){
-    return farm->current_size;
+int get_farm_size(){
+    return s_farm->current_size;
 }
