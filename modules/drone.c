@@ -15,6 +15,8 @@ void drone_init(){
         s_drone->speed=10;
         s_drone->algorithm_level=0;
         s_drone->speed_level=0;
+        s_drone->storage_level=0;
+        s_drone->storage_capacity=10;
         for(int i=0;i<10;i++) for(int j=0;j<10;j++) s_drone->one_zero_matrix[i][j]=0;
         for(int i=0;i<4;i++) s_drone->pesticide_storage[i]=0;
     }
@@ -26,18 +28,34 @@ crop_damage_t get_damage_information(pos_t pos){
     return farm->fields[pos.x][pos.y]->damage;
 }
 
-void algorithm_update(){//player接口
-    if(s_drone->algorithm_level>=2) return;
+bool drone_algorithm_update(){//player接口
+    if(s_drone->algorithm_level>=2) return false;
     s_drone->algorithm_level++;
+    return true;
 }
 
-void speed_update(){//player接口
-    if(s_drone->speed_level>=3) return;
+bool drone_speed_update(){//player接口
+    if(s_drone->speed_level>=3) return false;
     s_drone->speed_level++;
     if(s_drone->speed_level==0) s_drone->speed=10;
     else if(s_drone->speed_level==1) s_drone->speed=20;
     else if(s_drone->speed_level==2) s_drone->speed=30;
     else if(s_drone->speed_level==3) s_drone->speed=50;
+    return true;
+}
+
+bool drone_storage_update(){//player接口
+    if(s_drone->storage_level>=3) return false;
+    s_drone->storage_level++;
+    if(s_drone->storage_level==0) s_drone->storage_capacity=10;
+    else if(s_drone->storage_level==1) s_drone->storage_capacity=20;
+    else if(s_drone->storage_level==2) s_drone->storage_capacity=30;
+    else if(s_drone->storage_level==3) s_drone->storage_capacity=50;
+    return true;
+}
+
+static void reset_matrix(){
+    for(int i=0;i<10;i++) for(int j=0;j<10;j++) s_drone->one_zero_matrix[i][j]=0;
 }
 
 static int manhattan_dist(pos_t a, pos_t b) {//曼哈顿距离
@@ -50,8 +68,11 @@ static pos_t* traversal_algorithm(int *out_len){//全部遍历，可以不写，
     // 先统计病田数量，以便分配准确大小的数组
     int count=0;
     for (int i=0; i<n;i++) for (int j=0;j<n;j++) if (s_drone->one_zero_matrix[i][j]==1) count++;
-    *out_len=count;
-    if (count==0) return NULL;
+    if (count==0){
+        *out_len=0;
+        return NULL;
+    }
+    *out_len=n*n;
     pos_t *arr=(pos_t*)malloc(sizeof(pos_t)*n*n);
     int index=0;
     for(int i=0;i<n;i++){
@@ -60,6 +81,7 @@ static pos_t* traversal_algorithm(int *out_len){//全部遍历，可以不写，
             else arr[index].x=i,arr[index].y=n-1-j,index++;
         }
     }
+    reset_matrix();
     return arr;
 }
 
@@ -106,6 +128,7 @@ static pos_t* greedy_algorithm(int *out_len){
     }
     free(points);
     free(visited);
+    reset_matrix();
     return path;
 }
 
@@ -196,6 +219,7 @@ static pos_t* optimized_greedy_algorithm(int *out_len) {
     // 4. 应用 2-opt 优化
     two_opt_optimize(path, count);
 
+    reset_matrix();
     return path;
 }
 
@@ -203,18 +227,27 @@ pos_t* auto_path(int *out_len){//前端接口，用来前端写路径可视化�
     if(s_drone->algorithm_level==0) return traversal_algorithm(out_len);
     else if(s_drone->algorithm_level==1) return greedy_algorithm(out_len);
     else if(s_drone->algorithm_level==2) return optimized_greedy_algorithm(out_len);
+    return NULL;
 }
 
-void ensure_pesticide(pos_t pos){//前端接口
+bool ensure_pesticide(pos_t pos){//player接口
     farm_t *farm=farm_get_instance();
     field_t *field=farm->fields[pos.x][pos.y];
-    if(field->crop_type==CROP_TYPE_NONE||field->stage==CROP_STAGE_READY) return;//期间可能死了或成熟了
+    if(field->crop_type==CROP_TYPE_NONE||field->stage==CROP_STAGE_READY||field->damage==CROP_DAMAGE_NONE) return false;//期间可能死了或成熟了
     if(s_drone->pesticide_storage[field->damage]>0){//有药用药
         s_drone->pesticide_storage[field->damage]--;
+        player_t *player=get_player_instance();
+        player->experience+=use_pesticide_exp_earn;
         use_pesticide(field);
+        return true;
     }
+    return false;
 }
 
-void add_pesticide(crop_pesticide_t pesticide){//player接口
-    s_drone->pesticide_storage[pesticide]++;
+bool add_pesticide(crop_pesticide_t pesticide,int n){//player接口
+    if(s_drone->storage_capacity>=s_drone->pesticide_storage[pesticide]+n){
+        s_drone->pesticide_storage[pesticide]+=n;
+        return true;
+    }
+    return false;
 }

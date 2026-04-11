@@ -80,20 +80,22 @@ static crop_damage_t max_possibility(field_t* field){
 }
 
 //种植
-void field_plant(field_t *field,crop_type_t type){
-    if(type==CROP_TYPE_NONE) { // 清空田地
+bool field_plant(field_t *field,crop_type_t type){
+    if(type==CROP_TYPE_NONE) { // 清空田地//只有重置会用到
         field->crop_type=type;
         field->growing_time=0;
         field->growing_percent=0;
-        field->stage=CROP_STAGE_SEED;
+        field->stage=CROP_STAGE_NONE;
         field->damage=CROP_DAMAGE_NONE;
         field->is_damaged=false;
         field->base_output=0;
         field->factor=1;
         field->extra_factor=0.0;
         field->tolerance=0.0;
-        return;
+        return true;
     }
+
+    if(field->crop_type!=CROP_TYPE_NONE) return false;
     field->crop_type=type;
     field->ready_time=ready_time(field->crop_type);
     field->growing_time=0;
@@ -108,6 +110,7 @@ void field_plant(field_t *field,crop_type_t type){
     load_output_update(field);
     load_ready_time_update(field);
     load_tolerance_update(field);
+    return true;
 }
 
 //阶段判断与更新
@@ -196,24 +199,28 @@ static void load_tolerance_update(field_t* field){
 }
 
 //产量升级
-void output_update(field_t* field){
-    if(field->output_level>=3) return;
+bool field_output_update(field_t* field){
+    if(field->output_level>=3) return false;
     field->output_level++;
+    return true;
 }
 
 //产速升级
-void ready_time_update(field_t* field){
-    if(field->ready_time_level>=3) return;
+bool field_ready_time_update(field_t* field){
+    if(field->ready_time_level>=3) return false;
     field->ready_time_level++;
+    return true;
 }
 
 //耐虫性升级
-void tolerance_update(field_t* field){
-    if(field->tolerance_level>=3) return;
+bool field_tolerance_update(field_t* field){
+    if(field->tolerance_level>=3) return false;
     field->tolerance_level++;
+    return true;
 }
 
 //监测是否患病及其类型
 crop_damage_t get_damage(field_t* field){
+    if(field->damage!=CROP_DAMAGE_NONE) field->is_detected=true;
     return field->damage;
 }

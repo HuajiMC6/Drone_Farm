@@ -1,6 +1,7 @@
 #include "enum.h"
 #include "farm.h"
 #include "stdlib.h"
+#include <stdbool.h>
 
 static farm_t *s_farm = NULL;
 
@@ -18,13 +19,14 @@ farm_t *farm_get_instance() {
 	return s_farm;
 }
 
-void size_update(){
-    if(s_farm->size_level>=3) return;
+bool farm_size_update(){
+    if(s_farm->size_level>=3) return false;
     s_farm->size_level++;
     if(s_farm->size_level==0) s_farm->current_size=5;
     else if(s_farm->size_level==1) s_farm->current_size=7;
     else if(s_farm->size_level==2) s_farm->current_size=9;
     else if(s_farm->size_level==3) s_farm->current_size=10;
+    return true;
 }
 
 void farm_grow(){
