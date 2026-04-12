@@ -16,7 +16,7 @@ void player_init(){
     }
 }
 
-player_t* get_player_instance(){
+player_t* player_get_instance(){
     return s_player;
 }
 
@@ -46,7 +46,7 @@ bool player_buy_seed(crop_type_t seed_type,int n){
 bool player_buy_pesticide(crop_pesticide_t pesticide_type,int n){
     int total_price=n*pesticide_price[pesticide_type]*level_discount[s_player->level_stage];
     if(s_player->coins>=total_price){
-        if(add_pesticide(pesticide_type,n)){
+        if(drone_add_pesticide(pesticide_type,n)){
             s_player->coins-=total_price;
             return true;
         }
@@ -87,18 +87,15 @@ bool player_sold(crop_type_t crop_type,int n){
     return false;
 }
 
-bool player_auto_drone(pos_t pos){//前端接口
-    if(ensure_pesticide(pos)){
-        player_level_update();
-        return true;
-    }
-    return false;
+void player_use_pesticide_exp(){
+    s_player->experience+=use_pesticide_exp_earn;
+    player_level_update();
 }
 
 //购买升级
 //drone update
 bool player_buy_drone_speed_update(){
-    drone_t *drone=get_drone_instance();
+    drone_t *drone=drone_get_instance();
     if(drone->speed_level>=3) return false;
     int price=drone_speed_update_price[drone->speed_level]*level_discount[s_player->level_stage];
     if(s_player->coins>=price){
@@ -111,7 +108,7 @@ bool player_buy_drone_speed_update(){
 }
 
 bool player_buy_drone_storage_update(){
-    drone_t *drone=get_drone_instance();
+    drone_t *drone=drone_get_instance();
     if(drone->storage_level>=3) return false;
     int price=drone_storage_update_price[drone->storage_level]*level_discount[s_player->level_stage];
     if(s_player->coins>=price){
@@ -124,7 +121,7 @@ bool player_buy_drone_storage_update(){
 }
 
 bool player_buy_drone_algorithm_update(){
-    drone_t *drone=get_drone_instance();
+    drone_t *drone=drone_get_instance();
     if(drone->algorithm_level>=2) return false;
     int price=drone_algorithm_update_price[drone->algorithm_level]*level_discount[s_player->level_stage];
     if(s_player->coins>=price){

@@ -88,6 +88,7 @@ bool field_plant(field_t *field,crop_type_t type){
         field->stage=CROP_STAGE_NONE;
         field->damage=CROP_DAMAGE_NONE;
         field->is_damaged=false;
+        field->is_detected=false;
         field->base_output=0;
         field->factor=1;
         field->extra_factor=0.0;
@@ -103,6 +104,7 @@ bool field_plant(field_t *field,crop_type_t type){
     field->stage=CROP_STAGE_SEED;
     field->damage=max_possibility(field);
     field->is_damaged=false;
+    field->is_detected=false;
     field->base_output=100;
     field->factor=1;
     field->extra_factor=0;
@@ -126,11 +128,18 @@ static void stage_update(field_t* field){//也就1刻的事儿，不管1e-6了
 
 //生长
 void field_grow(field_t* field){
-    if(field->crop_type==CROP_TYPE_NONE||field->stage==CROP_STAGE_READY) return;
+    if(field->crop_type==CROP_TYPE_NONE||field->stage==CROP_STAGE_READY){
+        field->damage=CROP_DAMAGE_NONE;
+        field->is_detected=false;
+        return;
+    }
     if(field->factor<0.5){
         field_plant(field,CROP_TYPE_NONE);//植物死亡
         return;
     }
+
+    if(field->damage==CROP_DAMAGE_NONE) field->is_damaged=false;
+    else field->is_damaged=true;
 
     //生长时间++
     field->growing_time++;
@@ -152,7 +161,10 @@ void field_grow(field_t* field){
     //srand(time(NULL));这句话一定要在main.c里面用
     if(!field->is_damaged){
         int random=rand()%100;
-        if(100*get_damage_possibility(field->damage,field->growing_percent,field->tolerance)>random) field->is_damaged=true;
+        if(100*get_damage_possibility(field->damage,field->growing_percent,field->tolerance)>random){
+            field->is_damaged=true;
+            field->is_detected=false;
+        }
     }
 }
 
@@ -165,9 +177,10 @@ int field_harvest(field_t* field){
 }
 
 //喷农药
-void use_pesticide(field_t* field){
+void field_use_pesticide(field_t* field){
     if(field->crop_type==CROP_TYPE_NONE||field->stage==CROP_STAGE_READY) return;
     field->is_damaged=false;
+    field->is_detected=false;
     field->damage=max_possibility(field);//打农药，刷新患病概率
 }
 
@@ -219,8 +232,7 @@ bool field_tolerance_update(field_t* field){
     return true;
 }
 
-//监测是否患病及其类型
-crop_damage_t get_damage(field_t* field){
-    if(field->damage!=CROP_DAMAGE_NONE) field->is_detected=true;
+crop_damage_t field_get_damage(field_t* field){
+    field->is_detected=true;
     return field->damage;
 }

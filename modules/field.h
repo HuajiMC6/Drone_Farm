@@ -15,8 +15,8 @@ typedef struct{//田地
     crop_stage_t stage;//生长阶段
 
     crop_damage_t damage;//虫害种类
-    bool is_damaged;//是否染虫害
-    bool is_detected;//是否检测出来
+    bool is_damaged;
+    bool is_detected;//是否检测(防止多游戏刻检测一块地)
 
     int base_output;//基础作物产量
     double factor;//影响因子
@@ -30,8 +30,8 @@ field_t* field_init();
 bool field_plant(field_t* field, crop_type_t type);
 void field_grow(field_t* field);
 int field_harvest(field_t* field);
-void use_pesticide(field_t* field);
-crop_damage_t get_damage(field_t* field);
+void field_use_pesticide(field_t* field);
+crop_damage_t field_get_damage(field_t* field);
 
 // 升级接口(升级下一季生效)
 bool field_output_update(field_t* field);

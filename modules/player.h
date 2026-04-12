@@ -19,14 +19,14 @@ extern int plant_exp_earn;
 extern int use_pesticide_exp_earn;
 extern int experience_level[40];
 
-player_t *get_player_instance();
+player_t *player_get_instance();
 void player_init();
 bool player_buy_seed(crop_type_t seed_type,int n);
 bool player_buy_pesticide(crop_pesticide_t pesticide_type,int n);
 bool player_plant(field_t *field,crop_type_t crop_type);
 bool player_harvest(field_t *field);
 bool player_sold(crop_type_t crop_type,int n);
-bool player_auto_drone(pos_t pos);
+void player_use_pesticide_exp();
 
 
 //drone

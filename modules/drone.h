@@ -18,12 +18,13 @@ typedef struct{
     int pesticide_storage[CROP_PESTICIDE_NONE];//0 1 2 3与枚举类型对应
     int storage_capacity;
     int storage_level;//0 1 2 3
+    pos_t current_pos;
 }drone_t;
 
-drone_t *get_drone_instance();
+drone_t *drone_get_instance();
 void drone_init();
 
-crop_damage_t get_damage_information(pos_t pos);
+crop_damage_t get_damage_information();
 
 bool drone_algorithm_update();
 bool drone_speed_update();
@@ -31,7 +32,10 @@ bool drone_storage_update();
 
 pos_t* auto_path(int *out_len);
 
-bool ensure_pesticide(pos_t pos);
-bool add_pesticide(crop_pesticide_t pesticide,int n);
+bool drone_ensure_pesticide(pos_t pos);
+bool drone_add_pesticide(crop_pesticide_t pesticide,int n);
+
+//joystick_move
+void drone_move(pos_t vector);
 
 #endif
