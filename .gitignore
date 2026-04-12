@@ -1,0 +1,49 @@
+# 编译输出目录
+/Listings/
+/Objects/
+
+# Keil MDK 生成的文件
+*.crf
+*.d
+*.o
+*.axf
+*.hex
+*.bin
+*.map
+*.lst
+*.htm
+*.lnp
+*.sct
+*.dep
+*.iex
+*.jlink
+*.scvd
+*.uvgui*
+*.uvoptx
+*.uvbuild
+*.uvmpw
+*.uvtmp
+
+# 用户特定与本地配置文件
+*.user
+*.emf
+*.backup
+*.old
+*.bak
+
+# 日志与临时文件
+*.log
+*.tmp
+*~
+
+# 编辑器目录 / 文件
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 可选：防止意外添加 .git 自身
+/.git/
+
+# 显式忽略 EventRecorder 生成的文件
+EventRecorderStub.scvd
