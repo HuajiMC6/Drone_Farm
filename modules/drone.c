@@ -1,5 +1,6 @@
 #include "drone.h"
 #include "enum.h"
+#include "player.h"
 #include <stdlib.h>
 #include <stdbool.h>
 

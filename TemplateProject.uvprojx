@@ -554,6 +554,26 @@
               <FileType>5</FileType>
               <FilePath>.\modules\field.h</FilePath>
             </File>
+            <File>
+              <FileName>player.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\modules\player.c</FilePath>
+            </File>
+            <File>
+              <FileName>player.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\modules\player.h</FilePath>
+            </File>
+            <File>
+              <FileName>store.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\modules\store.c</FilePath>
+            </File>
+            <File>
+              <FileName>store.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\modules\store.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

@@ -137,6 +137,13 @@ void drag_to_plant_cb(lv_event_t *e) {
     }
 }
 
+void drone_click_cb(lv_event_t *e) {
+	if(!g_current_window) {
+		g_current_window = ((lv_obj_t * (*)(void))lv_event_get_user_data(e))();
+	} else {
+		lv_obj_del_async(g_current_window);
+	}
+}
 
 void crop_growing_bar_event(lv_event_t *e) {
 	lv_obj_draw_part_dsc_t *dsc = lv_event_get_param(e);

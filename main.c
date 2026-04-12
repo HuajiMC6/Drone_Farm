@@ -1,6 +1,8 @@
 #include "drivers.h"
 #include "ui.h"
 #include "farm.h"
+#include "drone.h"
+#include "player.h"
 #include "joystick.h"
 
 #include <stdlib.h>
@@ -23,6 +25,8 @@ int main()
 
     /* Farm Instance Initialization */
     farm_init();
+	player_init();
+	drone_init();
     /* UI Initializaiton */
     ui_init();
     ui_update_timer_init();

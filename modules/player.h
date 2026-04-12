@@ -28,7 +28,6 @@ bool player_harvest(field_t *field);
 bool player_sold(crop_type_t crop_type,int n);
 void player_use_pesticide_exp();
 
-
 //drone
 bool player_buy_drone_speed_update();
 bool player_buy_drone_algorithm_update();

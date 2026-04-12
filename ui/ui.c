@@ -28,6 +28,8 @@ static lv_obj_t *ui_icon_btn_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h
 static lv_obj_t *ui_seed_table_create(lv_obj_t *parent);
 static lv_obj_t *ui_plant_window_create();
 static lv_obj_t *ui_drone_create(lv_obj_t *parent);
+static lv_obj_t *drone_window_create();
+static void ui_drone_set_pos(lv_coord_t x, lv_coord_t y);
 static void ui_update();
 
 void ui_init(void)
@@ -154,8 +156,14 @@ static lv_obj_t *ui_drone_create(lv_obj_t *parent) {
 	lv_label_set_text(label, "This is a drone");
 	
 	lv_obj_set_size(drone, 40, 40);
-	lv_obj_align_to(drone, farm_grid, LV_ALIGN_TOP_LEFT, 0, 0);
-	lv_obj_set_pos(drone, -60, 20);
+	
+	//lv_obj_set_pos(drone, -60, 20);
+	
+	return drone;
+}
+
+static void ui_drone_set_pos(lv_coord_t x, lv_coord_t y) {
+	lv_obj_align_to(g_drone, farm_grid, LV_ALIGN_TOP_LEFT, x - 20, y - 20);
 }
 
 static lv_obj_t *drone_window_create() {
@@ -283,8 +291,8 @@ static void ui_update()
 			.y = joystick_get_dir_y()
 		};
 		drone_move(vector);
-		pos_t *pos = drone_get_instance()->current_pos;
-		lv_obj_set_pos(g_drone, pos.x, pos.y);
+		pos_t pos = drone_get_instance()->current_pos;
+		ui_drone_set_pos(pos.x * 0.8, pos.y * 0.8);
 	}
 }
 
