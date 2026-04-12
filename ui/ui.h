@@ -15,12 +15,12 @@ typedef enum {
 
 typedef struct {
 	lv_obj_t *obj;
-	lv_obj_t *window;
 	field_t *field;
 	bool is_planted;
 	uint8_t x;
 	uint8_t y;
-	icon_pest_type_t pest_type;
+	bool has_pest;
+	bool is_detected;
 } farm_block_t;
 
 extern lv_obj_t * g_current_window;

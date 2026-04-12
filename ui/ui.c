@@ -3,6 +3,8 @@
 #include "icon.h"
 #include "sdram_malloc.h"
 #include "enum.h"
+#include "drone.h"
+#include "joystick.h"
 
 #define FARM_GRID_N farm_get_instance()->current_size
 #define FARM_BLOCK_SIZE 80
@@ -11,6 +13,7 @@ static lv_obj_t *g_screen_load;
 static lv_obj_t *g_screen_main;
 
 static lv_obj_t *farm_grid = NULL;
+static lv_obj_t *g_drone = NULL;
 
 lv_obj_t *g_current_window = NULL;
 
@@ -24,6 +27,7 @@ static void ui_gold_bar_create(lv_obj_t *parent);
 static lv_obj_t *ui_icon_btn_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h, const void *img, lv_coord_t x, lv_coord_t y);
 static lv_obj_t *ui_seed_table_create(lv_obj_t *parent);
 static lv_obj_t *ui_plant_window_create();
+static lv_obj_t *ui_drone_create(lv_obj_t *parent);
 static void ui_update();
 
 void ui_init(void)
@@ -60,6 +64,9 @@ static void ui_screen_main_create()
 
 	/* 金币显示 */
 	ui_gold_bar_create(g_screen_main);
+	
+	/* 无人机 */
+	g_drone = ui_drone_create(g_screen_main);
 
 	/* 相关按钮 */
 	lv_obj_t *shop_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_shop_btn, 40, 380);
@@ -90,9 +97,10 @@ static void ui_farm_grid_create(lv_obj_t *parent)
 			field_t *field = farm_get_instance()->fields[i][j];
 			farm_block_t *block = &g_farm_blocks[i][j];
 			block->obj = ui_div_create(farm_grid);
-			block->window = NULL;
 			block->field = field;
 			block->is_planted = field->crop_type != CROP_TYPE_NONE;
+			block->has_pest = field->damage != CROP_DAMAGE_NONE;
+			block->is_detected = field->is_detected;
 			block->x = i;
 			block->y = j;
 
@@ -135,6 +143,32 @@ static void ui_farm_grid_update()
 			}
 		}
 	}
+}
+
+static lv_obj_t *ui_drone_create(lv_obj_t *parent) {
+	lv_obj_t *drone = lv_btn_create(parent);
+	lv_obj_add_event_cb(drone, drone_click_cb, LV_EVENT_CLICKED, drone_window_create);
+	
+	// for simulate
+	lv_obj_t *label = lv_label_create(drone);
+	lv_label_set_text(label, "This is a drone");
+	
+	lv_obj_set_size(drone, 40, 40);
+	lv_obj_align_to(drone, farm_grid, LV_ALIGN_TOP_LEFT, 0, 0);
+	lv_obj_set_pos(drone, -60, 20);
+}
+
+static lv_obj_t *drone_window_create() {
+	lv_obj_t *body = ui_div_create(g_screen_main);
+	lv_obj_t *label = lv_label_create(body);
+	drone_t *drone = drone_get_instance();
+	lv_label_set_text_fmt(label, "Speed Level: %d\nStorage Level: %d", drone->speed_level, drone->storage_level);
+
+	lv_obj_t *div = ui_window_create("PLANT", body, NULL, NULL, NULL, NULL, NULL);
+	lv_obj_align_to(div, g_drone, LV_ALIGN_TOP_RIGHT, 20, -40);
+	lv_obj_set_size(div, 206, 220);
+
+	return div;
 }
 
 static lv_obj_t *ui_crop_grwoing_bar(lv_obj_t *parent)
@@ -241,6 +275,17 @@ static void ui_update()
 {
 	/* UPDATE farm grid */
 	ui_farm_grid_update();
+	
+	/*  */
+	if(1) {
+		pos_t vector = {
+			.x = joystick_get_dir_x(),
+			.y = joystick_get_dir_y()
+		};
+		drone_move(vector);
+		pos_t *pos = drone_get_instance()->current_pos;
+		lv_obj_set_pos(g_drone, pos.x, pos.y);
+	}
 }
 
 lv_obj_t *ui_div_create(lv_obj_t *parent)
