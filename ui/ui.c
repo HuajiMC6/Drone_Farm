@@ -153,7 +153,8 @@ static lv_obj_t *ui_drone_create(lv_obj_t *parent) {
 	
 	// for simulate
 	lv_obj_t *label = lv_label_create(drone);
-	lv_label_set_text(label, "This is a drone");
+	lv_label_set_text(label, "Drone");
+	lv_obj_set_style_pad_all(drone, 0, 0);
 	
 	lv_obj_set_size(drone, 40, 40);
 	
@@ -165,15 +166,26 @@ static lv_obj_t *ui_drone_create(lv_obj_t *parent) {
 static void ui_drone_set_pos(lv_coord_t x, lv_coord_t y) {
 	lv_obj_align_to(g_drone, farm_grid, LV_ALIGN_TOP_LEFT, x - 20, y - 20);
 }
-
+void test_cb(lv_event_t *e) {
+	drone_state_t *state = lv_event_get_user_data(e);
+	if(*state == DRONE_STATE_DETECTING) {
+		drone_switch(DRONE_STATE_FREE);
+	} else if(*state == DRONE_STATE_FREE) {
+		drone_switch(DRONE_STATE_DETECTING);
+	}
+}
 static lv_obj_t *drone_window_create() {
 	lv_obj_t *body = ui_div_create(g_screen_main);
-	lv_obj_t *label = lv_label_create(body);
 	drone_t *drone = drone_get_instance();
+	
+	lv_obj_t *label = lv_label_create(body);
 	lv_label_set_text_fmt(label, "Speed Level: %d\nStorage Level: %d", drone->speed_level, drone->storage_level);
+	
+	lv_obj_t *test_btn = lv_btn_create(body);
+	lv_obj_add_event_cb(test_btn, test_cb, LV_EVENT_CLICKED, &drone->drone_state);
 
 	lv_obj_t *div = ui_window_create("PLANT", body, NULL, NULL, NULL, NULL, NULL);
-	lv_obj_align_to(div, g_drone, LV_ALIGN_TOP_RIGHT, 20, -40);
+	lv_obj_align_to(div, g_drone, LV_ALIGN_OUT_RIGHT_TOP, 20, -40);
 	lv_obj_set_size(div, 206, 220);
 
 	return div;
@@ -285,14 +297,17 @@ static void ui_update()
 	ui_farm_grid_update();
 	
 	/*  */
-	if(1) {
+	drone_t *drone = drone_get_instance();
+	if(drone->drone_state == DRONE_STATE_DETECTING) {
 		pos_t vector = {
 			.x = joystick_get_dir_x(),
 			.y = joystick_get_dir_y()
 		};
 		drone_move(vector);
-		pos_t pos = drone_get_instance()->current_pos;
+		pos_t pos = drone->current_pos;
 		ui_drone_set_pos(pos.x * 0.8, pos.y * 0.8);
+	} else {
+		ui_drone_set_pos(-40, 40);
 	}
 }
 
