@@ -5,14 +5,13 @@
 
 static farm_t *s_farm = NULL;
 
-int farm_init(){
+void farm_init(){
 	if(s_farm == NULL) {
 		s_farm=(farm_t*)malloc(sizeof(farm_t));
 		for(int i=0;i<10;i++) for(int j=0;j<10;j++) s_farm->fields[i][j]=field_init();
 		s_farm->current_size=5;
 		s_farm->size_level=0;
 	}
-    return 0;
 }
 
 farm_t *farm_get_instance() {

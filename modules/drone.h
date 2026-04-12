@@ -2,7 +2,6 @@
 #define DRONE_H
 #include "enum.h"
 #include "farm.h"
-#include "player.h"
 #include <stdbool.h>
 
 typedef struct{
