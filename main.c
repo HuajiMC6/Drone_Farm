@@ -1,6 +1,7 @@
 #include "drivers.h"
 #include "ui.h"
 #include "farm.h"
+#include "joystick.h"
 
 #include <stdlib.h>
 #include <time.h>
@@ -19,17 +20,19 @@ int main()
     lv_init();
     lv_port_disp_init();
     lv_port_indev_init();
-	
-	/* Farm instance initialization */
-	farm_init();
-	/* UI Initializaiton */
-	ui_init();
-	ui_update_timer_init();
-	/* Heartbeat timer init */
-	lv_timer_create(heartbeat_timer_cb, 1000, NULL);
-	/* Random init */
-	srand((unsigned int) SysTick->VAL);
-	 
+
+    /* Farm Instance Initialization */
+    farm_init();
+    /* UI Initializaiton */
+    ui_init();
+    ui_update_timer_init();
+    /* Heartbeat Timer Init */
+    lv_timer_create(heartbeat_timer_cb, 1000, NULL);
+    /* Random Init */
+    srand((unsigned int)SysTick->VAL);
+    /* Joystick Init */
+    joystick_init();
+
     while (1)
     {
         delay_us(2000);
@@ -37,7 +40,7 @@ int main()
     }
 }
 
-
-void heartbeat_timer_cb(lv_timer_t *timer) {
-	farm_grow(farm_get_instance());
+void heartbeat_timer_cb(lv_timer_t *timer)
+{
+    farm_grow(farm_get_instance());
 }

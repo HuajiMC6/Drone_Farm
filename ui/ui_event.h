@@ -16,5 +16,6 @@ void screen_main_click_cb(lv_event_t *e);
 void plant_btn_click_cb(lv_event_t *e);
 void drag_to_plant_cb(lv_event_t *e);
 void crop_growing_bar_event(lv_event_t *e);
+void window_delete_cb(lv_event_t *e);
 
 #endif

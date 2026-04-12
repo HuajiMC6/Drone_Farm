@@ -23,6 +23,7 @@ typedef struct {
 	icon_pest_type_t pest_type;
 } farm_block_t;
 
+extern lv_obj_t * g_current_window;
 
 // UI层初始化
 void ui_init(void);
@@ -30,5 +31,11 @@ void ui_init(void);
 void ui_screen_switch(ui_screen_type_t screen);
 // UI数据刷新定时器初始化
 void ui_update_timer_init();
+
+
+/* 工具函数 */
+lv_obj_t *ui_div_create(lv_obj_t *parent);
+lv_obj_t *ui_window_create(const char *title, lv_obj_t *body, const void *btn1_text, void (*btn1_cb)(lv_event_t *), const void *btn2_text, void (*btn2_cb)(lv_event_t *), void *user_data);
+	
 
 #endif

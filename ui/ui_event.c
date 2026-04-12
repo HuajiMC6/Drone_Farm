@@ -4,6 +4,7 @@
 static bool ui_lv_obj_is_overlap(lv_obj_t *obj1, lv_obj_t *obj2, lv_coord_t hor_offset, lv_coord_t ver_offset);
 
 void farm_block_click_cb(lv_event_t *e) {
+	/* 处理地块高亮 */
 	lv_obj_t *btn = lv_event_get_target(e);
     if (!lv_obj_has_state(btn, LV_STATE_CHECKED)) return;
 
@@ -15,33 +16,47 @@ void farm_block_click_cb(lv_event_t *e) {
             lv_obj_clear_state(child, LV_STATE_CHECKED);
         }
     }
+	
+	/* 种植弹窗 */
+	farm_block_t *info = lv_obj_get_user_data(btn);
+	lv_obj_t *scr = lv_event_get_user_data(e);
+	if(info->is_planted) {
+		// TO DO...
+	}
 }
 
 void screen_main_click_cb(lv_event_t *e) {
 	lv_obj_t *target = lv_event_get_target(e);
-	lv_obj_t *farm_field = lv_event_get_user_data(e);
-
-    // 如果点击的目标是父容器或其内部子对象，则不处理
-    if (target == farm_field || lv_obj_get_parent(target) == farm_field) {
-        return;
-    }
-
-    // 点击外部，清除所有选中状态
-    lv_obj_t *child;
-    uint8_t idx = 0;
-    while ((child = lv_obj_get_child(farm_field, idx++)) != NULL) {
-            lv_obj_clear_state(child, LV_STATE_CHECKED);
-    }
+	
+	lv_obj_t *obj = lv_event_get_user_data(e);
+	
+	// 如果点击的目标是父容器或其内部子对象，则不处理
+	if (target == obj || lv_obj_get_parent(target) == obj) {
+		return;
+	}
+	
+	if(g_current_window) {
+		lv_obj_del_async(g_current_window);
+	} else {
+		lv_obj_t *child;
+		uint8_t idx = 0;
+		while ((child = lv_obj_get_child(obj, idx++)) != NULL) {
+			lv_obj_clear_state(child, LV_STATE_CHECKED);
+		}
+	}
+	
 }
 
 void plant_btn_click_cb(lv_event_t *e) {
-	static lv_obj_t *window;
-	if(!window) {
-		window = ((lv_obj_t * (*)(void))lv_event_get_user_data(e))();
+	if(!g_current_window) {
+		g_current_window = ((lv_obj_t * (*)(void))lv_event_get_user_data(e))();
 	} else {
-		lv_obj_del(window);
-		window = NULL;
+		lv_obj_del_async(g_current_window);
 	}
+}
+
+void window_delete_cb(lv_event_t *e) {
+    g_current_window = NULL;
 }
 
 void drag_to_plant_cb(lv_event_t *e) {
@@ -105,7 +120,7 @@ void drag_to_plant_cb(lv_event_t *e) {
 			
             break;
         case LV_EVENT_RELEASED: // 松手
-			/**/
+			/* 种植 */
 			if(current_target) {
 				farm_block_t *block_data = lv_obj_get_user_data(current_target);
 				if(!block_data->is_planted)
