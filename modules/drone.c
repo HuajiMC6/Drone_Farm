@@ -21,7 +21,12 @@ void drone_init(){
         for(int i=0;i<10;i++) for(int j=0;j<10;j++) s_drone->one_zero_matrix[i][j]=0;
         for(int i=0;i<4;i++) s_drone->pesticide_storage[i]=0;
         s_drone->current_pos.x=0,s_drone->current_pos.y=0;
+        s_drone->drone_state=DRONE_STATE_FREE;
     }
+}
+
+void drone_switch(drone_state_t drone_state){
+    s_drone->drone_state=drone_state;
 }
 
 crop_damage_t get_damage_information(){

@@ -18,10 +18,12 @@ typedef struct{
     int storage_capacity;
     int storage_level;//0 1 2 3
     pos_t current_pos;
+    drone_state_t drone_state;
 }drone_t;
 
 drone_t *drone_get_instance();
 void drone_init();
+void drone_switch(drone_state_t drone_state);
 
 crop_damage_t get_damage_information();
 

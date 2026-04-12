@@ -34,4 +34,10 @@ typedef enum{//生长阶段
 	CROP_STAGE_NONE
 }crop_stage_t;
 
+typedef enum{//
+    DRONE_STATE_FREE,
+    DRONE_STATE_DETECTING,
+    DRONE_STATE_AUTO
+}drone_state_t;
+
 #endif
