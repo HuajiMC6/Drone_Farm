@@ -61,14 +61,23 @@ void ui_event_handler(event_t *event)
 	if (event == NULL)
 		return;
 
-	switch (event->type)
+	switch (event->type) // 后续细致处理
 	{
-	case EVENT_FIELD_UPDATE:
+	case EVENT_ON_FIELD_PLANTED:
+	case EVENT_ON_FIELD_CLEARED:
+	case EVENT_ON_FIELD_HARVESTED:
+	case EVENT_ON_CROP_STAGE_CHANGE:
+	case EVENT_ON_PEST_DETECTED:
+	case EVENT_ON_PEST_COMMITTED:
+	case EVENT_ON_PEST_CLEARED:
+	case EVENT_ON_FIELD_UPGRADE:
 		field_t *data = event->data;
 		ui_field_update(data->x, data->y);
 		break;
-	case EVENT_PLAYER_UPDATE:
-		// ui_gold_bar_create(g_screen_main);
+	case EVENT_ON_PLAYER_COIN_CHANGE:
+	case EVENT_ON_PLAYER_EXPERIENCE_CHANGE:
+	case EVENT_ON_PLAYER_LEVEL_UPGRADE:
+		// Handle player-related events
 		break;
 	default:
 		break;
@@ -352,6 +361,7 @@ static void ui_update_1s()
 			farm_block_t *block = &g_farm_blocks[i][j];
 			if (block->is_planted)
 			{
+				/* UPDATE growing bar */
 				lv_bar_set_range(block->growing_bar, 0, block->field->ready_time);
 				lv_bar_set_value(block->growing_bar, block->field->growing_time, LV_ANIM_OFF);
 			}
