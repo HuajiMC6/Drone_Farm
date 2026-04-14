@@ -5,6 +5,7 @@
 #include "player.h"
 #include "joystick.h"
 
+
 #include <stdlib.h>
 #include <time.h>
 
@@ -25,8 +26,8 @@ int main()
 
     /* Farm Instance Initialization */
     farm_init();
-	player_init();
-	drone_init();
+    player_init();
+    drone_init();
     /* UI Initializaiton */
     ui_init();
     ui_update_timer_init();
@@ -41,10 +42,12 @@ int main()
     {
         delay_us(2000);
         lv_timer_handler();
+
+        ui_event_handler(event_get());
     }
 }
 
 void heartbeat_timer_cb(lv_timer_t *timer)
 {
-    farm_grow(farm_get_instance());
+    farm_grow();
 }
