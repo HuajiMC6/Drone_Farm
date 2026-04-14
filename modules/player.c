@@ -170,16 +170,16 @@ bool player_buy_farm_size_update()
 }
 
 // field update
-bool player_buy_field_output_update(pos_t pos)
+bool player_buy_field_output_upgrade(pos_t pos)
 {
     farm_t *farm = farm_get_instance();
     field_t *field = farm->fields[pos.x][pos.y];
     if (field->output_level >= 3)
         return false;
-    int price = field_output_update_price[field->output_level] * level_discount[s_player->level_stage];
+    int price = field_output_upgrade_price[field->output_level] * level_discount[s_player->level_stage];
     if (s_player->coins >= price)
     {
-        if (field_output_update(field))
+        if (field_output_upgrade(field))
         {
             player_set_coins(s_player->coins - price);
             return true;
@@ -188,16 +188,16 @@ bool player_buy_field_output_update(pos_t pos)
     return false;
 }
 
-bool player_buy_field_ready_time_update(pos_t pos)
+bool player_buy_field_ready_time_upgrade(pos_t pos)
 {
     farm_t *farm = farm_get_instance();
     field_t *field = farm->fields[pos.x][pos.y];
     if (field->ready_time_level >= 3)
         return false;
-    int price = field_ready_time_update_price[field->ready_time_level] * level_discount[s_player->level_stage];
+    int price = field_ready_time_upgrade_price[field->ready_time_level] * level_discount[s_player->level_stage];
     if (s_player->coins >= price)
     {
-        if (field_ready_time_update(field))
+        if (field_ready_time_upgrade(field))
         {
             player_set_coins(s_player->coins - price);
             return true;
@@ -206,16 +206,16 @@ bool player_buy_field_ready_time_update(pos_t pos)
     return false;
 }
 
-bool player_buy_field_tolerance_update(pos_t pos)
+bool player_buy_field_tolerance_upgrade(pos_t pos)
 {
     farm_t *farm = farm_get_instance();
     field_t *field = farm->fields[pos.x][pos.y];
     if (field->tolerance_level >= 3)
         return false;
-    int price = field_tolerance_update_price[field->tolerance_level] * level_discount[s_player->level_stage];
+    int price = field_tolerance_upgrade_price[field->tolerance_level] * level_discount[s_player->level_stage];
     if (s_player->coins >= price)
     {
-        if (field_tolerance_update(field))
+        if (field_tolerance_upgrade(field))
         {
             player_set_coins(s_player->coins - price);
             return true;

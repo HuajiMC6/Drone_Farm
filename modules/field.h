@@ -39,8 +39,8 @@ void field_use_pesticide(field_t *field);
 crop_damage_t field_get_damage(field_t *field);
 
 // 升级接口(升级下一季生效)
-bool field_output_update(field_t *field);
-bool field_ready_time_update(field_t *field);
-bool field_tolerance_update(field_t *field);
+bool field_output_upgrade(field_t *field);
+bool field_ready_time_upgrade(field_t *field);
+bool field_tolerance_upgrade(field_t *field);
 
 #endif
