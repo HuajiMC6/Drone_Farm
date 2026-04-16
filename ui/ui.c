@@ -5,6 +5,7 @@
 #include "enum.h"
 #include "drone.h"
 #include "joystick.h"
+#include "ui_grid_list.h"
 
 #define FARM_GRID_N farm_get_instance()->current_size
 #define FARM_BLOCK_SIZE 80
@@ -30,6 +31,8 @@ static lv_obj_t *ui_seed_table_create(lv_obj_t *parent);
 static lv_obj_t *ui_plant_window_create();
 static lv_obj_t *ui_drone_create(lv_obj_t *parent);
 static lv_obj_t *drone_window_create();
+static const char *ui_crop_type_name(crop_type_t type);
+static const void *ui_crop_drag_img(crop_type_t type);
 static void ui_drone_set_pos(lv_coord_t x, lv_coord_t y);
 static void ui_update_100ms();
 static void ui_update_1s();
@@ -173,23 +176,19 @@ static void ui_field_update(int x, int y)
 	{
 		lv_img_set_src(block->crop_img, icon_get_crop(block->field->crop_type, block->field->stage));
 	}
-	else
-	{
-		lv_obj_clean(block->obj);
-	}
 }
 
 static lv_obj_t *ui_drone_create(lv_obj_t *parent)
 {
-	lv_obj_t *drone = lv_btn_create(parent);
+	lv_obj_t *drone = lv_animimg_create(parent);
+	static const lv_img_dsc_t *drone_imgs[] = {&icon_drone_0, &icon_drone_1};
+	lv_animimg_set_src(drone, (lv_img_dsc_t **)drone_imgs, 2);
+	lv_animimg_set_duration(drone, 150);
+	lv_animimg_set_repeat_count(drone, LV_ANIM_REPEAT_INFINITE);
+	lv_obj_add_flag(drone, LV_OBJ_FLAG_CLICKABLE);
 	lv_obj_add_event_cb(drone, drone_click_cb, LV_EVENT_CLICKED, drone_window_create);
-
-	// for simulate
-	lv_obj_t *label = lv_label_create(drone);
-	lv_label_set_text(label, "Drone");
-	lv_obj_set_style_pad_all(drone, 0, 0);
-
-	lv_obj_set_size(drone, 40, 40);
+	lv_animimg_start(drone);
+	// lv_obj_set_size(drone, 40, 40);
 
 	// lv_obj_set_pos(drone, -60, 20);
 
@@ -265,53 +264,97 @@ static lv_obj_t *ui_icon_btn_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h
 
 static lv_obj_t *ui_seed_table_create(lv_obj_t *parent)
 {
-	static lv_coord_t col_dsc[] = {60, 60, 60, LV_GRID_TEMPLATE_LAST};
-	static lv_coord_t row_dsc[] = {60, 60, 60, LV_GRID_TEMPLATE_LAST};
+	ui_grid_list_cfg_t cfg;
+	ui_grid_list_cfg_init(&cfg);
+	cfg.item_w = 60;
+	cfg.item_h = 60;
+	cfg.col_count = 3;
+	cfg.row_count = 3;
 
-	lv_obj_t *grid = ui_div_create(parent);
-	lv_obj_set_layout(grid, LV_LAYOUT_GRID);
-	lv_obj_set_grid_dsc_array(grid, col_dsc, row_dsc);
+	ui_grid_list_t *list = ui_grid_list_create(parent, &cfg);
+	if (!list)
+	{
+		return NULL;
+	}
 
-	lv_obj_set_size(grid, 200, 300);
-	lv_obj_set_style_pad_column(grid, 5, 0);
-	lv_obj_set_style_pad_row(grid, 5, 0);
-	lv_obj_set_style_pad_all(grid, 3, 0);
-
-	// lv_obj_set_scrollbar_mode(grid, LV_SCROLLBAR_MODE_ON);
+	lv_obj_t *grid = ui_grid_list_get_obj(list);
 
 	static ui_drag_to_plant_desc_t seeds[CROP_TYPE_NONE];
 
 	crop_type_t i;
 	lv_obj_t *obj;
-	lv_obj_t *label;
 	for (i = 0; i < CROP_TYPE_NONE; i++)
 	{
-		uint8_t col = i % 3;
-		uint8_t row = i / 3;
-		obj = lv_obj_create(grid);
-		lv_obj_set_grid_cell(obj, LV_GRID_ALIGN_STRETCH, col, 1,
-							 LV_GRID_ALIGN_STRETCH, row, 1);
+		obj = ui_grid_list_add_item(list);
+		if (!obj)
+		{
+			break;
+		}
 
-		lv_obj_set_style_bg_color(obj, lv_color_hex(0xffd88a), LV_STATE_DEFAULT);
-		lv_obj_set_style_bg_color(obj, lv_color_make(241, 194, 125), LV_STATE_PRESSED);
-		lv_obj_set_style_border_color(obj, lv_color_make(205, 133, 63), 0);
-		lv_obj_set_style_border_width(obj, 1, 0);
-		// lv_obj_add_event_cb(obj, item_click_cb, LV_EVENT_CLICKED, NULL);
+		const void *drag_img = ui_crop_drag_img(i);
 
-		lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+		lv_obj_t *item_img = lv_img_create(obj);
+		if (drag_img)
+		{
+			lv_img_set_src(item_img, drag_img);
+		}
+		lv_obj_align(item_img, LV_ALIGN_TOP_MID, 0, 4);
 
 		lv_obj_t *item1_label = lv_label_create(obj);
-		lv_label_set_text(item1_label, "Wheat");
+		lv_label_set_text(item1_label, ui_crop_type_name(i));
 		lv_obj_set_style_text_color(item1_label, lv_color_make(60, 42, 29), 0);
 		lv_obj_set_style_text_align(item1_label, LV_TEXT_ALIGN_CENTER, 0);
-		lv_obj_center(item1_label);
+		lv_obj_align(item1_label, LV_ALIGN_BOTTOM_MID, 0, -2);
 
-		seeds[i] = (ui_drag_to_plant_desc_t){.type = i, .img = &icon_crop_wheat_ripe, .fields = farm_grid};
-		lv_obj_add_event_cb(obj, drag_to_plant_cb, LV_EVENT_PRESSING, &seeds[i]);
-		lv_obj_add_event_cb(obj, drag_to_plant_cb, LV_EVENT_RELEASED, &seeds[i]);
+		seeds[i] = (ui_drag_to_plant_desc_t){.type = i, .img = drag_img, .fields = farm_grid};
+		ui_grid_list_bind_item_event(obj, drag_to_plant_cb, LV_EVENT_PRESSING, &seeds[i]);
+		ui_grid_list_bind_item_event(obj, drag_to_plant_cb, LV_EVENT_RELEASED, &seeds[i]);
 	}
 
 	return grid;
+}
+
+// 以下两个函数是ai修改代码时额外生成的，后面更改实现方式
+static const char *ui_crop_type_name(crop_type_t type)
+{
+	switch (type)
+	{
+	case CROP_TYPE_WHEAT:
+		return "Wheat";
+	case CROP_TYPE_RICE:
+		return "Rice";
+	case CROP_TYPE_CORN:
+		return "Corn";
+	default:
+		return "Unknown";
+	}
+}
+
+static const void *ui_crop_drag_img(crop_type_t type)
+{
+	const void *img = icon_get_crop(type, CROP_STAGE_READY);
+	if (img)
+	{
+		return img;
+	}
+
+	img = icon_get_crop(type, CROP_STAGE_SEED);
+	if (img)
+	{
+		return img;
+	}
+
+	switch (type)
+	{
+	case CROP_TYPE_CORN:
+		return &icon_crop_corn_ripe;
+	case CROP_TYPE_WHEAT:
+		return &icon_crop_wheat_ripe;
+	case CROP_TYPE_RICE:
+		return &icon_crop_wheat_ripe;
+	default:
+		return &icon_crop_wheat_ripe;
+	}
 }
 
 static lv_obj_t *ui_plant_window_create()
@@ -338,6 +381,7 @@ static void ui_update_100ms()
 	drone_t *drone = drone_get_instance();
 	if (drone->drone_state == DRONE_STATE_DETECTING)
 	{
+		// lv_animimg_start(g_drone);
 		pos_t vector = {
 			.x = joystick_get_dir_x(),
 			.y = joystick_get_dir_y()};
@@ -347,6 +391,7 @@ static void ui_update_100ms()
 	}
 	else
 	{
+		// lv_anim_del(g_drone, NULL);
 		ui_drone_set_pos(-40, 40);
 	}
 }

@@ -454,6 +454,16 @@
               <FileType>1</FileType>
               <FilePath>.\ui\icon.c</FilePath>
             </File>
+            <File>
+              <FileName>ui_grid_list.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\ui_grid_list.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_grid_list.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\ui\ui_grid_list.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -513,6 +523,16 @@
               <FileName>icon_crop_corn_ripe.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\ui\icon\icon_crop_corn_ripe.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_drone_0.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_drone_0.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_drone_1.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_drone_1.c</FilePath>
             </File>
           </Files>
         </Group>
