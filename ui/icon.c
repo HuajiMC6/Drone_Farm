@@ -12,3 +12,14 @@ const void *icon_get_crop(crop_type_t type, crop_stage_t stage) {
 
     return map[type][stage];
 }
+
+const void *icon_get_pest(crop_damage_t pest) {
+    static const void *const map[CROP_DAMAGE_NONE] = {
+        [CROP_DAMAGE_APHID] = NULL,
+        [CROP_DAMAGE_MITE] = NULL,
+        [CROP_DAMAGE_LEAFROLLER] = NULL,
+        [CROP_DAMAGE_LOCUST] = NULL,
+    };
+
+    return map[pest];
+}

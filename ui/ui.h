@@ -16,6 +16,7 @@ typedef enum {
 typedef struct {
     lv_obj_t *obj;
     lv_obj_t *crop_img;
+    lv_obj_t *pest_img;
     lv_obj_t *growing_bar;
     field_t *field;
     bool is_planted;

@@ -47,13 +47,13 @@ void screen_main_click_cb(lv_event_t *e) {
     }
 }
 
-void plant_btn_click_cb(lv_event_t *e) {
+void main_floating_btn_click_cb(lv_event_t *e) {
     static void *last_window = NULL;
     if (!g_current_window) {
         g_current_window = ((lv_obj_t * (*)(void)) lv_event_get_user_data(e))();
         last_window = lv_event_get_user_data(e);
     } else {
-        lv_obj_del_async(g_current_window);
+        lv_obj_del(g_current_window);
 
         if (last_window != lv_event_get_user_data(e)) { // 如果不是同一个窗口，就在关闭旧窗口后打开新窗口
             g_current_window = ((lv_obj_t * (*)(void)) lv_event_get_user_data(e))();

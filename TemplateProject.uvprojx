@@ -534,6 +534,11 @@
               <FileType>1</FileType>
               <FilePath>.\ui\icon\icon_drone_1.c</FilePath>
             </File>
+            <File>
+              <FileName>icon_pest_unknown.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_pest_unknown.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -658,6 +663,11 @@
               <FileName>gd32h7xx_adc.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\GD32H7xx_standard_peripheral\Source\gd32h7xx_adc.c</FilePath>
+            </File>
+            <File>
+              <FileName>gd32h7xx_trng.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\GD32H7xx_standard_peripheral\Source\gd32h7xx_trng.c</FilePath>
             </File>
           </Files>
         </Group>

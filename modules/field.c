@@ -3,7 +3,6 @@
 #include "event.h"
 #include <stdbool.h>
 #include <stdlib.h>
-#include <time.h>
 
 static int ready_time(crop_type_t type);
 static double calculate_possibility(double a, double b, double c, double t, double decline);
@@ -84,7 +83,8 @@ void field_grow(field_t *field) {
     if (field->damage == CROP_DAMAGE_NONE)
         field->is_damaged = false;
     else
-        field->is_damaged = true; // HuajiMC: 这里是否有逻辑错误 2026/4/14
+        // field->is_damaged = true; // HuajiMC: 这里是否有逻辑错误 2026/4/14
+        ;
 
     // 生长时间++
     field->growing_time++;
@@ -109,14 +109,14 @@ void field_grow(field_t *field) {
     }
 
     // 随机数结算患病情况
-    // srand(time(NULL));这句话一定要在main.c里面用
     if (!field->is_damaged) {
         int random = rand() % 100;
-        if (100 * get_damage_possibility(field->damage, field->growing_percent, field->tolerance) > random) {
+        int prob = 100 * get_damage_possibility(field->damage, field->growing_percent, field->tolerance);
+        if (prob > random * 20) {
             field->is_damaged = true;
             field->is_detected = false;
 
-            event_send(EVENT_ON_PEST_COMMITTED, field);
+            event_send(EVENT_ON_PEST_SUFFERING, field);
         }
     }
 }

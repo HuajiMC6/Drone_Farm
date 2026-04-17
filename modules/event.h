@@ -7,7 +7,7 @@ typedef enum {
     EVENT_ON_FIELD_HARVESTED,          // 收获事件
     EVENT_ON_CROP_STAGE_CHANGE,        // 作物生长阶段改变事件
     EVENT_ON_PEST_DETECTED,            // 虫害检测事件
-    EVENT_ON_PEST_COMMITTED,           // 虫害发生事件
+    EVENT_ON_PEST_SUFFERING,           // 虫害发生事件
     EVENT_ON_PEST_CLEARED,             // 虫害清除事件
     EVENT_ON_FIELD_UPGRADE,            // 田地升级事件
     EVENT_ON_PLAYER_COIN_CHANGE,       // 玩家金币改变事件
