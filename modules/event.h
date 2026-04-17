@@ -1,8 +1,7 @@
 #ifndef __EVENT_H__
 #define __EVENT_H__
 
-typedef enum
-{
+typedef enum {
     EVENT_ON_FIELD_PLANTED,            // 种植事件
     EVENT_ON_FIELD_CLEARED,            // 清空事件
     EVENT_ON_FIELD_HARVESTED,          // 收获事件
@@ -16,8 +15,7 @@ typedef enum
     EVENT_ON_PLAYER_LEVEL_UPGRADE,     // 玩家等级提升事件
 } event_type_t;
 
-typedef struct
-{
+typedef struct {
     event_type_t type;
     void *data;
 } event_t;

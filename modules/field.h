@@ -1,11 +1,10 @@
 #ifndef FIELD_H
 #define FIELD_H
-#include <stdbool.h>
 #include "enum.h"
+#include <stdbool.h>
 
 // 田地
-typedef struct
-{
+typedef struct {
     int x; // 坐标x
     int y; // 坐标y
 

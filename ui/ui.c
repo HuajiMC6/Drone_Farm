@@ -1,10 +1,10 @@
 #include "ui.h"
-#include "ui_event.h"
-#include "icon.h"
-#include "sdram_malloc.h"
-#include "enum.h"
 #include "drone.h"
+#include "enum.h"
+#include "icon.h"
 #include "joystick.h"
+#include "sdram_malloc.h"
+#include "ui_event.h"
 #include "ui_grid_list.h"
 
 #define FARM_GRID_N farm_get_instance()->current_size
@@ -26,7 +26,8 @@ static void ui_farm_grid_create(lv_obj_t *parent);
 static void ui_field_update(int x, int y);
 static lv_obj_t *ui_crop_grwoing_bar(lv_obj_t *parent);
 static void ui_gold_bar_create(lv_obj_t *parent);
-static lv_obj_t *ui_icon_btn_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h, const void *img, lv_coord_t x, lv_coord_t y);
+static lv_obj_t *ui_icon_btn_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h, const void *img, lv_coord_t x,
+                                    lv_coord_t y);
 static lv_obj_t *ui_seed_table_create(lv_obj_t *parent);
 static lv_obj_t *ui_plant_window_create();
 static lv_obj_t *ui_drone_create(lv_obj_t *parent);
@@ -37,475 +38,430 @@ static void ui_drone_set_pos(lv_coord_t x, lv_coord_t y);
 static void ui_update_100ms();
 static void ui_update_1s();
 
-void ui_init(void)
-{
-	ui_screen_main_create();
+void ui_init(void) {
+    ui_screen_main_create();
 
-	ui_screen_switch(UI_SCREEN_MAIN);
+    ui_screen_switch(UI_SCREEN_MAIN);
 }
 
-void ui_screen_switch(ui_screen_type_t screen)
-{
-	switch (screen)
-	{
-	case UI_SCREEN_LOAD:
-		lv_scr_load(g_screen_load);
-		break;
-	case UI_SCREEN_MAIN:
-		lv_scr_load(g_screen_main);
-		break;
-	default:
-		lv_scr_load(g_screen_main);
-	}
+void ui_screen_switch(ui_screen_type_t screen) {
+    switch (screen) {
+        case UI_SCREEN_LOAD:
+            lv_scr_load(g_screen_load);
+            break;
+        case UI_SCREEN_MAIN:
+            lv_scr_load(g_screen_main);
+            break;
+        default:
+            lv_scr_load(g_screen_main);
+    }
 }
 
-void ui_event_handler(event_t *event)
-{
-	if (event == NULL)
-		return;
+void ui_event_handler(event_t *event) {
+    if (event == NULL)
+        return;
 
-	switch (event->type) // 后续细致处理
-	{
-	case EVENT_ON_FIELD_PLANTED:
-	case EVENT_ON_FIELD_CLEARED:
-	case EVENT_ON_FIELD_HARVESTED:
-	case EVENT_ON_CROP_STAGE_CHANGE:
-	case EVENT_ON_PEST_DETECTED:
-	case EVENT_ON_PEST_COMMITTED:
-	case EVENT_ON_PEST_CLEARED:
-	case EVENT_ON_FIELD_UPGRADE:
-		field_t *data = event->data;
-		ui_field_update(data->x, data->y);
-		break;
-	case EVENT_ON_PLAYER_COIN_CHANGE:
-	case EVENT_ON_PLAYER_EXPERIENCE_CHANGE:
-	case EVENT_ON_PLAYER_LEVEL_UPGRADE:
-		// Handle player-related events
-		break;
-	default:
-		break;
-	}
+    switch (event->type) // 后续细致处理
+    {
+        case EVENT_ON_FIELD_PLANTED:
+        case EVENT_ON_FIELD_CLEARED:
+        case EVENT_ON_FIELD_HARVESTED:
+        case EVENT_ON_CROP_STAGE_CHANGE:
+        case EVENT_ON_PEST_DETECTED:
+        case EVENT_ON_PEST_COMMITTED:
+        case EVENT_ON_PEST_CLEARED:
+        case EVENT_ON_FIELD_UPGRADE:
+            field_t *data = event->data;
+            ui_field_update(data->x, data->y);
+            break;
+        case EVENT_ON_PLAYER_COIN_CHANGE:
+        case EVENT_ON_PLAYER_EXPERIENCE_CHANGE:
+        case EVENT_ON_PLAYER_LEVEL_UPGRADE:
+            // Handle player-related events
+            break;
+        default:
+            break;
+    }
 }
 
-static void ui_screen_main_create()
-{
-	g_screen_main = lv_obj_create(NULL);
-	lv_obj_set_style_bg_img_src(g_screen_main, &icon_farm_bg, 0);
-	lv_obj_set_style_bg_img_tiled(g_screen_main, true, 0);
+static void ui_screen_main_create() {
+    g_screen_main = lv_obj_create(NULL);
+    lv_obj_set_style_bg_img_src(g_screen_main, &icon_farm_bg, 0);
+    lv_obj_set_style_bg_img_tiled(g_screen_main, true, 0);
 
-	/* 田地 */
-	ui_farm_grid_create(g_screen_main);
-	lv_obj_add_event_cb(g_screen_main, screen_main_click_cb, LV_EVENT_CLICKED, farm_grid);
+    /* 田地 */
+    ui_farm_grid_create(g_screen_main);
+    lv_obj_add_event_cb(g_screen_main, screen_main_click_cb, LV_EVENT_CLICKED, farm_grid);
 
-	/* 金币显示 */
-	ui_gold_bar_create(g_screen_main);
+    /* 金币显示 */
+    ui_gold_bar_create(g_screen_main);
 
-	/* 无人机 */
-	g_drone = ui_drone_create(g_screen_main);
+    /* 无人机 */
+    g_drone = ui_drone_create(g_screen_main);
 
-	/* 相关按钮 */
-	lv_obj_t *shop_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_shop_btn, 40, 380);
-	lv_obj_t *storage_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_storage_btn, 40, 460);
-	lv_obj_t *plant_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_plant_btn, 920, 450);
-	lv_obj_t *setting_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_setting_btn, 920, 40);
+    /* 相关按钮 */
+    lv_obj_t *shop_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_shop_btn, 40, 380);
+    lv_obj_t *storage_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_storage_btn, 40, 460);
+    lv_obj_t *plant_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_plant_btn, 920, 450);
+    lv_obj_t *setting_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_setting_btn, 920, 40);
 
-	/* 按钮回调 */
-	lv_obj_add_event_cb(plant_btn, plant_btn_click_cb, LV_EVENT_CLICKED, ui_plant_window_create);
+    /* 按钮回调 */
+    lv_obj_add_event_cb(plant_btn, plant_btn_click_cb, LV_EVENT_CLICKED, ui_plant_window_create);
+    lv_obj_add_event_cb(storage_btn, plant_btn_click_cb, LV_EVENT_CLICKED, ui_plant_window_create);
 
-	lv_obj_add_event_cb(g_screen_main, screen_main_click_cb, LV_EVENT_CLICKED, g_current_window);
+    lv_obj_add_event_cb(g_screen_main, screen_main_click_cb, LV_EVENT_CLICKED, g_current_window);
 }
 
-static void ui_farm_grid_create(lv_obj_t *parent)
-{
-	if (farm_grid != NULL)
-		return;
+static void ui_farm_grid_create(lv_obj_t *parent) {
+    if (farm_grid != NULL)
+        return;
 
-	farm_grid = ui_div_create(parent);
-	lv_obj_set_size(farm_grid, FARM_GRID_N * FARM_BLOCK_SIZE, FARM_GRID_N * FARM_BLOCK_SIZE + 160);
-	lv_obj_set_align(farm_grid, LV_ALIGN_TOP_MID);
-	lv_obj_set_style_pad_ver(farm_grid, 80, 0);
+    farm_grid = ui_div_create(parent);
+    lv_obj_set_size(farm_grid, FARM_GRID_N * FARM_BLOCK_SIZE, FARM_GRID_N * FARM_BLOCK_SIZE + 160);
+    lv_obj_set_align(farm_grid, LV_ALIGN_TOP_MID);
+    lv_obj_set_style_pad_ver(farm_grid, 80, 0);
 
-	for (int i = 0; i < FARM_GRID_N; i++)
-	{
-		for (int j = 0; j < FARM_GRID_N; j++)
-		{
-			field_t *field = farm_get_instance()->fields[i][j];
-			farm_block_t *block = &g_farm_blocks[i][j];
-			block->field = field;
-			block->is_planted = field->crop_type != CROP_TYPE_NONE;
-			block->has_pest = field->damage != CROP_DAMAGE_NONE;
-			block->is_detected = field->is_detected;
-			block->x = i;
-			block->y = j;
+    for (int i = 0; i < FARM_GRID_N; i++) {
+        for (int j = 0; j < FARM_GRID_N; j++) {
+            field_t *field = farm_get_instance()->fields[i][j];
+            farm_block_t *block = &g_farm_blocks[i][j];
+            block->field = field;
+            block->is_planted = field->crop_type != CROP_TYPE_NONE;
+            block->has_pest = field->damage != CROP_DAMAGE_NONE;
+            block->is_detected = field->is_detected;
+            block->x = i;
+            block->y = j;
 
-			/* 田地 */
-			block->obj = ui_div_create(farm_grid);
-			lv_obj_set_size(block->obj, FARM_BLOCK_SIZE, FARM_BLOCK_SIZE);
-			lv_obj_set_pos(block->obj, FARM_BLOCK_SIZE * i, FARM_BLOCK_SIZE * j);
-			lv_obj_set_style_bg_img_src(block->obj, &icon_field_bg, 0);
-			lv_obj_add_flag(block->obj, LV_OBJ_FLAG_CHECKABLE);
-			lv_obj_add_flag(block->obj, LV_OBJ_FLAG_CLICKABLE);
-			lv_obj_set_style_border_width(block->obj, 2, LV_STATE_CHECKED);
-			lv_obj_add_event_cb(block->obj, farm_block_click_cb, LV_EVENT_CLICKED, g_screen_main);
-			lv_obj_set_user_data(block->obj, block);
+            /* 田地 */
+            block->obj = ui_div_create(farm_grid);
+            lv_obj_set_size(block->obj, FARM_BLOCK_SIZE, FARM_BLOCK_SIZE);
+            lv_obj_set_pos(block->obj, FARM_BLOCK_SIZE * i, FARM_BLOCK_SIZE * j);
+            lv_obj_set_style_bg_img_src(block->obj, &icon_field_bg, 0);
+            lv_obj_add_flag(block->obj, LV_OBJ_FLAG_CHECKABLE);
+            lv_obj_add_flag(block->obj, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_style_border_width(block->obj, 2, LV_STATE_CHECKED);
+            lv_obj_add_event_cb(block->obj, farm_block_click_cb, LV_EVENT_CLICKED, g_screen_main);
+            lv_obj_set_user_data(block->obj, block);
 
-			/* 生长进度条 */
-			block->growing_bar = ui_crop_grwoing_bar(block->obj);
-			lv_bar_set_range(block->growing_bar, 0, field->ready_time);
-			lv_bar_set_value(block->growing_bar, field->growing_time, LV_ANIM_OFF);
+            /* 生长进度条 */
+            block->growing_bar = ui_crop_grwoing_bar(block->obj);
+            lv_bar_set_range(block->growing_bar, 0, field->ready_time);
+            lv_bar_set_value(block->growing_bar, field->growing_time, LV_ANIM_OFF);
 
-			/* 作物贴图 */
-			block->crop_img = lv_img_create(block->obj);
-			lv_obj_center(block->crop_img);
-			if (block->is_planted)
-			{
-				lv_img_set_src(block->crop_img, icon_get_crop(field->crop_type, field->stage));
-			}
-		}
-	}
+            /* 作物贴图 */
+            block->crop_img = lv_img_create(block->obj);
+            lv_obj_center(block->crop_img);
+            if (block->is_planted) {
+                lv_img_set_src(block->crop_img, icon_get_crop(field->crop_type, field->stage));
+            }
+        }
+    }
 }
 
-static void ui_field_update(int x, int y)
-{
-	farm_block_t *block = &g_farm_blocks[x][y];
-	block->is_planted = block->field->crop_type != CROP_TYPE_NONE;
-	block->has_pest = block->field->damage != CROP_DAMAGE_NONE;
-	block->is_detected = block->field->is_detected;
+static void ui_field_update(int x, int y) {
+    farm_block_t *block = &g_farm_blocks[x][y];
+    block->is_planted = block->field->crop_type != CROP_TYPE_NONE;
+    block->has_pest = block->field->damage != CROP_DAMAGE_NONE;
+    block->is_detected = block->field->is_detected;
 
-	if (block->is_planted)
-	{
-		lv_img_set_src(block->crop_img, icon_get_crop(block->field->crop_type, block->field->stage));
-	}
+    if (block->is_planted) {
+        lv_img_set_src(block->crop_img, icon_get_crop(block->field->crop_type, block->field->stage));
+    }
 }
 
-static lv_obj_t *ui_drone_create(lv_obj_t *parent)
-{
-	lv_obj_t *drone = lv_animimg_create(parent);
-	static const lv_img_dsc_t *drone_imgs[] = {&icon_drone_0, &icon_drone_1};
-	lv_animimg_set_src(drone, (lv_img_dsc_t **)drone_imgs, 2);
-	lv_animimg_set_duration(drone, 150);
-	lv_animimg_set_repeat_count(drone, LV_ANIM_REPEAT_INFINITE);
-	lv_obj_add_flag(drone, LV_OBJ_FLAG_CLICKABLE);
-	lv_obj_add_event_cb(drone, drone_click_cb, LV_EVENT_CLICKED, drone_window_create);
-	lv_animimg_start(drone);
-	// lv_obj_set_size(drone, 40, 40);
+static lv_obj_t *ui_drone_create(lv_obj_t *parent) {
+    lv_obj_t *drone = lv_animimg_create(parent);
+    static const lv_img_dsc_t *drone_imgs[] = {&icon_drone_0, &icon_drone_1};
+    lv_animimg_set_src(drone, (lv_img_dsc_t **)drone_imgs, 2);
+    lv_animimg_set_duration(drone, 150);
+    lv_animimg_set_repeat_count(drone, LV_ANIM_REPEAT_INFINITE);
+    lv_obj_add_flag(drone, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(drone, drone_click_cb, LV_EVENT_CLICKED, drone_window_create);
+    lv_animimg_start(drone);
+    // lv_obj_set_size(drone, 40, 40);
 
-	// lv_obj_set_pos(drone, -60, 20);
+    // lv_obj_set_pos(drone, -60, 20);
 
-	return drone;
+    return drone;
 }
 
-static void ui_drone_set_pos(lv_coord_t x, lv_coord_t y)
-{
-	lv_obj_align_to(g_drone, farm_grid, LV_ALIGN_TOP_LEFT, x - 20, y - 20);
+static void ui_drone_set_pos(lv_coord_t x, lv_coord_t y) {
+    lv_obj_align_to(g_drone, farm_grid, LV_ALIGN_TOP_LEFT, x - 20, y - 20);
 }
-void test_cb(lv_event_t *e)
-{
-	drone_state_t *state = lv_event_get_user_data(e);
-	if (*state == DRONE_STATE_DETECTING)
-	{
-		drone_state_switch(DRONE_STATE_FREE);
-	}
-	else if (*state == DRONE_STATE_FREE)
-	{
-		drone_state_switch(DRONE_STATE_DETECTING);
-	}
+void test_cb(lv_event_t *e) {
+    drone_state_t *state = lv_event_get_user_data(e);
+    if (*state == DRONE_STATE_DETECTING) {
+        drone_state_switch(DRONE_STATE_FREE);
+    } else if (*state == DRONE_STATE_FREE) {
+        drone_state_switch(DRONE_STATE_DETECTING);
+    }
 }
-static lv_obj_t *drone_window_create()
-{
-	lv_obj_t *body = ui_div_create(g_screen_main);
-	drone_t *drone = drone_get_instance();
+static lv_obj_t *drone_window_create() {
+    lv_obj_t *body = ui_div_create(g_screen_main);
+    drone_t *drone = drone_get_instance();
 
-	lv_obj_t *label = lv_label_create(body);
-	lv_label_set_text_fmt(label, "Speed Level: %d\nStorage Level: %d", drone->speed_level, drone->storage_level);
+    lv_obj_t *label = lv_label_create(body);
+    lv_label_set_text_fmt(label, "Speed Level: %d\nStorage Level: %d", drone->speed_level, drone->storage_level);
 
-	lv_obj_t *test_btn = lv_btn_create(body);
-	lv_obj_add_event_cb(test_btn, test_cb, LV_EVENT_CLICKED, &drone->drone_state);
+    lv_obj_t *test_btn = lv_btn_create(body);
+    lv_obj_add_event_cb(test_btn, test_cb, LV_EVENT_CLICKED, &drone->drone_state);
 
-	lv_obj_t *div = ui_window_create("PLANT", body, NULL, NULL, NULL, NULL, NULL);
-	lv_obj_align_to(div, g_drone, LV_ALIGN_OUT_RIGHT_TOP, 20, -40);
-	lv_obj_set_size(div, 206, 220);
+    lv_obj_t *div = ui_window_create("PLANT", body, NULL, NULL, NULL, NULL, NULL);
+    lv_obj_align_to(div, g_drone, LV_ALIGN_OUT_RIGHT_TOP, 20, -40);
+    lv_obj_set_size(div, 206, 220);
 
-	return div;
+    return div;
 }
 
-static lv_obj_t *ui_crop_grwoing_bar(lv_obj_t *parent)
-{
-	lv_obj_t *bar = lv_bar_create(parent);
-	lv_obj_add_event_cb(bar, crop_growing_bar_event, LV_EVENT_DRAW_PART_END, NULL);
-	lv_obj_set_size(bar, 75, 10);
-	lv_obj_set_align(bar, LV_ALIGN_BOTTOM_MID);
-	lv_obj_set_pos(bar, 0, -2);
-	lv_obj_set_style_bg_color(bar, lv_color_white(), LV_PART_MAIN);
-	lv_obj_set_style_bg_opa(bar, LV_OPA_50, LV_PART_MAIN);
-	return bar;
+static lv_obj_t *ui_crop_grwoing_bar(lv_obj_t *parent) {
+    lv_obj_t *bar = lv_bar_create(parent);
+    lv_obj_add_event_cb(bar, crop_growing_bar_event, LV_EVENT_DRAW_PART_END, NULL);
+    lv_obj_set_size(bar, 75, 10);
+    lv_obj_set_align(bar, LV_ALIGN_BOTTOM_MID);
+    lv_obj_set_pos(bar, 0, -2);
+    lv_obj_set_style_bg_color(bar, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(bar, LV_OPA_50, LV_PART_MAIN);
+    return bar;
 }
 
-static void ui_gold_bar_create(lv_obj_t *parent)
-{
-	lv_obj_t *bar = ui_div_create(parent);
-	lv_obj_set_size(bar, 120, 40);
-	lv_obj_set_pos(bar, 200, 8);
-	lv_obj_set_style_bg_img_src(bar, &icon_gold_bar_bg, 0);
-	lv_obj_add_flag(bar, LV_OBJ_FLAG_FLOATING);
+static void ui_gold_bar_create(lv_obj_t *parent) {
+    lv_obj_t *bar = ui_div_create(parent);
+    lv_obj_set_size(bar, 120, 40);
+    lv_obj_set_pos(bar, 200, 8);
+    lv_obj_set_style_bg_img_src(bar, &icon_gold_bar_bg, 0);
+    lv_obj_add_flag(bar, LV_OBJ_FLAG_FLOATING);
 }
 
-static lv_obj_t *ui_icon_btn_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h, const void *img, lv_coord_t x, lv_coord_t y)
-{
-	lv_obj_t *btn = ui_div_create(parent);
-	lv_obj_set_size(btn, w, h);
-	lv_obj_set_style_bg_img_src(btn, img, 0);
-	lv_obj_set_pos(btn, x, y);
-	lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
-	lv_obj_add_flag(btn, LV_OBJ_FLAG_FLOATING);
+static lv_obj_t *ui_icon_btn_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h, const void *img, lv_coord_t x,
+                                    lv_coord_t y) {
+    lv_obj_t *btn = ui_div_create(parent);
+    lv_obj_set_size(btn, w, h);
+    lv_obj_set_style_bg_img_src(btn, img, 0);
+    lv_obj_set_pos(btn, x, y);
+    lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(btn, LV_OBJ_FLAG_FLOATING);
 
-	return btn;
+    return btn;
 }
 
-static lv_obj_t *ui_seed_table_create(lv_obj_t *parent)
-{
-	ui_grid_list_cfg_t cfg;
-	ui_grid_list_cfg_init(&cfg);
-	cfg.item_w = 60;
-	cfg.item_h = 60;
-	cfg.col_count = 3;
-	cfg.row_count = 3;
+static lv_obj_t *ui_seed_table_create(lv_obj_t *parent) {
+    ui_grid_list_cfg_t cfg;
+    ui_grid_list_cfg_init(&cfg);
+    cfg.item_w = 60;
+    cfg.item_h = 60;
+    cfg.col_count = 3;
+    cfg.row_count = 3;
 
-	ui_grid_list_t *list = ui_grid_list_create(parent, &cfg);
-	if (!list)
-	{
-		return NULL;
-	}
+    ui_grid_list_t *list = ui_grid_list_create(parent, &cfg);
+    if (!list) {
+        return NULL;
+    }
 
-	lv_obj_t *grid = ui_grid_list_get_obj(list);
+    lv_obj_t *grid = ui_grid_list_get_obj(list);
 
-	static ui_drag_to_plant_desc_t seeds[CROP_TYPE_NONE];
+    static ui_drag_to_plant_desc_t seeds[CROP_TYPE_NONE];
 
-	crop_type_t i;
-	lv_obj_t *obj;
-	for (i = 0; i < CROP_TYPE_NONE; i++)
-	{
-		obj = ui_grid_list_add_item(list);
-		if (!obj)
-		{
-			break;
-		}
+    crop_type_t i;
+    lv_obj_t *obj;
+    for (i = 0; i < CROP_TYPE_NONE; i++) {
+        obj = ui_grid_list_add_item(list);
+        if (!obj) {
+            break;
+        }
 
-		const void *drag_img = ui_crop_drag_img(i);
+        const void *drag_img = ui_crop_drag_img(i);
 
-		lv_obj_t *item_img = lv_img_create(obj);
-		if (drag_img)
-		{
-			lv_img_set_src(item_img, drag_img);
-		}
-		lv_obj_align(item_img, LV_ALIGN_TOP_MID, 0, 4);
+        lv_obj_t *item_img = lv_img_create(obj);
+        if (drag_img) {
+            lv_img_set_src(item_img, drag_img);
+        }
+        lv_obj_align(item_img, LV_ALIGN_TOP_MID, 0, 0);
 
-		lv_obj_t *item1_label = lv_label_create(obj);
-		lv_label_set_text(item1_label, ui_crop_type_name(i));
-		lv_obj_set_style_text_color(item1_label, lv_color_make(60, 42, 29), 0);
-		lv_obj_set_style_text_align(item1_label, LV_TEXT_ALIGN_CENTER, 0);
-		lv_obj_align(item1_label, LV_ALIGN_BOTTOM_MID, 0, -2);
+        lv_obj_t *item1_label = lv_label_create(obj);
+        lv_label_set_text(item1_label, ui_crop_type_name(i));
+        lv_obj_set_style_text_color(item1_label, lv_color_make(60, 42, 29), 0);
+        lv_obj_set_style_text_align(item1_label, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_align(item1_label, LV_ALIGN_BOTTOM_MID, 0, 0);
 
-		seeds[i] = (ui_drag_to_plant_desc_t){.type = i, .img = drag_img, .fields = farm_grid};
-		ui_grid_list_bind_item_event(obj, drag_to_plant_cb, LV_EVENT_PRESSING, &seeds[i]);
-		ui_grid_list_bind_item_event(obj, drag_to_plant_cb, LV_EVENT_RELEASED, &seeds[i]);
-	}
+        seeds[i] = (ui_drag_to_plant_desc_t){.type = i, .img = drag_img, .fields = farm_grid};
+        ui_grid_list_bind_item_event(obj, drag_to_plant_cb, LV_EVENT_PRESSING, &seeds[i]);
+        ui_grid_list_bind_item_event(obj, drag_to_plant_cb, LV_EVENT_RELEASED, &seeds[i]);
+    }
 
-	return grid;
+    return grid;
 }
 
 // 以下两个函数是ai修改代码时额外生成的，后面更改实现方式
-static const char *ui_crop_type_name(crop_type_t type)
-{
-	switch (type)
-	{
-	case CROP_TYPE_WHEAT:
-		return "Wheat";
-	case CROP_TYPE_RICE:
-		return "Rice";
-	case CROP_TYPE_CORN:
-		return "Corn";
-	default:
-		return "Unknown";
-	}
+static const char *ui_crop_type_name(crop_type_t type) {
+    switch (type) {
+        case CROP_TYPE_WHEAT:
+            return "Wheat";
+        case CROP_TYPE_RICE:
+            return "Rice";
+        case CROP_TYPE_CORN:
+            return "Corn";
+        default:
+            return "Unknown";
+    }
 }
 
-static const void *ui_crop_drag_img(crop_type_t type)
-{
-	const void *img = icon_get_crop(type, CROP_STAGE_READY);
-	if (img)
-	{
-		return img;
-	}
+static const void *ui_crop_drag_img(crop_type_t type) {
+    const void *img = icon_get_crop(type, CROP_STAGE_READY);
+    if (img) {
+        return img;
+    }
 
-	img = icon_get_crop(type, CROP_STAGE_SEED);
-	if (img)
-	{
-		return img;
-	}
+    img = icon_get_crop(type, CROP_STAGE_SEED);
+    if (img) {
+        return img;
+    }
 
-	switch (type)
-	{
-	case CROP_TYPE_CORN:
-		return &icon_crop_corn_ripe;
-	case CROP_TYPE_WHEAT:
-		return &icon_crop_wheat_ripe;
-	case CROP_TYPE_RICE:
-		return &icon_crop_wheat_ripe;
-	default:
-		return &icon_crop_wheat_ripe;
-	}
+    switch (type) {
+        case CROP_TYPE_CORN:
+            return &icon_crop_corn_ripe;
+        case CROP_TYPE_WHEAT:
+            return &icon_crop_wheat_ripe;
+        case CROP_TYPE_RICE:
+            return &icon_crop_wheat_ripe;
+        default:
+            return &icon_crop_wheat_ripe;
+    }
 }
 
-static lv_obj_t *ui_plant_window_create()
-{
-	lv_obj_t *grid = ui_seed_table_create(g_screen_main);
+static lv_obj_t *ui_plant_window_create() {
+    lv_obj_t *grid = ui_seed_table_create(g_screen_main);
 
-	lv_obj_t *div = ui_window_create("PLANT", grid, NULL, NULL, NULL, NULL, NULL);
-	lv_obj_set_align(div, LV_ALIGN_RIGHT_MID);
-	lv_obj_set_pos(div, -20, -20);
-	lv_obj_set_size(div, 206, 290);
+    lv_obj_t *div = ui_window_create("PLANT", grid, NULL, NULL, NULL, NULL, NULL);
+    lv_obj_set_align(div, LV_ALIGN_RIGHT_MID);
+    lv_obj_set_pos(div, -20, -20);
+    lv_obj_set_size(div, 206, 290);
 
-	return div;
+    return div;
 }
 
-void ui_update_timer_init()
-{
-	lv_timer_create(ui_update_100ms, 100, NULL);
-	lv_timer_create(ui_update_1s, 1000, NULL);
+void ui_update_timer_init() {
+    lv_timer_create(ui_update_100ms, 100, NULL);
+    lv_timer_create(ui_update_1s, 1000, NULL);
 }
 
-static void ui_update_100ms()
-{
-	/* UPDATE drone */
-	drone_t *drone = drone_get_instance();
-	if (drone->drone_state == DRONE_STATE_DETECTING)
-	{
-		// lv_animimg_start(g_drone);
-		pos_t vector = {
-			.x = joystick_get_dir_x(),
-			.y = joystick_get_dir_y()};
-		drone_move(vector);
-		pos_t pos = drone->current_pos;
-		ui_drone_set_pos(pos.x * DRONE_COORD_SCALNG_FACTOR, pos.y * DRONE_COORD_SCALNG_FACTOR);
-	}
-	else
-	{
-		// lv_anim_del(g_drone, NULL);
-		ui_drone_set_pos(-40, 40);
-	}
+static void ui_update_100ms() {
+    /* UPDATE drone */
+    drone_t *drone = drone_get_instance();
+    if (drone->drone_state == DRONE_STATE_DETECTING) {
+        // lv_animimg_start(g_drone);
+        pos_t vector = {.x = joystick_get_dir_x(), .y = joystick_get_dir_y()};
+        drone_move(vector);
+        pos_t pos = drone->current_pos;
+        ui_drone_set_pos(pos.x * DRONE_COORD_SCALNG_FACTOR, pos.y * DRONE_COORD_SCALNG_FACTOR);
+    } else {
+        // lv_anim_del(g_drone, NULL);
+        ui_drone_set_pos(-40, 40);
+    }
 }
 
-static void ui_update_1s()
-{
-	/* UPDATE farm */
-	for (int i = 0; i < FARM_GRID_N; i++)
-	{
-		for (int j = 0; j < FARM_GRID_N; j++)
-		{
-			farm_block_t *block = &g_farm_blocks[i][j];
-			if (block->is_planted)
-			{
-				/* UPDATE growing bar */
-				lv_bar_set_range(block->growing_bar, 0, block->field->ready_time);
-				lv_bar_set_value(block->growing_bar, block->field->growing_time, LV_ANIM_OFF);
-			}
-		}
-	}
+static void ui_update_1s() {
+    /* UPDATE farm */
+    for (int i = 0; i < FARM_GRID_N; i++) {
+        for (int j = 0; j < FARM_GRID_N; j++) {
+            farm_block_t *block = &g_farm_blocks[i][j];
+            if (block->is_planted) {
+                /* UPDATE growing bar */
+                lv_bar_set_range(block->growing_bar, 0, block->field->ready_time);
+                lv_bar_set_value(block->growing_bar, block->field->growing_time, LV_ANIM_OFF);
+            }
+        }
+    }
 }
 
-lv_obj_t *ui_div_create(lv_obj_t *parent)
-{
-	lv_obj_t *div = lv_obj_create(parent);
-	lv_obj_set_style_bg_opa(div, 0, 0);
-	lv_obj_set_style_border_width(div, 0, 0);
-	lv_obj_set_style_pad_all(div, 0, 0);
+lv_obj_t *ui_div_create(lv_obj_t *parent) {
+    lv_obj_t *div = lv_obj_create(parent);
+    lv_obj_set_style_bg_opa(div, 0, 0);
+    lv_obj_set_style_border_width(div, 0, 0);
+    lv_obj_set_style_pad_all(div, 0, 0);
 
-	return div;
+    return div;
 }
 
-lv_obj_t *ui_window_create(const char *title, lv_obj_t *body, const void *btn1_text, void (*btn1_cb)(lv_event_t *), const void *btn2_text, void (*btn2_cb)(lv_event_t *), void *user_data)
-{
-	if (g_current_window)
-		lv_obj_del(g_current_window); // 只允许同时显示一个弹窗
+lv_obj_t *ui_window_create(const char *title, lv_obj_t *body, const void *btn1_text, void (*btn1_cb)(lv_event_t *),
+                           const void *btn2_text, void (*btn2_cb)(lv_event_t *), void *user_data) {
+    if (g_current_window)
+        lv_obj_del(g_current_window); // 只允许同时显示一个弹窗
 
-	lv_obj_t *div = lv_obj_create(g_screen_main);
+    lv_obj_t *div = lv_obj_create(g_screen_main);
 
-	lv_obj_set_style_border_width(div, 3, 0);
-	lv_obj_set_style_border_color(div, lv_color_make(139, 69, 19), 0);
-	lv_obj_set_style_radius(div, 8, 0);
-	lv_obj_set_style_shadow_width(div, 10, 0);
-	lv_obj_set_style_pad_all(div, 0, 0);
-	lv_obj_set_style_bg_opa(div, LV_OPA_COVER, 0);
-	lv_obj_set_style_bg_color(div, lv_color_make(245, 232, 200), 0);
+    lv_obj_set_style_border_width(div, 3, 0);
+    lv_obj_set_style_border_color(div, lv_color_make(139, 69, 19), 0);
+    lv_obj_set_style_radius(div, 8, 0);
+    lv_obj_set_style_shadow_width(div, 10, 0);
+    lv_obj_set_style_pad_all(div, 0, 0);
+    lv_obj_set_style_bg_opa(div, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(div, lv_color_make(245, 232, 200), 0);
 
-	lv_obj_add_event_cb(div, window_delete_cb, LV_EVENT_DELETE, NULL);
+    lv_obj_add_event_cb(div, window_delete_cb, LV_EVENT_DELETE, NULL);
 
-	lv_obj_set_parent(body, div);
-	lv_obj_set_pos(body, 0, 40);
+    lv_obj_set_parent(body, div);
+    lv_obj_set_pos(body, 0, 40);
 
-	lv_obj_set_style_bg_opa(body, LV_OPA_COVER, 0);
-	lv_obj_set_style_bg_color(body, lv_color_hex(0xf3e2a1), 0);
+    lv_obj_set_style_bg_opa(body, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(body, lv_color_hex(0xf3e2a1), 0);
 
-	lv_obj_set_style_radius(body, 0, 0);
-	lv_obj_set_style_border_color(body, lv_color_hex(0x8b4513), 0);
-	lv_obj_set_style_border_width(body, 2, 0);
+    lv_obj_set_style_radius(body, 0, 0);
+    lv_obj_set_style_border_color(body, lv_color_hex(0x8b4513), 0);
+    lv_obj_set_style_border_width(body, 2, 0);
 
-	lv_obj_set_size(body, lv_pct(100), lv_pct(100));
+    lv_obj_set_size(body, lv_pct(100), lv_pct(100));
 
-	lv_obj_clear_flag(div, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(div, LV_OBJ_FLAG_SCROLLABLE);
 
-	lv_obj_t *header = lv_obj_create(div);
-	lv_obj_set_size(header, 200, 40);
-	lv_obj_set_style_pad_all(header, 0, 0);
-	lv_obj_align(header, LV_ALIGN_TOP_MID, 0, 0);
-	lv_obj_set_style_bg_color(header, lv_color_make(139, 69, 19), 0);
-	lv_obj_set_style_border_width(header, 0, 0);
-	lv_obj_set_style_radius(header, 0, 0);
+    lv_obj_t *header = lv_obj_create(div);
+    lv_obj_set_size(header, 200, 40);
+    lv_obj_set_style_pad_all(header, 0, 0);
+    lv_obj_align(header, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_set_style_bg_color(header, lv_color_make(139, 69, 19), 0);
+    lv_obj_set_style_border_width(header, 0, 0);
+    lv_obj_set_style_radius(header, 0, 0);
 
-	lv_obj_t *title_label = lv_label_create(header);
-	lv_label_set_text(title_label, title);
-	lv_obj_set_style_text_color(title_label, lv_color_white(), 0);
-	lv_obj_center(title_label);
+    lv_obj_t *title_label = lv_label_create(header);
+    lv_label_set_text(title_label, title);
+    lv_obj_set_style_text_color(title_label, lv_color_white(), 0);
+    lv_obj_center(title_label);
 
-	if (btn1_text)
-	{
-		lv_obj_t *footer = lv_obj_create(div);
-		lv_obj_set_size(footer, 200, 50);
-		lv_obj_set_style_pad_all(footer, 0, 0);
-		lv_obj_align(footer, LV_ALIGN_BOTTOM_MID, 0, 0);
-		lv_obj_set_style_bg_color(footer, lv_color_make(230, 207, 160), 0);
-		lv_obj_set_style_border_width(footer, 2, 0);
-		lv_obj_set_style_border_color(footer, lv_color_hex(0x8b4513), 0);
-		lv_obj_set_style_radius(footer, 0, 0);
+    if (btn1_text) {
+        lv_obj_t *footer = lv_obj_create(div);
+        lv_obj_set_size(footer, 200, 50);
+        lv_obj_set_style_pad_all(footer, 0, 0);
+        lv_obj_align(footer, LV_ALIGN_BOTTOM_MID, 0, 0);
+        lv_obj_set_style_bg_color(footer, lv_color_make(230, 207, 160), 0);
+        lv_obj_set_style_border_width(footer, 2, 0);
+        lv_obj_set_style_border_color(footer, lv_color_hex(0x8b4513), 0);
+        lv_obj_set_style_radius(footer, 0, 0);
 
-		lv_obj_t *btn1 = lv_btn_create(footer);
-		lv_obj_set_size(btn1, 86, 34);
-		lv_obj_align(btn1, LV_ALIGN_LEFT_MID, 5, 0);
-		lv_obj_set_style_bg_color(btn1, lv_color_make(205, 133, 63), LV_STATE_DEFAULT);
-		lv_obj_set_style_bg_color(btn1, lv_color_make(166, 105, 46), LV_STATE_PRESSED);
-		lv_obj_add_event_cb(btn1, btn1_cb, LV_EVENT_CLICKED, user_data);
+        lv_obj_t *btn1 = lv_btn_create(footer);
+        lv_obj_set_size(btn1, 86, 34);
+        lv_obj_align(btn1, LV_ALIGN_LEFT_MID, 5, 0);
+        lv_obj_set_style_bg_color(btn1, lv_color_make(205, 133, 63), LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_color(btn1, lv_color_make(166, 105, 46), LV_STATE_PRESSED);
+        lv_obj_add_event_cb(btn1, btn1_cb, LV_EVENT_CLICKED, user_data);
 
-		lv_obj_t *btn1_label = lv_label_create(btn1);
-		lv_label_set_text(btn1_label, btn1_text);
-		lv_obj_set_style_text_color(btn1_label, lv_color_white(), 0);
-		lv_obj_center(btn1_label);
+        lv_obj_t *btn1_label = lv_label_create(btn1);
+        lv_label_set_text(btn1_label, btn1_text);
+        lv_obj_set_style_text_color(btn1_label, lv_color_white(), 0);
+        lv_obj_center(btn1_label);
 
-		if (btn2_text)
-		{
-			lv_obj_t *btn2 = lv_btn_create(footer);
-			lv_obj_set_size(btn2, 86, 34);
-			lv_obj_align(btn2, LV_ALIGN_RIGHT_MID, -5, 0);
-			lv_obj_set_style_bg_color(btn2, lv_color_make(160, 82, 45), LV_STATE_DEFAULT);
-			lv_obj_set_style_bg_color(btn2, lv_color_make(139, 66, 31), LV_STATE_PRESSED);
-			lv_obj_add_event_cb(btn2, btn2_cb, LV_EVENT_CLICKED, user_data);
+        if (btn2_text) {
+            lv_obj_t *btn2 = lv_btn_create(footer);
+            lv_obj_set_size(btn2, 86, 34);
+            lv_obj_align(btn2, LV_ALIGN_RIGHT_MID, -5, 0);
+            lv_obj_set_style_bg_color(btn2, lv_color_make(160, 82, 45), LV_STATE_DEFAULT);
+            lv_obj_set_style_bg_color(btn2, lv_color_make(139, 66, 31), LV_STATE_PRESSED);
+            lv_obj_add_event_cb(btn2, btn2_cb, LV_EVENT_CLICKED, user_data);
 
-			lv_obj_t *btn2_label = lv_label_create(btn2);
-			lv_label_set_text(btn2_label, btn2_text);
-			lv_obj_set_style_text_color(btn2_label, lv_color_white(), 0);
-			lv_obj_center(btn2_label);
-		}
-	}
+            lv_obj_t *btn2_label = lv_label_create(btn2);
+            lv_label_set_text(btn2_label, btn2_text);
+            lv_obj_set_style_text_color(btn2_label, lv_color_white(), 0);
+            lv_obj_center(btn2_label);
+        }
+    }
 
-	return div;
+    return div;
 }

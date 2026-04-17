@@ -1,5 +1,5 @@
-#include "enum.h"
 #include "store.h"
+#include "enum.h"
 
 // 等级折扣
 double level_discount[7] = {
@@ -12,20 +12,10 @@ double level_discount[7] = {
     0.7   // 40+
 };
 
-int seed_price[CROP_TYPE_NONE] = {
-    10,
-    15,
-    20};
-int pesticide_price[CROP_PESTICIDE_NONE] = {
-    5,
-    15,
-    20,
-    15};
+int seed_price[CROP_TYPE_NONE] = {10, 15, 20};
+int pesticide_price[CROP_PESTICIDE_NONE] = {5, 15, 20, 15};
 
-int harvest_price[CROP_TYPE_NONE] = {
-    40,
-    60,
-    80};
+int harvest_price[CROP_TYPE_NONE] = {40, 60, 80};
 
 // drone update
 int drone_speed_update_price[3] = {1000, 2500, 5000};

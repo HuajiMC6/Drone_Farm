@@ -3,8 +3,7 @@
 
 #include "lv_port_disp_template.h"
 
-typedef struct
-{
+typedef struct {
     lv_coord_t item_w;
     lv_coord_t item_h;
     uint16_t col_count;
@@ -21,8 +20,7 @@ typedef struct
     lv_coord_t item_border_width;
 } ui_grid_list_cfg_t;
 
-typedef struct
-{
+typedef struct {
     lv_obj_t *obj;
     ui_grid_list_cfg_t cfg;
     lv_coord_t *col_dsc;

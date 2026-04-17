@@ -152,6 +152,7 @@ lv_obj_t *ui_grid_list_add_item_at(ui_grid_list_t *list, uint16_t col, uint16_t 
     lv_obj_set_grid_cell(item, LV_GRID_ALIGN_STRETCH, col, 1,
                          LV_GRID_ALIGN_STRETCH, row, 1);
 
+    lv_obj_set_style_pad_all(item, 0, 0);
     lv_obj_set_style_bg_color(item, list->cfg.item_bg_color, LV_STATE_DEFAULT);
     lv_obj_set_style_bg_color(item, list->cfg.item_bg_color_pressed, LV_STATE_PRESSED);
     lv_obj_set_style_border_color(item, list->cfg.item_border_color, 0);

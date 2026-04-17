@@ -3,11 +3,11 @@
 #include "enum.h"
 #include "field.h"
 
-typedef struct{//农场结构体
+typedef struct { // 农场结构体
     field_t *fields[10][10];
-    int current_size;//当前n数
-    int size_level;//0 1 2 3
-}farm_t;
+    int current_size; // 当前n数
+    int size_level;   // 0 1 2 3
+} farm_t;
 
 void farm_init();
 farm_t *farm_get_instance();

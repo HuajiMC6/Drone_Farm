@@ -1,13 +1,12 @@
 #ifndef __ICON_H__
 #define __ICON_H__
 
-#include "lvgl.h"
 #include "enum.h"
+#include "lvgl.h"
 
 // 虫害图标类型
-typedef enum
-{
-	ICON_PEST_UNKNOWN // 未知（未勘察）
+typedef enum {
+    ICON_PEST_UNKNOWN // 未知（未勘察）
 } icon_pest_type_t;
 
 const void *icon_get_crop(crop_type_t type, crop_stage_t stage);
