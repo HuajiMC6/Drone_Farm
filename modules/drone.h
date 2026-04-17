@@ -25,13 +25,13 @@ drone_t *drone_get_instance();
 void drone_init();
 void drone_state_switch(drone_state_t drone_state);
 
-crop_damage_t get_damage_information();
+crop_damage_t drone_detect_damage();
 
 bool drone_algorithm_update();
 bool drone_speed_update();
 bool drone_storage_update();
 
-pos_t *auto_path(int *out_len);
+pos_t *drone_auto_path(int *out_len);
 
 bool drone_ensure_pesticide(pos_t pos);
 bool drone_add_pesticide(crop_pesticide_t pesticide, int n);

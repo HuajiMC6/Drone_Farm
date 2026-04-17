@@ -1,5 +1,6 @@
 #include "drone.h"
 #include "enum.h"
+#include "event.h"
 #include "player.h"
 #include <stdbool.h>
 #include <stdlib.h>
@@ -19,10 +20,8 @@ void drone_init() {
         s_drone->storage_level = 0;
         s_drone->storage_capacity = 10;
         for (int i = 0; i < 10; i++)
-            for (int j = 0; j < 10; j++)
-                s_drone->one_zero_matrix[i][j] = 0;
-        for (int i = 0; i < 4; i++)
-            s_drone->pesticide_storage[i] = 0;
+            for (int j = 0; j < 10; j++) s_drone->one_zero_matrix[i][j] = 0;
+        for (int i = 0; i < 4; i++) s_drone->pesticide_storage[i] = 0;
         s_drone->current_pos.x = 0, s_drone->current_pos.y = 0;
         s_drone->drone_state = DRONE_STATE_FREE;
     }
@@ -30,9 +29,16 @@ void drone_init() {
 
 void drone_state_switch(drone_state_t drone_state) {
     s_drone->drone_state = drone_state;
+    if (drone_state == DRONE_STATE_FREE) {
+        s_drone->current_pos.x = 0;
+        s_drone->current_pos.y = 0;
+        event_send(EVENT_ON_DRONE_TO_FREE, NULL);
+    } else {
+        event_send(EVENT_ON_DRONE_TO_MOVING, NULL);
+    }
 }
 
-crop_damage_t get_damage_information() {
+crop_damage_t drone_detect_damage() {
     farm_t *farm = farm_get_instance();
     pos_t matrix_pos = {s_drone->current_pos.x / 100, s_drone->current_pos.y / 100};
     field_t *field = farm->fields[matrix_pos.x][matrix_pos.y];
@@ -84,8 +90,7 @@ bool drone_storage_update() { // player接口
 
 static void reset_matrix() {
     for (int i = 0; i < 10; i++)
-        for (int j = 0; j < 10; j++)
-            s_drone->one_zero_matrix[i][j] = 0;
+        for (int j = 0; j < 10; j++) s_drone->one_zero_matrix[i][j] = 0;
 }
 
 static int manhattan_dist(pos_t a, pos_t b) { // 曼哈顿距离
@@ -257,7 +262,7 @@ static pos_t *optimized_greedy_algorithm(int *out_len) {
     return path;
 }
 
-pos_t *auto_path(int *out_len) { // 前端接口，用来前端写路径可视化，即飞行轨迹，并非喷药
+pos_t *drone_auto_path(int *out_len) { // 前端接口，用来前端写路径可视化，即飞行轨迹，并非喷药
     if (s_drone->algorithm_level == 0)
         return traversal_algorithm(out_len);
     else if (s_drone->algorithm_level == 1)

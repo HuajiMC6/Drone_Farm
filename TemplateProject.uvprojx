@@ -539,6 +539,26 @@
               <FileType>1</FileType>
               <FilePath>.\ui\icon\icon_pest_unknown.c</FilePath>
             </File>
+            <File>
+              <FileName>icon_pest_aphid.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_pest_aphid.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_pest_leafroller.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_pest_leafroller.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_pest_locust.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_pest_locust.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_pest_mite.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_pest_mite.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

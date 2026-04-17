@@ -23,8 +23,7 @@ static void debug_com_init(void) {
 /* retarget the C library printf function to the UART */
 int fputc(int ch, FILE *f) {
     usart_data_transmit(UART7, (uint8_t)ch);
-    while (RESET == usart_flag_get(UART7, USART_FLAG_TBE))
-        ;
+    while (RESET == usart_flag_get(UART7, USART_FLAG_TBE));
     return ch;
 }
 
@@ -201,8 +200,7 @@ void sys_init() {
     if (!gpio_input_bit_get(GPIOE, GPIO_PIN_3)) {
         res = f_mount(&fs, "0:", 1);
         if (res != FR_OK) {
-            while (1)
-                ;
+            while (1);
         }
     }
 }

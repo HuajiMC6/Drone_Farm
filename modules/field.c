@@ -112,7 +112,7 @@ void field_grow(field_t *field) {
     if (!field->is_damaged) {
         int random = rand() % 100;
         int prob = 100 * get_damage_possibility(field->damage, field->growing_percent, field->tolerance);
-        if (prob > random * 20) {
+        if (prob > random * 15) {
             field->is_damaged = true;
             field->is_detected = false;
 

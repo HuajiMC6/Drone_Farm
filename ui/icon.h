@@ -26,5 +26,9 @@ LV_IMG_DECLARE(icon_crop_corn_ripe);
 LV_IMG_DECLARE(icon_drone_0);
 LV_IMG_DECLARE(icon_drone_1);
 LV_IMG_DECLARE(icon_pest_unknown);
+LV_IMG_DECLARE(icon_pest_aphid);
+LV_IMG_DECLARE(icon_pest_mite);
+LV_IMG_DECLARE(icon_pest_leafroller);
+LV_IMG_DECLARE(icon_pest_locust);
 
 #endif

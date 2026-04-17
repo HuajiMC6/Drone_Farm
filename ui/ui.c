@@ -21,6 +21,9 @@ lv_obj_t *g_current_window = NULL;
 
 static farm_block_t g_farm_blocks[10][10];
 
+lv_timer_t *ui_timer_drone_update_100ms;
+lv_timer_t *ui_timer_update_1s;
+
 static void ui_screen_main_create();
 static void ui_farm_grid_create(lv_obj_t *parent);
 static void ui_field_update(int x, int y);
@@ -37,9 +40,10 @@ static lv_obj_t *ui_drone_create(lv_obj_t *parent);
 static lv_obj_t *drone_window_create();
 static const char *ui_crop_type_name(crop_type_t type);
 static const void *ui_crop_drag_img(crop_type_t type);
-static void ui_drone_set_pos(lv_coord_t x, lv_coord_t y);
-static void ui_update_100ms();
+static void ui_drone_set_pos(lv_coord_t x, lv_coord_t y, bool anim, void *anim_cb);
+static void ui_drone_update_100ms();
 static void ui_update_1s();
+static void ui_drone_timer_resume();
 
 void ui_init(void) {
     ui_screen_main_create();
@@ -82,6 +86,13 @@ void ui_event_handler(event_t *event) {
         case EVENT_ON_PLAYER_LEVEL_UPGRADE:
             // Handle player-related events
             break;
+        case EVENT_ON_DRONE_TO_FREE:
+            lv_timer_pause(ui_timer_drone_update_100ms);
+            ui_drone_set_pos(-40, 40, true, NULL);
+            break;
+        case EVENT_ON_DRONE_TO_MOVING:
+            ui_drone_set_pos(0, 0, true, ui_drone_timer_resume);
+            break;
         default:
             break;
     }
@@ -101,6 +112,7 @@ static void ui_screen_main_create() {
 
     /* 无人机 */
     g_drone = ui_drone_create(g_screen_main);
+    ui_drone_set_pos(-40, 40, false, NULL);
 
     /* 相关按钮 */
     lv_obj_t *shop_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_shop_btn, 40, 380);
@@ -221,8 +233,39 @@ static lv_obj_t *ui_drone_create(lv_obj_t *parent) {
     return drone;
 }
 
-static void ui_drone_set_pos(lv_coord_t x, lv_coord_t y) {
-    lv_obj_align_to(g_drone, farm_grid, LV_ALIGN_TOP_LEFT, x - 20, y - 20);
+static void ui_drone_set_pos(lv_coord_t x, lv_coord_t y, bool anim, void *anim_cb) {
+    if (!anim) {
+        lv_obj_align_to(g_drone, farm_grid, LV_ALIGN_TOP_LEFT, x - 20, y - 20);
+    } else {
+        uint32_t speed = drone_get_instance()->speed * DRONE_COORD_SCALNG_FACTOR * 10;
+        lv_coord_t x_start = lv_obj_get_x(g_drone);
+        lv_coord_t y_start = lv_obj_get_y(g_drone);
+        lv_area_t coords;
+        lv_obj_get_content_coords(farm_grid, &coords);
+        lv_coord_t x_end = coords.x1 + x - 20;
+        lv_coord_t y_end = coords.y1 + y - 20;
+
+        // X 动画
+        lv_anim_t ax;
+        lv_anim_init(&ax);
+        lv_anim_set_var(&ax, g_drone);
+        lv_anim_set_exec_cb(&ax, lv_obj_set_x);
+        lv_anim_set_time(&ax, lv_anim_speed_to_time(speed, x_start, x_end));
+        lv_anim_set_path_cb(&ax, lv_anim_path_ease_in_out);
+        lv_anim_set_values(&ax, x_start, x_end);
+        lv_anim_start(&ax);
+
+        // Y 动画
+        lv_anim_t ay;
+        lv_anim_init(&ay);
+        lv_anim_set_var(&ay, g_drone);
+        lv_anim_set_exec_cb(&ay, lv_obj_set_y);
+        lv_anim_set_time(&ay, lv_anim_speed_to_time(speed, y_start, y_end));
+        lv_anim_set_path_cb(&ay, lv_anim_path_ease_in_out);
+        lv_anim_set_values(&ay, y_start, y_end);
+        lv_anim_set_ready_cb(&ay, (lv_anim_ready_cb_t)anim_cb);
+        lv_anim_start(&ay);
+    }
 }
 void test_cb(lv_event_t *e) {
     drone_state_t *state = lv_event_get_user_data(e);
@@ -400,6 +443,7 @@ static lv_obj_t *ui_shop_window_create() {
 
     return div;
 }
+
 static lv_obj_t *ui_setting_window_create() {
     lv_obj_t *body = ui_div_create(g_screen_main);
     lv_obj_t *div = ui_window_create("SETTING", body, NULL, NULL, NULL, NULL, NULL);
@@ -411,22 +455,25 @@ static lv_obj_t *ui_setting_window_create() {
 }
 
 void ui_update_timer_init() {
-    lv_timer_create(ui_update_100ms, 100, NULL);
-    lv_timer_create(ui_update_1s, 1000, NULL);
+    ui_timer_drone_update_100ms = lv_timer_create(ui_drone_update_100ms, 100, NULL);
+    ui_timer_update_1s = lv_timer_create(ui_update_1s, 1000, NULL);
+    lv_timer_pause(ui_timer_drone_update_100ms);
 }
 
-static void ui_update_100ms() {
+static void ui_drone_update_100ms() {
     /* UPDATE drone */
     drone_t *drone = drone_get_instance();
     if (drone->drone_state == DRONE_STATE_DETECTING) {
-        // lv_animimg_start(g_drone);
+        /* 刷新位置 */
         pos_t vector = {.x = joystick_get_dir_x(), .y = joystick_get_dir_y()};
         drone_move(vector);
         pos_t pos = drone->current_pos;
-        ui_drone_set_pos(pos.x * DRONE_COORD_SCALNG_FACTOR, pos.y * DRONE_COORD_SCALNG_FACTOR);
-    } else {
-        // lv_anim_del(g_drone, NULL);
-        ui_drone_set_pos(-40, 40);
+        ui_drone_set_pos(pos.x * DRONE_COORD_SCALNG_FACTOR, pos.y * DRONE_COORD_SCALNG_FACTOR, false, NULL);
+
+        /* 执行探测任务 */
+        if (!g_farm_blocks[pos.x / 100][pos.y / 100].is_detected) {
+            drone_detect_damage();
+        }
     }
 }
 
@@ -442,6 +489,10 @@ static void ui_update_1s() {
             }
         }
     }
+}
+
+static void ui_drone_timer_resume() {
+    lv_timer_resume(ui_timer_drone_update_100ms);
 }
 
 lv_obj_t *ui_div_create(lv_obj_t *parent) {
