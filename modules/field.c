@@ -25,47 +25,48 @@ field_t *field_init(int x, int y) {
     return field;
 }
 
+//清空
+bool field_remove(field_t *field){
+    field->crop_type = CROP_TYPE_NONE;
+    field->growing_time = 0;
+    field->growing_percent = 0;
+    field->stage = CROP_STAGE_NONE;
+    field->damage = CROP_DAMAGE_NONE;
+    field->is_damaged = false;
+    field->is_detected = false;
+    field->base_output = 0;
+    field->factor = 1;
+    field->extra_factor = 0.0;
+    field->tolerance = 0.0;
+
+    event_send(EVENT_ON_FIELD_CLEARED, field);
+
+    return true;
+}
+
 // 种植
 bool field_plant(field_t *field, crop_type_t type) {
-    if (type == CROP_TYPE_NONE) { // 清空田地//只有重置会用到
-        field->crop_type = type;
-        field->growing_time = 0;
-        field->growing_percent = 0;
-        field->stage = CROP_STAGE_NONE;
-        field->damage = CROP_DAMAGE_NONE;
-        field->is_damaged = false;
-        field->is_detected = false;
-        field->base_output = 0;
-        field->factor = 1;
-        field->extra_factor = 0.0;
-        field->tolerance = 0.0;
+    if (field->crop_type != CROP_TYPE_NONE)
+        return false;
+    field->crop_type = type;
+    field->ready_time = ready_time(field->crop_type);
+    field->growing_time = 0;
+    field->growing_percent = 0;
+    field->stage = CROP_STAGE_SEED;
+    field->damage = max_possibility(field);
+    field->is_damaged = false;
+    field->is_detected = false;
+    field->base_output = 100;
+    field->factor = 1;
+    field->extra_factor = 0;
+    field->tolerance = 0;
+    load_output_upgrade(field);
+    load_ready_time_upgrade(field);
+    load_tolerance_upgrade(field);
 
-        event_send(EVENT_ON_FIELD_CLEARED, field);
+    event_send(EVENT_ON_FIELD_PLANTED, field);
 
-        return true;
-    } else {
-        if (field->crop_type != CROP_TYPE_NONE)
-            return false;
-        field->crop_type = type;
-        field->ready_time = ready_time(field->crop_type);
-        field->growing_time = 0;
-        field->growing_percent = 0;
-        field->stage = CROP_STAGE_SEED;
-        field->damage = max_possibility(field);
-        field->is_damaged = false;
-        field->is_detected = false;
-        field->base_output = 100;
-        field->factor = 1;
-        field->extra_factor = 0;
-        field->tolerance = 0;
-        load_output_upgrade(field);
-        load_ready_time_upgrade(field);
-        load_tolerance_upgrade(field);
-
-        event_send(EVENT_ON_FIELD_PLANTED, field);
-
-        return true;
-    }
+    return true;
 }
 
 // 生长
@@ -76,15 +77,11 @@ void field_grow(field_t *field) {
         return;
     }
     if (field->factor < 0.5) {
-        field_plant(field, CROP_TYPE_NONE); // 植物死亡
+        field_remove(field); // 植物死亡
         return;
     }
 
-    if (field->damage == CROP_DAMAGE_NONE)
-        field->is_damaged = false;
-    else
-        // field->is_damaged = true; // HuajiMC: 这里是否有逻辑错误 2026/4/14
-        ;
+    if (field->damage == CROP_DAMAGE_NONE) field->is_damaged = false;
 
     // 生长时间++
     field->growing_time++;
@@ -126,7 +123,7 @@ int field_harvest(field_t *field) {
     if (field->crop_type == CROP_TYPE_NONE || field->stage != CROP_STAGE_READY)
         return 0;
     int output = field->base_output * (field->factor + field->extra_factor);
-    field_plant(field, CROP_TYPE_NONE); // 移除植物
+    field_remove(field); // 移除植物
     event_send(EVENT_ON_FIELD_HARVESTED, field);
     return output;
 }

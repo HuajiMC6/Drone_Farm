@@ -31,6 +31,7 @@ typedef struct {
 
 // 田地管理
 field_t *field_init(int x, int y);
+bool field_remove(field_t *field);
 bool field_plant(field_t *field, crop_type_t type);
 void field_grow(field_t *field);
 int field_harvest(field_t *field);
