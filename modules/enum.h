@@ -37,7 +37,14 @@ typedef enum {        // 生长阶段
 typedef enum { //
     DRONE_STATE_FREE,
     DRONE_STATE_DETECTING,
-    DRONE_STATE_AUTO
+    DRONE_STATE_AUTO,
+    DRONE_STATE_NONE
 } drone_state_t;
+
+const char *crop_type_name(crop_type_t type);
+const char *crop_pest_name(crop_damage_t pest);
+const char *crop_pesticide_name(crop_pesticide_t pesticide);
+const char *crop_stage_name(crop_stage_t stage);
+const char *drone_state_name(drone_state_t state);
 
 #endif

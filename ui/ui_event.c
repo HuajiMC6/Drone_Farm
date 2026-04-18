@@ -30,6 +30,9 @@ void screen_main_click_cb(lv_event_t *e) {
     lv_obj_t *target = lv_event_get_target(e);
 
     lv_obj_t *obj = lv_event_get_user_data(e);
+    if (obj == NULL) {
+        return;
+    }
 
     // 如果点击的目标是父容器或其内部子对象，则不处理
     if (target == obj || lv_obj_get_parent(target) == obj) {
@@ -38,6 +41,7 @@ void screen_main_click_cb(lv_event_t *e) {
 
     if (g_current_window) {
         lv_obj_del_async(g_current_window);
+        g_current_window = NULL;
     } else {
         lv_obj_t *child;
         uint8_t idx = 0;
@@ -152,6 +156,7 @@ void drone_click_cb(lv_event_t *e) {
         g_current_window = ((lv_obj_t * (*)(void)) lv_event_get_user_data(e))();
     } else {
         lv_obj_del_async(g_current_window);
+        g_current_window = NULL;
     }
 }
 

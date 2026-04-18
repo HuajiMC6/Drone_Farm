@@ -299,12 +299,12 @@ void drone_move(pos_t vector) {
                      s_drone->current_pos.y + (vector.y * s_drone->speed) / 100};
     s_drone->current_pos = new_pos;
     farm_t *farm = farm_get_instance();
-    if (new_pos.x > farm->current_size * 100)
-        s_drone->current_pos.x = farm->current_size * 100;
+    if (new_pos.x >= farm->current_size * 100)
+        s_drone->current_pos.x = farm->current_size * 100 - 1;
     if (new_pos.x < 0)
         s_drone->current_pos.x = 0;
-    if (new_pos.y > farm->current_size * 100)
-        s_drone->current_pos.y = farm->current_size * 100;
+    if (new_pos.y >= farm->current_size * 100)
+        s_drone->current_pos.y = farm->current_size * 100 - 1;
     if (new_pos.y < 0)
         s_drone->current_pos.y = 0;
 }

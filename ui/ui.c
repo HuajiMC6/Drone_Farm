@@ -17,9 +17,15 @@ static lv_obj_t *g_screen_main;
 static lv_obj_t *farm_grid = NULL;
 static lv_obj_t *g_drone = NULL;
 
+static lv_obj_t *shop_btn = NULL;
+static lv_obj_t *storage_btn = NULL;
+static lv_obj_t *plant_btn = NULL;
+static lv_obj_t *setting_btn = NULL;
+
 lv_obj_t *g_current_window = NULL;
 
 static farm_block_t g_farm_blocks[10][10];
+static uint8_t pest_count[CROP_DAMAGE_NONE];
 
 lv_timer_t *ui_timer_drone_update_100ms;
 lv_timer_t *ui_timer_update_1s;
@@ -38,12 +44,12 @@ static lv_obj_t *ui_shop_window_create();
 static lv_obj_t *ui_setting_window_create();
 static lv_obj_t *ui_drone_create(lv_obj_t *parent);
 static lv_obj_t *drone_window_create();
-static const char *ui_crop_type_name(crop_type_t type);
 static const void *ui_crop_drag_img(crop_type_t type);
 static void ui_drone_set_pos(lv_coord_t x, lv_coord_t y, bool anim, void *anim_cb);
 static void ui_drone_update_100ms();
 static void ui_update_1s();
 static void ui_drone_timer_resume();
+static void ui_main_icon_btns_hide(bool hide);
 
 void ui_init(void) {
     ui_screen_main_create();
@@ -92,6 +98,7 @@ void ui_event_handler(event_t *event) {
             break;
         case EVENT_ON_DRONE_TO_MOVING:
             ui_drone_set_pos(0, 0, true, ui_drone_timer_resume);
+            ui_main_icon_btns_hide(true);
             break;
         default:
             break;
@@ -115,10 +122,10 @@ static void ui_screen_main_create() {
     ui_drone_set_pos(-40, 40, false, NULL);
 
     /* 相关按钮 */
-    lv_obj_t *shop_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_shop_btn, 40, 380);
-    lv_obj_t *storage_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_storage_btn, 40, 460);
-    lv_obj_t *plant_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_plant_btn, 920, 450);
-    lv_obj_t *setting_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_setting_btn, 920, 40);
+    shop_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_shop_btn, 40, 380);
+    storage_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_storage_btn, 40, 460);
+    plant_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_plant_btn, 920, 450);
+    setting_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_setting_btn, 920, 40);
 
     /* 按钮回调 */
     lv_obj_add_event_cb(plant_btn, main_floating_btn_click_cb, LV_EVENT_CLICKED, ui_plant_window_create);
@@ -276,8 +283,16 @@ void test_cb(lv_event_t *e) {
     }
 }
 static lv_obj_t *drone_window_create() {
-    lv_obj_t *body = ui_div_create(g_screen_main);
     drone_t *drone = drone_get_instance();
+
+    if (drone->drone_state != DRONE_STATE_FREE) {
+        return NULL; // 无人机空闲时才允许打开窗口
+    }
+
+    lv_obj_t *body = ui_div_create(g_screen_main);
+    lv_obj_set_layout(body, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(body, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(body, 3, 0);
 
     lv_obj_t *label = lv_label_create(body);
     lv_label_set_text_fmt(label, "Speed Level: %d\nStorage Level: %d", drone->speed_level, drone->storage_level);
@@ -285,11 +300,64 @@ static lv_obj_t *drone_window_create() {
     lv_obj_t *test_btn = lv_btn_create(body);
     lv_obj_add_event_cb(test_btn, test_cb, LV_EVENT_CLICKED, &drone->drone_state);
 
-    lv_obj_t *div = ui_window_create("PLANT", body, NULL, NULL, NULL, NULL, NULL);
-    lv_obj_align_to(div, g_drone, LV_ALIGN_OUT_RIGHT_TOP, 20, -40);
-    lv_obj_set_size(div, 206, 220);
+    lv_obj_t *result_label = lv_label_create(body);
+    lv_label_set_text(result_label, "Detect Result:");
+
+    lv_obj_t *result_div = ui_div_create(body);
+    lv_obj_set_size(result_div, lv_pct(100), 60);
+    lv_obj_set_layout(result_div, LV_LAYOUT_GRID);
+    static const lv_coord_t grid_dsc[] = {LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
+    lv_obj_set_grid_dsc_array(result_div, grid_dsc, grid_dsc);
+
+    for (crop_damage_t pest = 0; pest < CROP_DAMAGE_NONE; pest++) {
+        lv_obj_t *pest_div = ui_div_create(result_div);
+        lv_obj_set_height(pest_div, LV_SIZE_CONTENT);
+        lv_obj_set_layout(pest_div, LV_LAYOUT_FLEX);
+        lv_obj_set_flex_flow(pest_div, LV_FLEX_FLOW_ROW);
+        lv_obj_set_grid_cell(pest_div, LV_GRID_ALIGN_STRETCH, pest % 2, 1, LV_GRID_ALIGN_STRETCH, pest / 2, 1);
+
+        lv_obj_t *pest_img = lv_img_create(pest_div);
+        lv_img_set_src(pest_img, icon_get_pest(pest));
+        lv_obj_set_pos(pest_img, 0, 0);
+
+        lv_obj_t *pest_label = lv_label_create(pest_div);
+        lv_label_set_text_fmt(pest_label, "%d", pest_count[pest]);
+        lv_obj_set_pos(pest_label, 0, 0);
+    }
+
+    lv_obj_t *div = ui_window_create("DRONE", body, NULL, NULL, NULL, NULL, NULL);
+    lv_obj_align_to(div, g_screen_main, LV_ALIGN_TOP_LEFT, 20, 100);
+    lv_obj_set_size(div, 210, 300);
 
     return div;
+}
+
+static void ui_main_icon_btns_hide(bool hide) {
+    if (hide) {
+        lv_obj_add_flag(shop_btn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(storage_btn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(plant_btn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(setting_btn, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_clear_flag(shop_btn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(storage_btn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(plant_btn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(setting_btn, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+static void ui_drone_btns_create(lv_obj_t *parent) {
+    /* 相关按钮 */
+    shop_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_shop_btn, 40, 380);
+    storage_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_storage_btn, 40, 460);
+    plant_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_plant_btn, 920, 450);
+    setting_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_setting_btn, 920, 40);
+
+    /* 按钮回调 */
+    lv_obj_add_event_cb(plant_btn, main_floating_btn_click_cb, LV_EVENT_CLICKED, ui_plant_window_create);
+    lv_obj_add_event_cb(storage_btn, main_floating_btn_click_cb, LV_EVENT_CLICKED, ui_storage_window_create);
+    lv_obj_add_event_cb(shop_btn, main_floating_btn_click_cb, LV_EVENT_CLICKED, ui_shop_window_create);
+    lv_obj_add_event_cb(setting_btn, main_floating_btn_click_cb, LV_EVENT_CLICKED, ui_setting_window_create);
 }
 
 static lv_obj_t *ui_crop_grwoing_bar(lv_obj_t *parent) {
@@ -357,7 +425,7 @@ static lv_obj_t *ui_seed_table_create(lv_obj_t *parent) {
         lv_obj_align(item_img, LV_ALIGN_TOP_MID, 0, 0);
 
         lv_obj_t *item1_label = lv_label_create(obj);
-        lv_label_set_text(item1_label, ui_crop_type_name(i));
+        lv_label_set_text(item1_label, crop_type_name(i));
         lv_obj_set_style_text_color(item1_label, lv_color_make(60, 42, 29), 0);
         lv_obj_set_style_text_align(item1_label, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_align(item1_label, LV_ALIGN_BOTTOM_MID, 0, 0);
@@ -370,20 +438,7 @@ static lv_obj_t *ui_seed_table_create(lv_obj_t *parent) {
     return grid;
 }
 
-// 以下两个函数是ai修改代码时额外生成的，后面更改实现方式
-static const char *ui_crop_type_name(crop_type_t type) {
-    switch (type) {
-        case CROP_TYPE_WHEAT:
-            return "Wheat";
-        case CROP_TYPE_RICE:
-            return "Rice";
-        case CROP_TYPE_CORN:
-            return "Corn";
-        default:
-            return "Unknown";
-    }
-}
-
+// 以下函数是ai修改代码时额外生成的，后面更改实现方式
 static const void *ui_crop_drag_img(crop_type_t type) {
     const void *img = icon_get_crop(type, CROP_STAGE_READY);
     if (img) {
@@ -472,7 +527,10 @@ static void ui_drone_update_100ms() {
 
         /* 执行探测任务 */
         if (!g_farm_blocks[pos.x / 100][pos.y / 100].is_detected) {
-            drone_detect_damage();
+            crop_damage_t pest = drone_detect_damage();
+            if (pest != CROP_DAMAGE_NONE) {
+                pest_count[pest]++;
+            }
         }
     }
 }
