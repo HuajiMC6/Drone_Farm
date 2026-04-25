@@ -2,21 +2,26 @@
 #include "enum.h"
 #include "stdlib.h"
 #include <stdbool.h>
+#include <string.h>
 
+static farm_t s_farm_storage;
 static farm_t *s_farm = NULL;
 
 void farm_init() {
     if (s_farm == NULL) {
-        s_farm = (farm_t *)malloc(sizeof(farm_t));
+        s_farm = &s_farm_storage;
+        memset(s_farm, 0, sizeof(*s_farm));
         for (int i = 0; i < 10; i++)
-            for (int j = 0; j < 10; j++)
-                s_farm->fields[i][j] = field_init(i, j);
+            for (int j = 0; j < 10; j++) s_farm->fields[i][j] = field_init(i, j);
         s_farm->current_size = 5;
         s_farm->size_level = 0;
     }
 }
 
 farm_t *farm_get_instance() {
+    if (s_farm == NULL) {
+        farm_init();
+    }
     return s_farm;
 }
 

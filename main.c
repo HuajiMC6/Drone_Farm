@@ -23,6 +23,7 @@ int main() {
     trng_clockerror_detection_enable();
     trng_enable();
 
+    /* LVGL Init */
     lv_init();
     lv_port_disp_init();
     lv_port_indev_init();

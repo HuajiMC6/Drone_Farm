@@ -1,7 +1,38 @@
 #include "ui_event.h"
-#include "ui.h"
+// #include "ui.h"
+#include "ui_common.h"
+#include "ui_window.h"
 
 static bool ui_lv_obj_is_overlap(lv_obj_t *obj1, lv_obj_t *obj2, lv_coord_t hor_offset, lv_coord_t ver_offset);
+
+static void ui_window_toggle_from_desc(ui_window_toggle_desc_t *desc) {
+    if (!desc || !desc->create) {
+        return;
+    }
+
+    lv_obj_t *window = NULL;
+    if (desc->window_ref) {
+        window = *desc->window_ref;
+        if (window && !lv_obj_is_valid(window)) {
+            *desc->window_ref = NULL;
+            window = NULL;
+        }
+    }
+
+    if (!window) {
+        window = desc->create();
+        if (desc->window_ref) {
+            *desc->window_ref = window;
+        }
+        return;
+    }
+
+    if (ui_window_is_visible(window)) {
+        ui_window_hide(window);
+    } else {
+        ui_window_show(window);
+    }
+}
 
 void farm_block_click_cb(lv_event_t *e) {
     /* 处理地块高亮 */
@@ -39,9 +70,9 @@ void screen_main_click_cb(lv_event_t *e) {
         return;
     }
 
-    if (g_current_window) {
-        lv_obj_del_async(g_current_window);
-        g_current_window = NULL;
+    lv_obj_t *current_window = ui_window_get_current();
+    if (current_window) {
+        ui_window_hide_current();
     } else {
         lv_obj_t *child;
         uint8_t idx = 0;
@@ -52,24 +83,9 @@ void screen_main_click_cb(lv_event_t *e) {
 }
 
 void main_floating_btn_click_cb(lv_event_t *e) {
-    static void *last_window = NULL;
-    if (!g_current_window) {
-        g_current_window = ((lv_obj_t * (*)(void)) lv_event_get_user_data(e))();
-        last_window = lv_event_get_user_data(e);
-    } else {
-        lv_obj_del(g_current_window);
-
-        if (last_window != lv_event_get_user_data(e)) { // 如果不是同一个窗口，就在关闭旧窗口后打开新窗口
-            g_current_window = ((lv_obj_t * (*)(void)) lv_event_get_user_data(e))();
-            last_window = lv_event_get_user_data(e);
-        } else {
-            last_window = NULL;
-        }
-    }
-}
-
-void window_delete_cb(lv_event_t *e) {
-    g_current_window = NULL;
+    lv_event_stop_bubbling(e);
+    ui_window_toggle_desc_t *desc = lv_event_get_user_data(e);
+    ui_window_toggle_from_desc(desc);
 }
 
 void drag_to_plant_cb(lv_event_t *e) {
@@ -163,16 +179,8 @@ void drone_click_cb(lv_event_t *e) {
     /* Prevent parent screen click handler from deleting/altering window in the same click event */
     lv_event_stop_bubbling(e);
 
-    lv_obj_t *(*create_window)(void) = (lv_obj_t * (*)(void)) lv_event_get_user_data(e);
-
-    if (g_current_window && lv_obj_is_valid(g_current_window)) {
-        lv_obj_del(g_current_window);
-        g_current_window = NULL;
-    }
-
-    if (create_window) {
-        g_current_window = create_window();
-    }
+    ui_window_toggle_desc_t *desc = lv_event_get_user_data(e);
+    ui_window_toggle_from_desc(desc);
 
     in_drone_click = false;
 }

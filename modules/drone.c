@@ -4,16 +4,22 @@
 #include "player.h"
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 
+static drone_t s_drone_storage;
 static drone_t *s_drone = NULL;
 
 drone_t *drone_get_instance() {
+    if (s_drone == NULL) {
+        drone_init();
+    }
     return s_drone;
 }
 
 void drone_init() {
     if (s_drone == NULL) {
-        s_drone = (drone_t *)malloc(sizeof(drone_t));
+        s_drone = &s_drone_storage;
+        memset(s_drone, 0, sizeof(*s_drone));
         s_drone->speed = 10;
         s_drone->algorithm_level = 0;
         s_drone->speed_level = 0;

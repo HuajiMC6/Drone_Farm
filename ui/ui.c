@@ -4,8 +4,10 @@
 #include "icon.h"
 #include "joystick.h"
 #include "sdram_malloc.h"
+#include "ui_common.h"
 #include "ui_event.h"
 #include "ui_grid_list.h"
+#include "ui_window.h"
 
 #define FARM_GRID_N farm_get_instance()->current_size
 #define FARM_BLOCK_SIZE 80
@@ -22,10 +24,23 @@ static lv_obj_t *storage_btn = NULL;
 static lv_obj_t *plant_btn = NULL;
 static lv_obj_t *setting_btn = NULL;
 
-lv_obj_t *g_current_window = NULL;
+drone_window_ctx_t g_drone_window_ctx;
 
 static farm_block_t g_farm_blocks[10][10];
 static uint8_t pest_count[CROP_DAMAGE_NONE];
+
+typedef struct {
+    crop_pesticide_t pesticide;
+    int delta;
+} drone_pesticide_btn_desc_t;
+
+typedef struct {
+    drone_state_t target_state;
+} drone_mode_btn_desc_t;
+
+static drone_pesticide_btn_desc_t g_drone_pesticide_btn_desc[CROP_PESTICIDE_NONE][2];
+static drone_mode_btn_desc_t g_drone_detect_btn_desc = {.target_state = DRONE_STATE_DETECTING};
+static drone_mode_btn_desc_t g_drone_spray_btn_desc = {.target_state = DRONE_STATE_AUTO};
 
 lv_timer_t *ui_timer_drone_update_100ms;
 lv_timer_t *ui_timer_update_1s;
@@ -50,6 +65,30 @@ static void ui_drone_update_100ms();
 static void ui_update_1s();
 static void ui_drone_timer_resume();
 static void ui_main_icon_btns_hide(bool hide);
+static void ui_drone_window_refresh(void);
+static void drone_mode_btn_click_cb(lv_event_t *e);
+static void drone_pesticide_btn_click_cb(lv_event_t *e);
+static int ui_drone_pesticide_used(const drone_t *drone);
+static void ui_drone_btn_set_text(lv_obj_t *btn, const char *text);
+
+static lv_obj_t *g_plant_window = NULL;
+static lv_obj_t *g_storage_window = NULL;
+static lv_obj_t *g_shop_window = NULL;
+static lv_obj_t *g_setting_window = NULL;
+
+static ui_window_toggle_desc_t g_plant_window_toggle = {.create = ui_plant_window_create,
+                                                        .window_ref = &g_plant_window};
+static ui_window_toggle_desc_t g_storage_window_toggle = {
+    .create = ui_storage_window_create,
+    .window_ref = &g_storage_window,
+};
+static ui_window_toggle_desc_t g_shop_window_toggle = {.create = ui_shop_window_create, .window_ref = &g_shop_window};
+static ui_window_toggle_desc_t g_setting_window_toggle = {
+    .create = ui_setting_window_create,
+    .window_ref = &g_setting_window,
+};
+static ui_window_toggle_desc_t g_drone_window_toggle = {.create = drone_window_create,
+                                                        .window_ref = &g_drone_window_ctx.obj};
 
 void ui_init(void) {
     ui_screen_main_create();
@@ -95,10 +134,13 @@ void ui_event_handler(event_t *event) {
         case EVENT_ON_DRONE_TO_FREE:
             lv_timer_pause(ui_timer_drone_update_100ms);
             ui_drone_set_pos(-40, 40, true, NULL);
+            ui_main_icon_btns_hide(false);
+            ui_drone_window_refresh();
             break;
         case EVENT_ON_DRONE_TO_MOVING:
             ui_drone_set_pos(0, 0, true, ui_drone_timer_resume);
             ui_main_icon_btns_hide(true);
+            ui_drone_window_refresh();
             break;
         default:
             break;
@@ -128,12 +170,12 @@ static void ui_screen_main_create() {
     setting_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_setting_btn, 920, 40);
 
     /* 按钮回调 */
-    lv_obj_add_event_cb(plant_btn, main_floating_btn_click_cb, LV_EVENT_CLICKED, ui_plant_window_create);
-    lv_obj_add_event_cb(storage_btn, main_floating_btn_click_cb, LV_EVENT_CLICKED, ui_storage_window_create);
-    lv_obj_add_event_cb(shop_btn, main_floating_btn_click_cb, LV_EVENT_CLICKED, ui_shop_window_create);
-    lv_obj_add_event_cb(setting_btn, main_floating_btn_click_cb, LV_EVENT_CLICKED, ui_setting_window_create);
+    lv_obj_add_event_cb(plant_btn, main_floating_btn_click_cb, LV_EVENT_CLICKED, &g_plant_window_toggle);
+    lv_obj_add_event_cb(storage_btn, main_floating_btn_click_cb, LV_EVENT_CLICKED, &g_storage_window_toggle);
+    lv_obj_add_event_cb(shop_btn, main_floating_btn_click_cb, LV_EVENT_CLICKED, &g_shop_window_toggle);
+    lv_obj_add_event_cb(setting_btn, main_floating_btn_click_cb, LV_EVENT_CLICKED, &g_setting_window_toggle);
 
-    lv_obj_add_event_cb(g_screen_main, screen_main_click_cb, LV_EVENT_CLICKED, g_current_window);
+    lv_obj_add_event_cb(g_screen_main, screen_main_click_cb, LV_EVENT_CLICKED, NULL);
 }
 
 static void ui_farm_grid_create(lv_obj_t *parent) {
@@ -231,7 +273,7 @@ static lv_obj_t *ui_drone_create(lv_obj_t *parent) {
     lv_animimg_set_duration(drone, 150);
     lv_animimg_set_repeat_count(drone, LV_ANIM_REPEAT_INFINITE);
     lv_obj_add_flag(drone, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(drone, drone_click_cb, LV_EVENT_CLICKED, drone_window_create);
+    lv_obj_add_event_cb(drone, drone_click_cb, LV_EVENT_CLICKED, &g_drone_window_toggle);
     lv_animimg_start(drone);
     // lv_obj_set_size(drone, 40, 40);
 
@@ -274,14 +316,7 @@ static void ui_drone_set_pos(lv_coord_t x, lv_coord_t y, bool anim, void *anim_c
         lv_anim_start(&ay);
     }
 }
-void test_cb(lv_event_t *e) {
-    drone_state_t *state = lv_event_get_user_data(e);
-    if (*state == DRONE_STATE_DETECTING) {
-        drone_state_switch(DRONE_STATE_FREE);
-    } else if (*state == DRONE_STATE_FREE) {
-        drone_state_switch(DRONE_STATE_DETECTING);
-    }
-}
+
 static lv_obj_t *drone_window_create() {
     drone_t *drone = drone_get_instance();
 
@@ -289,47 +324,354 @@ static lv_obj_t *drone_window_create() {
         return NULL; // 无人机空闲时才允许打开窗口
     }
 
-    lv_obj_t *body = ui_div_create(g_screen_main);
-    lv_obj_set_layout(body, LV_LAYOUT_FLEX);
-    lv_obj_set_flex_flow(body, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_all(body, 3, 0);
+    lv_obj_t *body = lv_obj_create(g_screen_main);
+    lv_obj_set_style_bg_color(body, lv_color_hex(0xf6dc8f), 0);
+    lv_obj_set_style_bg_opa(body, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(body, 0, 0);
+    lv_obj_set_style_pad_all(body, 0, 0);
+    lv_obj_clear_flag(body, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *label = lv_label_create(body);
-    lv_label_set_text_fmt(label, "Speed Level: %d\nStorage Level: %d", drone->speed_level, drone->storage_level);
+    lv_obj_t *div = ui_window_create(g_screen_main, "DRONE OPERATION", body);
+    lv_obj_center(div);
+    lv_obj_set_size(div, 820, 470);
 
-    lv_obj_t *test_btn = lv_btn_create(body);
-    lv_obj_add_event_cb(test_btn, test_cb, LV_EVENT_CLICKED, &drone->drone_state);
+    lv_obj_t *left_panel = lv_obj_create(body);
+    lv_obj_set_size(left_panel, 492, 366);
+    lv_obj_set_pos(left_panel, 4, 8);
+    lv_obj_set_style_bg_opa(left_panel, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(left_panel, 0, 0);
+    lv_obj_set_style_pad_all(left_panel, 0, 0);
+    lv_obj_clear_flag(left_panel, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *result_label = lv_label_create(body);
-    lv_label_set_text(result_label, "Detect Result:");
+    lv_obj_t *right_panel = lv_obj_create(body);
+    lv_obj_set_size(right_panel, 304, 366);
+    lv_obj_set_pos(right_panel, 502, 8);
+    lv_obj_set_style_bg_opa(right_panel, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(right_panel, 0, 0);
+    lv_obj_set_style_pad_all(right_panel, 0, 0);
+    lv_obj_clear_flag(right_panel, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *result_div = ui_div_create(body);
-    lv_obj_set_size(result_div, lv_pct(100), 60);
-    lv_obj_set_layout(result_div, LV_LAYOUT_GRID);
-    static const lv_coord_t grid_dsc[] = {LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
-    lv_obj_set_grid_dsc_array(result_div, grid_dsc, grid_dsc);
+    lv_obj_t *base_card = lv_obj_create(left_panel);
+    lv_obj_set_size(base_card, 492, 96);
+    lv_obj_set_pos(base_card, 0, 0);
+    lv_obj_set_style_bg_color(base_card, lv_color_hex(0xf9efcf), 0);
+    lv_obj_set_style_border_color(base_card, lv_color_hex(0x86653a), 0);
+    lv_obj_set_style_border_width(base_card, 1, 0);
+    lv_obj_set_style_radius(base_card, 10, 0);
+    lv_obj_set_style_pad_all(base_card, 8, 0);
+    lv_obj_clear_flag(base_card, LV_OBJ_FLAG_SCROLLABLE);
 
-    for (crop_damage_t pest = 0; pest < CROP_DAMAGE_NONE; pest++) {
-        lv_obj_t *pest_div = ui_div_create(result_div);
-        lv_obj_set_height(pest_div, LV_SIZE_CONTENT);
-        lv_obj_set_layout(pest_div, LV_LAYOUT_FLEX);
-        lv_obj_set_flex_flow(pest_div, LV_FLEX_FLOW_ROW);
-        lv_obj_set_grid_cell(pest_div, LV_GRID_ALIGN_STRETCH, pest % 2, 1, LV_GRID_ALIGN_STRETCH, pest / 2, 1);
+    lv_obj_t *base_title = lv_label_create(base_card);
+    lv_label_set_text(base_title, "Base Info");
+    lv_obj_set_style_text_color(base_title, lv_color_hex(0x5b421f), 0);
+    lv_obj_set_pos(base_title, 0, 0);
 
-        lv_obj_t *pest_img = lv_img_create(pest_div);
-        lv_img_set_src(pest_img, icon_get_pest(pest));
-        lv_obj_set_pos(pest_img, 0, 0);
+    lv_obj_t *state_chip = lv_obj_create(base_card);
+    lv_obj_set_size(state_chip, 150, 22);
+    lv_obj_set_pos(state_chip, 322, 0);
+    lv_obj_set_style_bg_color(state_chip, lv_color_hex(0xcdecd4), 0);
+    lv_obj_set_style_bg_opa(state_chip, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(state_chip, lv_color_hex(0x3c7a52), 0);
+    lv_obj_set_style_border_width(state_chip, 1, 0);
+    lv_obj_set_style_radius(state_chip, 16, 0);
+    lv_obj_set_style_pad_all(state_chip, 0, 0);
+    lv_obj_clear_flag(state_chip, LV_OBJ_FLAG_SCROLLABLE);
+    g_drone_window_ctx.state_label = lv_label_create(state_chip);
+    lv_obj_set_style_text_color(g_drone_window_ctx.state_label, lv_color_hex(0x175537), 0);
+    lv_obj_center(g_drone_window_ctx.state_label);
 
-        lv_obj_t *pest_label = lv_label_create(pest_div);
-        lv_label_set_text_fmt(pest_label, "%d", pest_count[pest]);
-        lv_obj_set_pos(pest_label, 0, 0);
+    lv_obj_t *speed_key = lv_label_create(base_card);
+    lv_label_set_text(speed_key, "Speed");
+    lv_obj_set_style_text_color(speed_key, lv_color_hex(0x6f5c41), 0);
+    lv_obj_set_pos(speed_key, 8, 30);
+    g_drone_window_ctx.speed_label = lv_label_create(base_card);
+    lv_label_set_text(g_drone_window_ctx.speed_label, "--");
+    lv_obj_set_pos(g_drone_window_ctx.speed_label, 8, 50);
+
+    lv_obj_t *algo_key = lv_label_create(base_card);
+    lv_label_set_text(algo_key, "Algorithm");
+    lv_obj_set_style_text_color(algo_key, lv_color_hex(0x6f5c41), 0);
+    lv_obj_set_pos(algo_key, 172, 30);
+    g_drone_window_ctx.algorithm_label = lv_label_create(base_card);
+    lv_label_set_text(g_drone_window_ctx.algorithm_label, "--");
+    lv_obj_set_pos(g_drone_window_ctx.algorithm_label, 172, 50);
+
+    lv_obj_t *storage_key = lv_label_create(base_card);
+    lv_label_set_text(storage_key, "Capacity");
+    lv_obj_set_style_text_color(storage_key, lv_color_hex(0x6f5c41), 0);
+    lv_obj_set_pos(storage_key, 336, 30);
+    g_drone_window_ctx.storage_label = lv_label_create(base_card);
+    lv_label_set_text(g_drone_window_ctx.storage_label, "--");
+    lv_obj_set_pos(g_drone_window_ctx.storage_label, 336, 50);
+
+    lv_obj_t *pest_card = lv_obj_create(left_panel);
+    lv_obj_set_size(pest_card, 492, 116);
+    lv_obj_set_pos(pest_card, 0, 100);
+    lv_obj_set_style_bg_color(pest_card, lv_color_hex(0xf9efcf), 0);
+    lv_obj_set_style_border_color(pest_card, lv_color_hex(0x86653a), 0);
+    lv_obj_set_style_border_width(pest_card, 1, 0);
+    lv_obj_set_style_radius(pest_card, 10, 0);
+    lv_obj_set_style_pad_all(pest_card, 8, 0);
+    lv_obj_clear_flag(pest_card, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *pest_title = lv_label_create(pest_card);
+    lv_label_set_text(pest_title, "Last Scan Pest Count");
+    lv_obj_set_style_text_color(pest_title, lv_color_hex(0x5b421f), 0);
+    lv_obj_set_pos(pest_title, 0, 0);
+
+    for (crop_damage_t i = 0; i < CROP_DAMAGE_NONE; i++) {
+        const void *pest_icon = icon_get_pest(i);
+        lv_obj_t *icon = lv_img_create(pest_card);
+        lv_img_set_src(icon, pest_icon ? pest_icon : &icon_pest_unknown);
+        lv_obj_set_pos(icon, (i % 2) ? 248 : 8, 28 + (i / 2) * 32);
+
+        lv_obj_t *name = lv_label_create(pest_card);
+        lv_label_set_text(name, crop_pest_name(i));
+        lv_obj_set_pos(name, (i % 2) ? 270 : 30, 28 + (i / 2) * 32);
+
+        g_drone_window_ctx.result_labels[i] = lv_label_create(pest_card);
+        lv_label_set_text(g_drone_window_ctx.result_labels[i], "0");
+        lv_obj_set_pos(g_drone_window_ctx.result_labels[i], (i % 2) ? 448 : 208, 28 + (i / 2) * 32);
     }
 
-    lv_obj_t *div = ui_window_create("DRONE", body, NULL, NULL, NULL, NULL, NULL);
-    lv_obj_align_to(div, g_screen_main, LV_ALIGN_TOP_LEFT, 20, 100);
-    lv_obj_set_size(div, 210, 300);
+    lv_obj_t *mode_card = lv_obj_create(left_panel);
+    lv_obj_set_size(mode_card, 492, 146);
+    lv_obj_set_pos(mode_card, 0, 220);
+    lv_obj_set_style_bg_color(mode_card, lv_color_hex(0xf9efcf), 0);
+    lv_obj_set_style_border_color(mode_card, lv_color_hex(0x86653a), 0);
+    lv_obj_set_style_border_width(mode_card, 1, 0);
+    lv_obj_set_style_radius(mode_card, 10, 0);
+    lv_obj_set_style_pad_all(mode_card, 8, 0);
+    lv_obj_clear_flag(mode_card, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *mode_title = lv_label_create(mode_card);
+    lv_label_set_text(mode_title, "Mode Control");
+    lv_obj_set_style_text_color(mode_title, lv_color_hex(0x5b421f), 0);
+    lv_obj_set_pos(mode_title, 0, 0);
+
+    lv_obj_t *detect_name = lv_label_create(mode_card);
+    lv_label_set_text(detect_name, "Detect / Recall");
+    lv_obj_set_pos(detect_name, 8, 34);
+
+    g_drone_window_ctx.detect_btn = lv_btn_create(mode_card);
+    lv_obj_set_size(g_drone_window_ctx.detect_btn, 132, 34);
+    lv_obj_set_pos(g_drone_window_ctx.detect_btn, 344, 28);
+    lv_obj_set_style_bg_color(g_drone_window_ctx.detect_btn, lv_color_hex(0xefcd76), 0);
+    lv_obj_set_style_border_color(g_drone_window_ctx.detect_btn, lv_color_hex(0x8a6333), 0);
+    lv_obj_set_style_border_width(g_drone_window_ctx.detect_btn, 1, 0);
+    lv_obj_set_style_radius(g_drone_window_ctx.detect_btn, 8, 0);
+    lv_obj_t *detect_btn_label = lv_label_create(g_drone_window_ctx.detect_btn);
+    lv_label_set_text(detect_btn_label, "Start Detect");
+    lv_obj_center(detect_btn_label);
+    lv_obj_add_event_cb(g_drone_window_ctx.detect_btn, drone_mode_btn_click_cb, LV_EVENT_CLICKED,
+                        &g_drone_detect_btn_desc);
+
+    lv_obj_t *spray_name = lv_label_create(mode_card);
+    lv_label_set_text(spray_name, "Auto Spray");
+    lv_obj_set_pos(spray_name, 8, 88);
+
+    g_drone_window_ctx.spray_btn = lv_btn_create(mode_card);
+    lv_obj_set_size(g_drone_window_ctx.spray_btn, 132, 34);
+    lv_obj_set_pos(g_drone_window_ctx.spray_btn, 344, 82);
+    lv_obj_set_style_bg_color(g_drone_window_ctx.spray_btn, lv_color_hex(0xefcd76), 0);
+    lv_obj_set_style_border_color(g_drone_window_ctx.spray_btn, lv_color_hex(0x8a6333), 0);
+    lv_obj_set_style_border_width(g_drone_window_ctx.spray_btn, 1, 0);
+    lv_obj_set_style_radius(g_drone_window_ctx.spray_btn, 8, 0);
+    lv_obj_t *spray_btn_label = lv_label_create(g_drone_window_ctx.spray_btn);
+    lv_label_set_text(spray_btn_label, "Start Spray");
+    lv_obj_center(spray_btn_label);
+    lv_obj_add_event_cb(g_drone_window_ctx.spray_btn, drone_mode_btn_click_cb, LV_EVENT_CLICKED,
+                        &g_drone_spray_btn_desc);
+
+    lv_obj_t *bag_card = lv_obj_create(right_panel);
+    lv_obj_set_size(bag_card, 304, 366);
+    lv_obj_set_pos(bag_card, 0, 0);
+    lv_obj_set_style_bg_color(bag_card, lv_color_hex(0xf9efcf), 0);
+    lv_obj_set_style_border_color(bag_card, lv_color_hex(0x86653a), 0);
+    lv_obj_set_style_border_width(bag_card, 1, 0);
+    lv_obj_set_style_radius(bag_card, 10, 0);
+    lv_obj_set_style_pad_all(bag_card, 8, 0);
+    lv_obj_clear_flag(bag_card, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *bag_title = lv_label_create(bag_card);
+    lv_label_set_text(bag_title, "Pesticide Bag (+/-)");
+    lv_obj_set_style_text_color(bag_title, lv_color_hex(0x5b421f), 0);
+    lv_obj_set_pos(bag_title, 0, 0);
+
+    for (crop_pesticide_t i = 0; i < CROP_PESTICIDE_NONE; i++) {
+        lv_obj_t *name = lv_label_create(bag_card);
+        lv_label_set_text(name, crop_pesticide_name(i));
+        lv_obj_set_pos(name, 8, 34 + i * 44);
+
+        g_drone_window_ctx.pesticide_num_labels[i] = lv_label_create(bag_card);
+        lv_label_set_text(g_drone_window_ctx.pesticide_num_labels[i], "0");
+        lv_obj_set_pos(g_drone_window_ctx.pesticide_num_labels[i], 156, 34 + i * 44);
+
+        lv_obj_t *minus_btn = lv_btn_create(bag_card);
+        lv_obj_set_size(minus_btn, 28, 28);
+        lv_obj_set_pos(minus_btn, 224, 28 + i * 44);
+        lv_obj_set_style_bg_color(minus_btn, lv_color_hex(0xefcd76), 0);
+        lv_obj_set_style_border_color(minus_btn, lv_color_hex(0x8a6333), 0);
+        lv_obj_set_style_border_width(minus_btn, 1, 0);
+        lv_obj_set_style_radius(minus_btn, 8, 0);
+        lv_obj_t *minus_label = lv_label_create(minus_btn);
+        lv_label_set_text(minus_label, "-");
+        lv_obj_center(minus_label);
+
+        lv_obj_t *add_btn = lv_btn_create(bag_card);
+        lv_obj_set_size(add_btn, 28, 28);
+        lv_obj_set_pos(add_btn, 262, 28 + i * 44);
+        lv_obj_set_style_bg_color(add_btn, lv_color_hex(0xf4cdca), 0);
+        lv_obj_set_style_border_color(add_btn, lv_color_hex(0xb66258), 0);
+        lv_obj_set_style_border_width(add_btn, 1, 0);
+        lv_obj_set_style_radius(add_btn, 8, 0);
+        lv_obj_t *add_label = lv_label_create(add_btn);
+        lv_label_set_text(add_label, "+");
+        lv_obj_center(add_label);
+
+        g_drone_pesticide_btn_desc[i][0] = (drone_pesticide_btn_desc_t){.pesticide = i, .delta = 1};
+        g_drone_pesticide_btn_desc[i][1] = (drone_pesticide_btn_desc_t){.pesticide = i, .delta = -1};
+        lv_obj_add_event_cb(add_btn, drone_pesticide_btn_click_cb, LV_EVENT_CLICKED, &g_drone_pesticide_btn_desc[i][0]);
+        lv_obj_add_event_cb(minus_btn, drone_pesticide_btn_click_cb, LV_EVENT_CLICKED,
+                            &g_drone_pesticide_btn_desc[i][1]);
+    }
+
+    g_drone_window_ctx.obj = div;
+    ui_drone_window_refresh();
 
     return div;
+}
+
+static void drone_mode_btn_click_cb(lv_event_t *e) {
+    drone_mode_btn_desc_t *desc = lv_event_get_user_data(e);
+    if (!desc) {
+        return;
+    }
+
+    drone_t *drone = drone_get_instance();
+    if (!drone) {
+        return;
+    }
+
+    if (drone->drone_state == desc->target_state) {
+        drone_state_switch(DRONE_STATE_FREE);
+    } else {
+        drone_state_switch(desc->target_state);
+    }
+
+    ui_drone_window_refresh();
+}
+
+static void drone_pesticide_btn_click_cb(lv_event_t *e) {
+    drone_pesticide_btn_desc_t *desc = lv_event_get_user_data(e);
+    drone_t *drone = drone_get_instance();
+    if (!desc || !drone) {
+        return;
+    }
+
+    if (drone->drone_state != DRONE_STATE_FREE) {
+        return;
+    }
+
+    int used = ui_drone_pesticide_used(drone);
+    int cur = drone->pesticide_storage[desc->pesticide];
+
+    if (desc->delta > 0) {
+        if (used >= drone->storage_capacity) {
+            return;
+        }
+        drone->pesticide_storage[desc->pesticide] = cur + 1;
+    } else {
+        if (cur <= 0) {
+            return;
+        }
+        drone->pesticide_storage[desc->pesticide] = cur - 1;
+    }
+
+    ui_drone_window_refresh();
+}
+
+static int ui_drone_pesticide_used(const drone_t *drone) {
+    int used = 0;
+    for (crop_pesticide_t i = 0; i < CROP_PESTICIDE_NONE; i++) {
+        used += drone->pesticide_storage[i];
+    }
+    return used;
+}
+
+static void ui_drone_btn_set_text(lv_obj_t *btn, const char *text) {
+    if (!btn || !lv_obj_is_valid(btn)) {
+        return;
+    }
+
+    lv_obj_t *label = lv_obj_get_child(btn, 0);
+    if (!label) {
+        return;
+    }
+    lv_label_set_text(label, text);
+}
+
+static void ui_drone_window_refresh(void) {
+    if (!g_drone_window_ctx.obj || !lv_obj_is_valid(g_drone_window_ctx.obj)) {
+        return;
+    }
+
+    drone_t *drone = drone_get_instance();
+    if (!drone) {
+        return;
+    }
+
+    int used = ui_drone_pesticide_used(drone);
+
+    if (g_drone_window_ctx.state_label) {
+        lv_label_set_text_fmt(g_drone_window_ctx.state_label, "State: %s", drone_state_name(drone->drone_state));
+    }
+    if (g_drone_window_ctx.speed_label) {
+        lv_label_set_text_fmt(g_drone_window_ctx.speed_label, "%d m/s", drone->speed);
+    }
+    if (g_drone_window_ctx.algorithm_label) {
+        lv_label_set_text_fmt(g_drone_window_ctx.algorithm_label, "Lv.%d", drone->algorithm_level + 1);
+    }
+    if (g_drone_window_ctx.storage_label) {
+        lv_label_set_text_fmt(g_drone_window_ctx.storage_label, "%d / %d", used, drone->storage_capacity);
+    }
+
+    for (crop_damage_t i = 0; i < CROP_DAMAGE_NONE; i++) {
+        if (g_drone_window_ctx.result_labels[i]) {
+            lv_label_set_text_fmt(g_drone_window_ctx.result_labels[i], "%d", pest_count[i]);
+        }
+    }
+
+    for (crop_pesticide_t i = 0; i < CROP_PESTICIDE_NONE; i++) {
+        if (g_drone_window_ctx.pesticide_num_labels[i]) {
+            lv_label_set_text_fmt(g_drone_window_ctx.pesticide_num_labels[i], "%d", drone->pesticide_storage[i]);
+        }
+    }
+
+    bool detecting = drone->drone_state == DRONE_STATE_DETECTING;
+    bool spraying = drone->drone_state == DRONE_STATE_AUTO;
+
+    if (g_drone_window_ctx.detect_btn) {
+        ui_drone_btn_set_text(g_drone_window_ctx.detect_btn, detecting ? "Recall" : "Start Detect");
+        lv_obj_set_style_bg_color(g_drone_window_ctx.detect_btn,
+                                  detecting ? lv_color_hex(0x2f9a5f) : lv_color_hex(0xefcd76), 0);
+        if (spraying) {
+            lv_obj_add_state(g_drone_window_ctx.detect_btn, LV_STATE_DISABLED);
+        } else {
+            lv_obj_clear_state(g_drone_window_ctx.detect_btn, LV_STATE_DISABLED);
+        }
+    }
+
+    if (g_drone_window_ctx.spray_btn) {
+        ui_drone_btn_set_text(g_drone_window_ctx.spray_btn, spraying ? "Stop Spray" : "Start Spray");
+        lv_obj_set_style_bg_color(g_drone_window_ctx.spray_btn,
+                                  spraying ? lv_color_hex(0x2f9a5f) : lv_color_hex(0xefcd76), 0);
+        if (detecting) {
+            lv_obj_add_state(g_drone_window_ctx.spray_btn, LV_STATE_DISABLED);
+        } else {
+            lv_obj_clear_state(g_drone_window_ctx.spray_btn, LV_STATE_DISABLED);
+        }
+    }
 }
 
 static void ui_main_icon_btns_hide(bool hide) {
@@ -354,10 +696,10 @@ static void ui_drone_btns_create(lv_obj_t *parent) {
     setting_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_setting_btn, 920, 40);
 
     /* 按钮回调 */
-    lv_obj_add_event_cb(plant_btn, main_floating_btn_click_cb, LV_EVENT_CLICKED, ui_plant_window_create);
-    lv_obj_add_event_cb(storage_btn, main_floating_btn_click_cb, LV_EVENT_CLICKED, ui_storage_window_create);
-    lv_obj_add_event_cb(shop_btn, main_floating_btn_click_cb, LV_EVENT_CLICKED, ui_shop_window_create);
-    lv_obj_add_event_cb(setting_btn, main_floating_btn_click_cb, LV_EVENT_CLICKED, ui_setting_window_create);
+    lv_obj_add_event_cb(plant_btn, main_floating_btn_click_cb, LV_EVENT_CLICKED, &g_plant_window_toggle);
+    lv_obj_add_event_cb(storage_btn, main_floating_btn_click_cb, LV_EVENT_CLICKED, &g_storage_window_toggle);
+    lv_obj_add_event_cb(shop_btn, main_floating_btn_click_cb, LV_EVENT_CLICKED, &g_shop_window_toggle);
+    lv_obj_add_event_cb(setting_btn, main_floating_btn_click_cb, LV_EVENT_CLICKED, &g_setting_window_toggle);
 }
 
 static lv_obj_t *ui_crop_grwoing_bar(lv_obj_t *parent) {
@@ -465,10 +807,12 @@ static const void *ui_crop_drag_img(crop_type_t type) {
 static lv_obj_t *ui_plant_window_create() {
     lv_obj_t *grid = ui_seed_table_create(g_screen_main);
 
-    lv_obj_t *div = ui_window_create("PLANT", grid, NULL, NULL, NULL, NULL, NULL);
+    lv_obj_t *div = ui_window_create(g_screen_main, "PLANT", grid);
     lv_obj_set_align(div, LV_ALIGN_RIGHT_MID);
     lv_obj_set_pos(div, -20, -20);
     lv_obj_set_size(div, 206, 290);
+
+    g_plant_window = div;
 
     return div;
 }
@@ -479,32 +823,37 @@ static lv_obj_t *ui_storage_window_create() {
     //     return NULL;
     // }
 
-    // lv_obj_t *div = ui_window_create("STORAGE", ui_grid_list_get_obj(grid), NULL, NULL, NULL, NULL, NULL);
     lv_obj_t *body = ui_div_create(g_screen_main);
-    lv_obj_t *div = ui_window_create("STORAGE", body, NULL, NULL, NULL, NULL, NULL);
+    lv_obj_t *div = ui_window_create(g_screen_main, "STORAGE", body);
 
     lv_obj_center(div);
     lv_obj_set_size(div, 700, 400);
+
+    g_storage_window = div;
 
     return div;
 }
 
 static lv_obj_t *ui_shop_window_create() {
     lv_obj_t *body = ui_div_create(g_screen_main);
-    lv_obj_t *div = ui_window_create("SHOP", body, NULL, NULL, NULL, NULL, NULL);
+    lv_obj_t *div = ui_window_create(g_screen_main, "SHOP", body);
 
     lv_obj_center(div);
     lv_obj_set_size(div, 250, 300);
+
+    g_shop_window = div;
 
     return div;
 }
 
 static lv_obj_t *ui_setting_window_create() {
     lv_obj_t *body = ui_div_create(g_screen_main);
-    lv_obj_t *div = ui_window_create("SETTING", body, NULL, NULL, NULL, NULL, NULL);
+    lv_obj_t *div = ui_window_create(g_screen_main, "SETTING", body);
 
     lv_obj_center(div);
     lv_obj_set_size(div, 300, 400);
+
+    g_setting_window = div;
 
     return div;
 }
@@ -547,101 +896,10 @@ static void ui_update_1s() {
             }
         }
     }
+
+    ui_drone_window_refresh();
 }
 
 static void ui_drone_timer_resume() {
     lv_timer_resume(ui_timer_drone_update_100ms);
-}
-
-lv_obj_t *ui_div_create(lv_obj_t *parent) {
-    lv_obj_t *div = lv_obj_create(parent);
-    lv_obj_set_style_bg_opa(div, 0, 0);
-    lv_obj_set_style_border_width(div, 0, 0);
-    lv_obj_set_style_pad_all(div, 0, 0);
-
-    return div;
-}
-
-lv_obj_t *ui_window_create(const char *title, lv_obj_t *body, const void *btn1_text, void (*btn1_cb)(lv_event_t *),
-                           const void *btn2_text, void (*btn2_cb)(lv_event_t *), void *user_data) {
-    if (g_current_window)
-        lv_obj_del(g_current_window); // 只允许同时显示一个弹窗
-
-    lv_obj_t *div = lv_obj_create(g_screen_main);
-
-    lv_obj_set_style_border_width(div, 3, 0);
-    lv_obj_set_style_border_color(div, lv_color_make(139, 69, 19), 0);
-    lv_obj_set_style_radius(div, 8, 0);
-    lv_obj_set_style_shadow_width(div, 10, 0);
-    lv_obj_set_style_pad_all(div, 0, 0);
-    lv_obj_set_style_bg_opa(div, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(div, lv_color_make(245, 232, 200), 0);
-
-    lv_obj_add_event_cb(div, window_delete_cb, LV_EVENT_DELETE, NULL);
-
-    lv_obj_set_parent(body, div);
-    lv_obj_set_pos(body, 0, 40);
-
-    lv_obj_set_style_bg_opa(body, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(body, lv_color_hex(0xf3e2a1), 0);
-
-    lv_obj_set_style_radius(body, 0, 0);
-    lv_obj_set_style_border_color(body, lv_color_hex(0x8b4513), 0);
-    lv_obj_set_style_border_width(body, 2, 0);
-
-    lv_obj_set_size(body, lv_pct(100), lv_pct(100));
-
-    lv_obj_clear_flag(div, LV_OBJ_FLAG_SCROLLABLE);
-
-    lv_obj_t *header = lv_obj_create(div);
-    lv_obj_set_size(header, LV_PCT(100), 40);
-    lv_obj_set_style_pad_all(header, 0, 0);
-    lv_obj_align(header, LV_ALIGN_TOP_MID, 0, 0);
-    lv_obj_set_style_bg_color(header, lv_color_make(139, 69, 19), 0);
-    lv_obj_set_style_border_width(header, 0, 0);
-    lv_obj_set_style_radius(header, 0, 0);
-
-    lv_obj_t *title_label = lv_label_create(header);
-    lv_label_set_text(title_label, title);
-    lv_obj_set_style_text_color(title_label, lv_color_white(), 0);
-    lv_obj_center(title_label);
-
-    if (btn1_text) {
-        lv_obj_t *footer = lv_obj_create(div);
-        lv_obj_set_size(footer, 200, 50);
-        lv_obj_set_style_pad_all(footer, 0, 0);
-        lv_obj_align(footer, LV_ALIGN_BOTTOM_MID, 0, 0);
-        lv_obj_set_style_bg_color(footer, lv_color_make(230, 207, 160), 0);
-        lv_obj_set_style_border_width(footer, 2, 0);
-        lv_obj_set_style_border_color(footer, lv_color_hex(0x8b4513), 0);
-        lv_obj_set_style_radius(footer, 0, 0);
-
-        lv_obj_t *btn1 = lv_btn_create(footer);
-        lv_obj_set_size(btn1, 86, 34);
-        lv_obj_align(btn1, LV_ALIGN_LEFT_MID, 5, 0);
-        lv_obj_set_style_bg_color(btn1, lv_color_make(205, 133, 63), LV_STATE_DEFAULT);
-        lv_obj_set_style_bg_color(btn1, lv_color_make(166, 105, 46), LV_STATE_PRESSED);
-        lv_obj_add_event_cb(btn1, btn1_cb, LV_EVENT_CLICKED, user_data);
-
-        lv_obj_t *btn1_label = lv_label_create(btn1);
-        lv_label_set_text(btn1_label, btn1_text);
-        lv_obj_set_style_text_color(btn1_label, lv_color_white(), 0);
-        lv_obj_center(btn1_label);
-
-        if (btn2_text) {
-            lv_obj_t *btn2 = lv_btn_create(footer);
-            lv_obj_set_size(btn2, 86, 34);
-            lv_obj_align(btn2, LV_ALIGN_RIGHT_MID, -5, 0);
-            lv_obj_set_style_bg_color(btn2, lv_color_make(160, 82, 45), LV_STATE_DEFAULT);
-            lv_obj_set_style_bg_color(btn2, lv_color_make(139, 66, 31), LV_STATE_PRESSED);
-            lv_obj_add_event_cb(btn2, btn2_cb, LV_EVENT_CLICKED, user_data);
-
-            lv_obj_t *btn2_label = lv_label_create(btn2);
-            lv_label_set_text(btn2_label, btn2_text);
-            lv_obj_set_style_text_color(btn2_label, lv_color_white(), 0);
-            lv_obj_center(btn2_label);
-        }
-    }
-
-    return div;
 }

@@ -3,7 +3,9 @@
 #include "event.h"
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 
+static player_t s_player_storage;
 static player_t *s_player = NULL;
 
 static void player_set_coins(int coins);
@@ -12,17 +14,20 @@ static void player_level_update();
 
 void player_init() {
     if (s_player == NULL) {
-        s_player = (player_t *)malloc(sizeof(player_t));
+        s_player = &s_player_storage;
+        memset(s_player, 0, sizeof(*s_player));
         s_player->level = 0;
         s_player->level_stage = 0;
         s_player->experience = 0;
         s_player->coins = 0;
-        for (int i = 0; i < CROP_TYPE_NONE; i++)
-            s_player->seed_bag[i] = s_player->harvest_bag[i] = 0;
+        for (int i = 0; i < CROP_TYPE_NONE; i++) s_player->seed_bag[i] = s_player->harvest_bag[i] = 0;
     }
 }
 
 player_t *player_get_instance() {
+    if (s_player == NULL) {
+        player_init();
+    }
     return s_player;
 }
 

@@ -464,6 +464,26 @@
               <FileType>5</FileType>
               <FilePath>.\ui\ui_grid_list.h</FilePath>
             </File>
+            <File>
+              <FileName>ui_window.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\ui_window.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_window.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\ui\ui_window.h</FilePath>
+            </File>
+            <File>
+              <FileName>ui_common.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\ui\ui_common.h</FilePath>
+            </File>
+            <File>
+              <FileName>ui_common.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\ui_common.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
