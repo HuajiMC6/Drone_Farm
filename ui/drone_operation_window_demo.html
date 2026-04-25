@@ -6,19 +6,19 @@
   <title>无人机操作窗口参考</title>
   <style>
     :root {
-      --bg-a: #eef3df;
-      --bg-b: #ddd9c5;
-      --panel: #fff9eb;
-      --text: #2b261b;
-      --muted: #6d6554;
-      --line: #d5c8a9;
-      --ok: #0f766e;
-      --warn: #b91c1c;
+      --bg-a: #bfe89a;
+      --bg-b: #f6dc8f;
+      --panel: #f9efcf;
+      --text: #3b2a17;
+      --muted: #6f5c41;
+      --line: #86653a;
+      --ok: #2f9a5f;
+      --warn: #ce4b3f;
       --ink-mono: "IBM Plex Mono", Consolas, monospace;
       --radius-lg: 16px;
       --radius-md: 12px;
       --radius-sm: 10px;
-      --shadow: 0 14px 36px rgba(43, 33, 17, 0.16);
+      --shadow: 0 4px 12px rgba(66, 50, 27, 0.12);
     }
 
     * {
@@ -30,10 +30,7 @@
       min-height: 100vh;
       font-family: "Space Grotesk", "Segoe UI", sans-serif;
       color: var(--text);
-      background:
-        radial-gradient(1000px 420px at 90% -10%, #daeedd, transparent 70%),
-        radial-gradient(900px 500px at -10% 120%, #f7e8be, transparent 65%),
-        linear-gradient(145deg, var(--bg-a), var(--bg-b));
+      background: #e1e9d2;
       display: grid;
       place-items: center;
       padding: 18px;
@@ -41,9 +38,9 @@
 
     .window {
       width: min(860px, 100%);
-      border: 1px solid var(--line);
+      border: 2px solid var(--line);
       border-radius: var(--radius-lg);
-      background: linear-gradient(180deg, #fffdf7 0%, #fff3d7 100%);
+      background: #f7ebca;
       box-shadow: var(--shadow);
       overflow: hidden;
       animation: in 380ms ease-out;
@@ -62,12 +59,12 @@
 
     .header {
       padding: 14px 16px;
-      border-bottom: 1px solid var(--line);
+      border-bottom: 2px solid var(--line);
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      background: rgba(255, 249, 235, 0.9);
+      background: #edd68c;
     }
 
     .title {
@@ -77,11 +74,12 @@
 
     .state {
       font-size: 12px;
-      border: 1px solid #bfd8cb;
-      background: #ecfaf4;
+      border: 1px solid #3c7a52;
+      background: #cdecd4;
       border-radius: 999px;
       padding: 4px 9px;
-      color: #0b5d57;
+      color: #175537;
+      font-weight: 700;
     }
 
     .content {
@@ -113,7 +111,7 @@
       font-size: 14px;
       letter-spacing: 0.02em;
       text-transform: uppercase;
-      color: #4f4536;
+      color: #5b421f;
     }
 
     .base-grid {
@@ -123,9 +121,9 @@
     }
 
     .metric {
-      border: 1px solid #ddcfb3;
+      border: 1px solid #d7c190;
       border-radius: var(--radius-sm);
-      background: #fffdf7;
+      background: #fcf5df;
       padding: 9px;
     }
 
@@ -149,9 +147,9 @@
     }
 
     .pest {
-      border: 1px solid #e2d7c0;
+      border: 1px solid #d8c193;
       border-radius: var(--radius-sm);
-      background: #fffdf8;
+      background: #fbf2dc;
       padding: 9px;
       display: flex;
       justify-content: space-between;
@@ -177,9 +175,9 @@
     }
 
     .mode {
-      border: 1px solid #dbcda9;
+      border: 1px solid #cfb783;
       border-radius: var(--radius-sm);
-      background: #fffdf5;
+      background: #f9edcf;
       padding: 10px;
       display: flex;
       justify-content: space-between;
@@ -199,8 +197,8 @@
     }
 
     .btn {
-      border: 1px solid #bfae87;
-      background: #fff;
+      border: 1px solid #8a6333;
+      background: #efcd76;
       color: var(--text);
       border-radius: 9px;
       cursor: pointer;
@@ -212,19 +210,19 @@
     .btn.toggle-on {
       color: #f7fffd;
       background: var(--ok);
-      border-color: #0b5d57;
+      border-color: #1b6b43;
     }
 
     .btn.warn {
-      background: #fff4f4;
+      background: #ffd1cb;
       color: var(--warn);
-      border-color: #e7bbbb;
+      border-color: #ad3a30;
     }
 
     .btn:disabled {
       cursor: not-allowed;
-      opacity: 0.5;
-      filter: grayscale(0.2);
+      opacity: 0.55;
+      filter: grayscale(0.25);
       box-shadow: none;
     }
 
@@ -234,9 +232,9 @@
     }
 
     .bag-item {
-      border: 1px solid #dfd1b5;
+      border: 1px solid #d2bb8b;
       border-radius: 10px;
-      background: #fffdf8;
+      background: #fbf2db;
       padding: 8px;
       display: grid;
       grid-template-columns: 1fr auto auto;
@@ -263,22 +261,22 @@
     .icon-btn {
       width: 28px;
       height: 28px;
-      border: 1px solid #ccb98e;
+      border: 1px solid #a37a40;
       border-radius: 8px;
-      background: #fff6de;
+      background: #f4d689;
       font-size: 17px;
       line-height: 1;
       cursor: pointer;
     }
 
     .icon-btn.minus {
-      background: #fff2f2;
-      border-color: #e4bbbb;
+      background: #f4cdca;
+      border-color: #b66258;
       color: #7a2424;
     }
 
     .footer {
-      border-top: 1px solid var(--line);
+      border-top: 2px solid var(--line);
       padding: 10px 14px;
       display: flex;
       justify-content: space-between;
@@ -287,6 +285,7 @@
       flex-wrap: wrap;
       font-size: 12px;
       color: var(--muted);
+      background: #e9d08f;
     }
 
     .capacity {

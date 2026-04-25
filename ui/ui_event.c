@@ -152,12 +152,29 @@ void drag_to_plant_cb(lv_event_t *e) {
 }
 
 void drone_click_cb(lv_event_t *e) {
-    if (!g_current_window) {
-        g_current_window = ((lv_obj_t * (*)(void)) lv_event_get_user_data(e))();
-    } else {
-        lv_obj_del_async(g_current_window);
+    static bool in_drone_click = false;
+    if (in_drone_click) {
+        lv_event_stop_processing(e);
+        return;
+    }
+
+    in_drone_click = true;
+
+    /* Prevent parent screen click handler from deleting/altering window in the same click event */
+    lv_event_stop_bubbling(e);
+
+    lv_obj_t *(*create_window)(void) = (lv_obj_t * (*)(void)) lv_event_get_user_data(e);
+
+    if (g_current_window && lv_obj_is_valid(g_current_window)) {
+        lv_obj_del(g_current_window);
         g_current_window = NULL;
     }
+
+    if (create_window) {
+        g_current_window = create_window();
+    }
+
+    in_drone_click = false;
 }
 
 void crop_growing_bar_event(lv_event_t *e) {
