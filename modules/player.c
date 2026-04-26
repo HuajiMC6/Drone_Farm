@@ -17,7 +17,7 @@ void player_init() {
         s_player = &s_player_storage;
         memset(s_player, 0, sizeof(*s_player));
         s_player->level = 0;
-        s_player->level_stage = 5;
+        s_player->level_stage = 0;
         s_player->experience = 0;
         s_player->coins = 500; // 500大洋启动资金
         for (int i = 0; i < CROP_TYPE_NONE; i++) s_player->seed_bag[i] = s_player->harvest_bag[i] = 0;
