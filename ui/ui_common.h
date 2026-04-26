@@ -19,20 +19,12 @@ typedef struct {
     bool is_detected;
 } farm_block_t;
 
-typedef struct {
-    lv_obj_t *obj;
-    lv_obj_t *speed_label;
-    lv_obj_t *algorithm_label;
-    lv_obj_t *storage_label;
-    lv_obj_t *result_labels[CROP_DAMAGE_NONE];
-    lv_obj_t *detect_btn;
-    lv_obj_t *spray_btn;
-    lv_obj_t *pesticide_num_labels[CROP_PESTICIDE_NONE];
-    lv_obj_t *state_label;
-} drone_window_ctx_t;
-extern drone_window_ctx_t g_drone_window_ctx;
-
 /* 工具函数 */
 lv_obj_t *ui_div_create(lv_obj_t *parent);
+
+/* 仅 UI 内部模块使用 */
+extern uint8_t ui_drone_pest_count[CROP_DAMAGE_NONE];
+void ui_drone_window_refresh(void);
+void ui_shop_refresh(void);
 
 #endif

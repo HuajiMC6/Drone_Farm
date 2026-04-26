@@ -17,9 +17,9 @@ void player_init() {
         s_player = &s_player_storage;
         memset(s_player, 0, sizeof(*s_player));
         s_player->level = 0;
-        s_player->level_stage = 0;
+        s_player->level_stage = 5;
         s_player->experience = 0;
-        s_player->coins = 0;
+        s_player->coins = 500; // 500大洋启动资金
         for (int i = 0; i < CROP_TYPE_NONE; i++) s_player->seed_bag[i] = s_player->harvest_bag[i] = 0;
     }
 }
@@ -36,6 +36,7 @@ bool player_buy_seed(crop_type_t seed_type, int n) {
     if (s_player->coins >= total_price) {
         s_player->seed_bag[seed_type] += n;
         player_set_coins(s_player->coins - total_price);
+        event_send(EVENT_ON_PLAYER_SEED_CHANGE, s_player);
         return true;
     }
     return false;
@@ -56,6 +57,7 @@ bool player_plant(field_t *field, crop_type_t crop_type) {
     if (s_player->seed_bag[crop_type] > 0) {
         if (field_plant(field, crop_type)) {
             s_player->seed_bag[crop_type]--;
+            event_send(EVENT_ON_PLAYER_SEED_CHANGE, s_player);
             player_set_experience(s_player->experience + plant_exp_earn);
             return true;
         }

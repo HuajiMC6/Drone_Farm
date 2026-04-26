@@ -2,15 +2,127 @@
 #include "ui_common.h"
 
 static lv_obj_t *g_current_window = NULL;
+static lv_obj_t *g_window_mask = NULL;
 
-static void ui_window_delete_cb(lv_event_t *e) {
-    lv_obj_t *target = lv_event_get_target(e);
-    if (target == g_current_window) {
-        g_current_window = NULL;
+#define UI_WINDOW_META_MAX 12
+typedef struct {
+    lv_obj_t *window;
+    bool use_mask;
+} ui_window_meta_t;
+
+static ui_window_meta_t g_window_meta[UI_WINDOW_META_MAX];
+
+static void ui_window_meta_set(lv_obj_t *window, bool use_mask) {
+    if (!window) {
+        return;
+    }
+
+    for (int i = 0; i < UI_WINDOW_META_MAX; i++) {
+        if (g_window_meta[i].window == window || g_window_meta[i].window == NULL) {
+            g_window_meta[i].window = window;
+            g_window_meta[i].use_mask = use_mask;
+            return;
+        }
     }
 }
 
-lv_obj_t *ui_window_create(lv_obj_t *parent, const char *title, lv_obj_t *body) {
+static bool ui_window_meta_get_use_mask(lv_obj_t *window) {
+    if (!window) {
+        return false;
+    }
+
+    for (int i = 0; i < UI_WINDOW_META_MAX; i++) {
+        if (g_window_meta[i].window == window) {
+            return g_window_meta[i].use_mask;
+        }
+    }
+
+    return true;
+}
+
+static void ui_window_meta_remove(lv_obj_t *window) {
+    if (!window) {
+        return;
+    }
+
+    for (int i = 0; i < UI_WINDOW_META_MAX; i++) {
+        if (g_window_meta[i].window == window) {
+            g_window_meta[i].window = NULL;
+            g_window_meta[i].use_mask = false;
+            return;
+        }
+    }
+}
+
+static void ui_window_mask_click_cb(lv_event_t *e) {
+    lv_event_stop_bubbling(e);
+    ui_window_hide_current();
+}
+
+static lv_obj_t *ui_window_mask_ensure(lv_obj_t *parent) {
+    if (!parent || !lv_obj_is_valid(parent)) {
+        return NULL;
+    }
+
+    if (g_window_mask && !lv_obj_is_valid(g_window_mask)) {
+        g_window_mask = NULL;
+    }
+
+    if (!g_window_mask || lv_obj_get_parent(g_window_mask) != parent) {
+        if (g_window_mask && lv_obj_is_valid(g_window_mask)) {
+            lv_obj_del(g_window_mask);
+            g_window_mask = NULL;
+        }
+
+        g_window_mask = lv_obj_create(parent);
+        lv_obj_set_size(g_window_mask, LV_PCT(100), LV_PCT(100));
+        lv_obj_set_style_radius(g_window_mask, 0, 0);
+        lv_obj_set_style_border_width(g_window_mask, 0, 0);
+        lv_obj_set_style_bg_color(g_window_mask, lv_color_make(20, 20, 20), 0);
+        lv_obj_set_style_bg_opa(g_window_mask, LV_OPA_40, 0);
+        lv_obj_set_style_pad_all(g_window_mask, 0, 0);
+        lv_obj_clear_flag(g_window_mask, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_add_flag(g_window_mask, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_event_cb(g_window_mask, ui_window_mask_click_cb, LV_EVENT_CLICKED, NULL);
+        lv_obj_add_flag(g_window_mask, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    return g_window_mask;
+}
+
+static void ui_window_mask_show_for(lv_obj_t *window) {
+    if (!window || !lv_obj_is_valid(window)) {
+        return;
+    }
+
+    lv_obj_t *parent = lv_obj_get_parent(window);
+    lv_obj_t *mask = ui_window_mask_ensure(parent);
+    if (!mask) {
+        return;
+    }
+
+    lv_obj_clear_flag(mask, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_move_foreground(mask);
+    lv_obj_move_foreground(window);
+}
+
+static void ui_window_mask_hide(void) {
+    if (g_window_mask && lv_obj_is_valid(g_window_mask)) {
+        lv_obj_add_flag(g_window_mask, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+static void ui_window_delete_cb(lv_event_t *e) {
+    lv_obj_t *target = lv_event_get_target(e);
+    ui_window_meta_remove(target);
+
+    if (target == g_current_window) {
+        g_current_window = NULL;
+        ui_window_mask_hide();
+    }
+}
+
+lv_obj_t *ui_window_create(lv_obj_t *parent, const char *title, lv_obj_t *body, bool enable_mask) {
     lv_obj_t *div = lv_obj_create(parent);
     static const lv_coord_t col_dsc[] = {LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
     static const lv_coord_t row_dsc[] = {40, LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
@@ -58,6 +170,8 @@ lv_obj_t *ui_window_create(lv_obj_t *parent, const char *title, lv_obj_t *body) 
 
     lv_obj_clear_flag(div, LV_OBJ_FLAG_SCROLLABLE);
 
+    ui_window_meta_set(div, enable_mask);
+
     ui_window_show(div);
     return div;
 }
@@ -72,6 +186,12 @@ void ui_window_show(lv_obj_t *window) {
         ui_window_hide(current);
     }
 
+    if (ui_window_meta_get_use_mask(window)) {
+        ui_window_mask_show_for(window);
+    } else {
+        ui_window_mask_hide();
+    }
+
     lv_obj_clear_flag(window, LV_OBJ_FLAG_HIDDEN);
     g_current_window = window;
 }
@@ -84,6 +204,7 @@ void ui_window_hide(lv_obj_t *window) {
     lv_obj_add_flag(window, LV_OBJ_FLAG_HIDDEN);
     if (g_current_window == window) {
         g_current_window = NULL;
+        ui_window_mask_hide();
     }
 }
 

@@ -3,7 +3,7 @@
 
 #include "lvgl.h"
 
-lv_obj_t *ui_window_create(lv_obj_t *parent, const char *title, lv_obj_t *body);
+lv_obj_t *ui_window_create(lv_obj_t *parent, const char *title, lv_obj_t *body, bool enable_mask);
 void ui_window_show(lv_obj_t *window);
 void ui_window_hide(lv_obj_t *window);
 void ui_window_hide_current(void);

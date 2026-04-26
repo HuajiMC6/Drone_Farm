@@ -484,6 +484,16 @@
               <FileType>1</FileType>
               <FilePath>.\ui\ui_common.c</FilePath>
             </File>
+            <File>
+              <FileName>ui_drone.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\ui_drone.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_shop.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\ui_shop.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

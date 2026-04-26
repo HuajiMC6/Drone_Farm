@@ -18,11 +18,22 @@ typedef struct {
     lv_obj_t **window_ref;
 } ui_window_toggle_desc_t;
 
+typedef struct {
+    crop_pesticide_t pesticide;
+    int delta;
+} drone_pesticide_btn_desc_t;
+
+typedef struct {
+    drone_state_t target_state;
+} drone_mode_btn_desc_t;
+
 void farm_block_click_cb(lv_event_t *e);
 void screen_main_click_cb(lv_event_t *e);
 void main_floating_btn_click_cb(lv_event_t *e);
 void drag_to_plant_cb(lv_event_t *e);
 void crop_growing_bar_event(lv_event_t *e);
 void drone_click_cb(lv_event_t *e);
+void drone_mode_btn_click_cb(lv_event_t *e);
+void drone_pesticide_btn_click_cb(lv_event_t *e);
 
 #endif
