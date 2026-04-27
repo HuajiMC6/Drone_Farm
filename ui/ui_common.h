@@ -24,7 +24,10 @@ lv_obj_t *ui_div_create(lv_obj_t *parent);
 
 /* 仅 UI 内部模块使用 */
 extern uint8_t ui_drone_pest_count[CROP_DAMAGE_NONE];
+lv_obj_t *ui_drone_window_create(void);
 void ui_drone_window_refresh(void);
+void ui_drone_hud_create(lv_obj_t *parent);
+void ui_drone_hud_set_visible(bool visible);
 void ui_shop_refresh(void);
 
 #endif

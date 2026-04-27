@@ -1,4 +1,4 @@
-#include "ui_pages.h"
+#include "ui.h"
 
 #include "drone.h"
 #include "enum.h"
@@ -90,6 +90,7 @@ lv_obj_t *ui_main_screen_create(void) {
     ui_gold_bar_create(g_screen_main);
 
     g_drone = ui_drone_create(g_screen_main);
+    ui_drone_hud_create(g_screen_main);
     ui_drone_set_pos(-40, 40, false, NULL);
 
     shop_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_shop_btn, 40, 380);
@@ -143,11 +144,16 @@ void ui_main_handle_event(event_t *event) {
             }
             ui_drone_set_pos(-40, 40, true, NULL);
             ui_main_icon_btns_hide(false);
+            ui_drone_hud_set_visible(false);
             ui_drone_window_refresh();
             break;
         case EVENT_ON_DRONE_TO_MOVING:
             ui_drone_set_pos(0, 0, true, ui_drone_timer_resume);
             ui_main_icon_btns_hide(true);
+            if (g_drone_window && lv_obj_is_valid(g_drone_window) && ui_window_is_visible(g_drone_window)) {
+                ui_window_hide(g_drone_window);
+            }
+            ui_drone_hud_set_visible(true);
             ui_drone_window_refresh();
             break;
         default:

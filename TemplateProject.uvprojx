@@ -435,11 +435,6 @@
               <FilePath>.\UI\ui.h</FilePath>
             </File>
             <File>
-              <FileName>ui_pages.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\ui\ui_pages.h</FilePath>
-            </File>
-            <File>
               <FileName>ui_load.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\ui\layouts\ui_load.c</FilePath>
