@@ -1,6 +1,6 @@
 #include "ui_common.h"
-#include "ui_event.h"
 #include "ui_grid_list.h"
+#include "ui_shop_cb.h"
 #include "ui_window.h"
 
 #include "drone.h"
@@ -11,23 +11,12 @@
 #include "ui.h"
 
 typedef enum {
-    SHOP_KIND_SEED,
-    SHOP_KIND_PESTICIDE,
-    SHOP_KIND_UPGRADE,
-} shop_item_kind_t;
-
-typedef enum {
     SHOP_UPGRADE_DRONE_SPEED,
     SHOP_UPGRADE_DRONE_STORAGE,
     SHOP_UPGRADE_DRONE_ALGO,
     SHOP_UPGRADE_FARM_SIZE,
     SHOP_UPGRADE_NONE,
 } shop_upgrade_type_t;
-
-typedef struct {
-    shop_item_kind_t kind;
-    uint8_t id;
-} shop_item_desc_t;
 
 typedef struct {
     lv_obj_t *obj;
@@ -59,10 +48,6 @@ static shop_item_desc_t g_shop_upgrade_desc[SHOP_UPGRADE_NONE];
 static int ui_shop_get_unit_price(shop_item_kind_t kind, uint8_t id, bool *available);
 static const char *ui_shop_get_item_name(shop_item_kind_t kind, uint8_t id);
 static bool ui_shop_try_buy(shop_item_kind_t kind, uint8_t id, int qty);
-static void ui_shop_item_click_cb(lv_event_t *e);
-static void ui_shop_qty_minus_cb(lv_event_t *e);
-static void ui_shop_qty_plus_cb(lv_event_t *e);
-static void ui_shop_buy_cb(lv_event_t *e);
 
 static int ui_shop_get_unit_price(shop_item_kind_t kind, uint8_t id, bool *available) {
     if (available) {
@@ -284,11 +269,7 @@ void ui_shop_refresh(void) {
     }
 }
 
-static void ui_shop_item_click_cb(lv_event_t *e) {
-    lv_event_stop_bubbling(e);
-
-    shop_item_desc_t *desc = lv_event_get_user_data(e);
-    lv_obj_t *target = lv_event_get_target(e);
+void ui_shop_item_click_handle(const shop_item_desc_t *desc, lv_obj_t *target) {
     if (!desc || !target) {
         return;
     }
@@ -306,8 +287,7 @@ static void ui_shop_item_click_cb(lv_event_t *e) {
     ui_shop_refresh();
 }
 
-static void ui_shop_qty_minus_cb(lv_event_t *e) {
-    lv_event_stop_bubbling(e);
+void ui_shop_qty_minus_click_handle(void) {
     if (!g_shop_window_ctx.has_selection || g_shop_window_ctx.selected_kind == SHOP_KIND_UPGRADE) {
         return;
     }
@@ -317,8 +297,7 @@ static void ui_shop_qty_minus_cb(lv_event_t *e) {
     ui_shop_refresh();
 }
 
-static void ui_shop_qty_plus_cb(lv_event_t *e) {
-    lv_event_stop_bubbling(e);
+void ui_shop_qty_plus_click_handle(void) {
     if (!g_shop_window_ctx.has_selection || g_shop_window_ctx.selected_kind == SHOP_KIND_UPGRADE) {
         return;
     }
@@ -328,8 +307,7 @@ static void ui_shop_qty_plus_cb(lv_event_t *e) {
     ui_shop_refresh();
 }
 
-static void ui_shop_buy_cb(lv_event_t *e) {
-    lv_event_stop_bubbling(e);
+void ui_shop_buy_click_handle(void) {
     if (!g_shop_window_ctx.has_selection) {
         return;
     }
@@ -556,7 +534,7 @@ lv_obj_t *ui_shop_window_create(void) {
     lv_obj_t *minus_label = lv_label_create(g_shop_window_ctx.qty_minus_btn);
     lv_label_set_text(minus_label, "-");
     lv_obj_center(minus_label);
-    lv_obj_add_event_cb(g_shop_window_ctx.qty_minus_btn, ui_shop_qty_minus_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(g_shop_window_ctx.qty_minus_btn, ui_shop_qty_minus_click_cb, LV_EVENT_CLICKED, NULL);
 
     g_shop_window_ctx.qty_label = lv_label_create(right);
     lv_label_set_text(g_shop_window_ctx.qty_label, "1");
@@ -568,7 +546,7 @@ lv_obj_t *ui_shop_window_create(void) {
     lv_obj_t *plus_label = lv_label_create(g_shop_window_ctx.qty_plus_btn);
     lv_label_set_text(plus_label, "+");
     lv_obj_center(plus_label);
-    lv_obj_add_event_cb(g_shop_window_ctx.qty_plus_btn, ui_shop_qty_plus_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(g_shop_window_ctx.qty_plus_btn, ui_shop_qty_plus_click_cb, LV_EVENT_CLICKED, NULL);
 
     g_shop_window_ctx.total_row = lv_obj_create(right);
     lv_obj_set_size(g_shop_window_ctx.total_row, LV_PCT(100), LV_SIZE_CONTENT);
@@ -604,7 +582,7 @@ lv_obj_t *ui_shop_window_create(void) {
     lv_label_set_text(g_shop_window_ctx.buy_btn_label, "Select Item");
     lv_obj_center(g_shop_window_ctx.buy_btn_label);
     lv_obj_add_state(g_shop_window_ctx.buy_btn, LV_STATE_DISABLED);
-    lv_obj_add_event_cb(g_shop_window_ctx.buy_btn, ui_shop_buy_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(g_shop_window_ctx.buy_btn, ui_shop_buy_click_cb, LV_EVENT_CLICKED, NULL);
 
     g_shop_window_ctx.obj = div;
     g_shop_window_ctx.has_selection = false;

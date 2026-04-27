@@ -340,7 +340,7 @@
               <MiscControls>--diag_suppress=68,111,188,223,546,1295</MiscControls>
               <Define>HXTAL_VALUE=8000000,</Define>
               <Undefine></Undefine>
-              <IncludePath>.\GD32H7xx_standard_peripheral\Include;.\GD32H7xx;.\GD32H7xx\CMSIS;.;.\Drivers;.\FATFS;.\lvgl;.\lvgl\src;.\lvgl\examples\porting;.\lvgl\demos\benchmark;.\lvgl\demos\stress;.\ui;.\ui\icon;.\modules</IncludePath>
+              <IncludePath>.\GD32H7xx_standard_peripheral\Include;.\GD32H7xx;.\GD32H7xx\CMSIS;.;.\Drivers;.\FATFS;.\lvgl;.\lvgl\src;.\lvgl\examples\porting;.\lvgl\demos\benchmark;.\lvgl\demos\stress;.\ui;.\ui\icon;.\ui\layouts;.\ui\widgets;.\ui\callbacks;.\modules</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -435,14 +435,59 @@
               <FilePath>.\UI\ui.h</FilePath>
             </File>
             <File>
-              <FileName>ui_event.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\ui\ui_event.c</FilePath>
+              <FileName>ui_pages.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\ui\ui_pages.h</FilePath>
             </File>
             <File>
-              <FileName>ui_event.h</FileName>
+              <FileName>ui_load.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\layouts\ui_load.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_main.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\layouts\ui_main.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_main_cb.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\ui\ui_event.h</FilePath>
+              <FilePath>.\ui\callbacks\ui_main_cb.h</FilePath>
+            </File>
+            <File>
+              <FileName>ui_main_cb.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\callbacks\ui_main_cb.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_drone_cb.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\ui\callbacks\ui_drone_cb.h</FilePath>
+            </File>
+            <File>
+              <FileName>ui_drone_cb.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\callbacks\ui_drone_cb.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_shop_cb.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\ui\callbacks\ui_shop_cb.h</FilePath>
+            </File>
+            <File>
+              <FileName>ui_shop_cb.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\callbacks\ui_shop_cb.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_window_cb.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\ui\callbacks\ui_window_cb.h</FilePath>
+            </File>
+            <File>
+              <FileName>ui_window_cb.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\callbacks\ui_window_cb.c</FilePath>
             </File>
             <File>
               <FileName>icon.h</FileName>
@@ -457,22 +502,22 @@
             <File>
               <FileName>ui_grid_list.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\ui\ui_grid_list.c</FilePath>
+              <FilePath>.\ui\widgets\ui_grid_list.c</FilePath>
             </File>
             <File>
               <FileName>ui_grid_list.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\ui\ui_grid_list.h</FilePath>
+              <FilePath>.\ui\widgets\ui_grid_list.h</FilePath>
             </File>
             <File>
               <FileName>ui_window.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\ui\ui_window.c</FilePath>
+              <FilePath>.\ui\widgets\ui_window.c</FilePath>
             </File>
             <File>
               <FileName>ui_window.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\ui\ui_window.h</FilePath>
+              <FilePath>.\ui\widgets\ui_window.h</FilePath>
             </File>
             <File>
               <FileName>ui_common.h</FileName>
@@ -487,12 +532,12 @@
             <File>
               <FileName>ui_drone.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\ui\ui_drone.c</FilePath>
+              <FilePath>.\ui\layouts\ui_drone.c</FilePath>
             </File>
             <File>
               <FileName>ui_shop.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\ui\ui_shop.c</FilePath>
+              <FilePath>.\ui\layouts\ui_shop.c</FilePath>
             </File>
           </Files>
         </Group>

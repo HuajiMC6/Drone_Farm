@@ -1,5 +1,5 @@
 #include "ui_common.h"
-#include "ui_event.h"
+#include "ui_drone_cb.h"
 #include "ui_window.h"
 
 #include "drone.h"
@@ -249,7 +249,7 @@ lv_obj_t *ui_drone_window_create(void) {
     lv_obj_t *detect_btn_label = lv_label_create(g_drone_window_ctx.detect_btn);
     lv_label_set_text(detect_btn_label, "Start Detect");
     lv_obj_center(detect_btn_label);
-    lv_obj_add_event_cb(g_drone_window_ctx.detect_btn, drone_mode_btn_click_cb, LV_EVENT_CLICKED,
+    lv_obj_add_event_cb(g_drone_window_ctx.detect_btn, ui_drone_mode_button_click_cb, LV_EVENT_CLICKED,
                         &g_drone_detect_btn_desc);
 
     lv_obj_t *spray_name = lv_label_create(mode_card);
@@ -266,7 +266,7 @@ lv_obj_t *ui_drone_window_create(void) {
     lv_obj_t *spray_btn_label = lv_label_create(g_drone_window_ctx.spray_btn);
     lv_label_set_text(spray_btn_label, "Start Spray");
     lv_obj_center(spray_btn_label);
-    lv_obj_add_event_cb(g_drone_window_ctx.spray_btn, drone_mode_btn_click_cb, LV_EVENT_CLICKED,
+    lv_obj_add_event_cb(g_drone_window_ctx.spray_btn, ui_drone_mode_button_click_cb, LV_EVENT_CLICKED,
                         &g_drone_spray_btn_desc);
 
     lv_obj_t *bag_card = lv_obj_create(right_panel);
@@ -317,8 +317,9 @@ lv_obj_t *ui_drone_window_create(void) {
 
         g_drone_pesticide_btn_desc[i][0] = (drone_pesticide_btn_desc_t){.pesticide = i, .delta = 1};
         g_drone_pesticide_btn_desc[i][1] = (drone_pesticide_btn_desc_t){.pesticide = i, .delta = -1};
-        lv_obj_add_event_cb(add_btn, drone_pesticide_btn_click_cb, LV_EVENT_CLICKED, &g_drone_pesticide_btn_desc[i][0]);
-        lv_obj_add_event_cb(minus_btn, drone_pesticide_btn_click_cb, LV_EVENT_CLICKED,
+        lv_obj_add_event_cb(add_btn, ui_drone_pesticide_button_click_cb, LV_EVENT_CLICKED,
+                            &g_drone_pesticide_btn_desc[i][0]);
+        lv_obj_add_event_cb(minus_btn, ui_drone_pesticide_button_click_cb, LV_EVENT_CLICKED,
                             &g_drone_pesticide_btn_desc[i][1]);
     }
 

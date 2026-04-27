@@ -1,5 +1,6 @@
 #include "ui_window.h"
 #include "ui_common.h"
+#include "ui_window_cb.h"
 
 static lv_obj_t *g_current_window = NULL;
 static lv_obj_t *g_window_mask = NULL;
@@ -54,8 +55,7 @@ static void ui_window_meta_remove(lv_obj_t *window) {
     }
 }
 
-static void ui_window_mask_click_cb(lv_event_t *e) {
-    lv_event_stop_bubbling(e);
+void ui_window_mask_click_handle(void) {
     ui_window_hide_current();
 }
 
@@ -112,8 +112,7 @@ static void ui_window_mask_hide(void) {
     }
 }
 
-static void ui_window_delete_cb(lv_event_t *e) {
-    lv_obj_t *target = lv_event_get_target(e);
+void ui_window_lifecycle_delete_handle(lv_obj_t *target) {
     ui_window_meta_remove(target);
 
     if (target == g_current_window) {
@@ -138,7 +137,7 @@ lv_obj_t *ui_window_create(lv_obj_t *parent, const char *title, lv_obj_t *body, 
     lv_obj_set_grid_dsc_array(div, col_dsc, row_dsc);
     lv_obj_set_style_pad_row(div, 0, 0);
 
-    lv_obj_add_event_cb(div, ui_window_delete_cb, LV_EVENT_DELETE, NULL);
+    lv_obj_add_event_cb(div, ui_window_lifecycle_delete_cb, LV_EVENT_DELETE, NULL);
 
     lv_obj_t *header = lv_obj_create(div);
     lv_obj_set_grid_cell(header, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_STRETCH, 0, 1);
