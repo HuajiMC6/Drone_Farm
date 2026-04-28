@@ -42,9 +42,13 @@
 .idea/
 *.swp
 *.swo
+*.CMakeLists.txt
 
 # 可选：防止意外添加 .git 自身
 /.git/
+
+# CLion / CMake 默认构建输出目录
+cmake-build-*/
 
 # 显式忽略 EventRecorder 生成的文件
 EventRecorderStub.scvd
