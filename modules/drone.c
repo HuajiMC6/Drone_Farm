@@ -9,7 +9,6 @@
 static drone_t s_drone_storage;
 static drone_t *s_drone = NULL;
 
-
 drone_t *drone_get_instance() {
     if (s_drone == NULL) {
         drone_init();
@@ -294,8 +293,10 @@ bool drone_ensure_pesticide(pos_t pos) {
 }
 
 bool drone_add_pesticide(crop_pesticide_t pesticide, int n) { // player接口
-    if (s_drone->storage_capacity >= s_drone->pesticide_storage[pesticide] + n) {
+    player_t *player=player_get_instance();
+    if (player->pesticide_bag[pesticide]>=n&&s_drone->storage_capacity >= s_drone->pesticide_storage[pesticide] + n) {
         s_drone->pesticide_storage[pesticide] += n;
+        player->pesticide_bag[pesticide]-=n;
         return true;
     }
     return false;

@@ -12,6 +12,7 @@ typedef struct {
     int coins;
     crop_type_t seed_bag[CROP_TYPE_NONE];
     crop_type_t harvest_bag[CROP_TYPE_NONE];
+    pesticide_type_t pesticide_bag[CROP_PESTICIDE_NONE];
 } player_t;
 
 extern int harvest_exp_earn[CROP_TYPE_NONE];
