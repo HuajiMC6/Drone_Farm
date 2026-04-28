@@ -9,6 +9,7 @@
 static drone_t s_drone_storage;
 static drone_t *s_drone = NULL;
 
+
 drone_t *drone_get_instance() {
     if (s_drone == NULL) {
         drone_init();
