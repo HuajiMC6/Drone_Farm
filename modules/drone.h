@@ -35,6 +35,7 @@ pos_t *drone_auto_path(int *out_len);
 
 bool drone_ensure_pesticide(pos_t pos);
 bool drone_add_pesticide(crop_pesticide_t pesticide, int n);
+bool drone_remove_pesticide(crop_pesticide_t pesticide, int n);
 
 // joystick_move
 void drone_move(pos_t vector);

@@ -45,8 +45,9 @@ bool player_buy_seed(crop_type_t seed_type, int n) {
 bool player_buy_pesticide(crop_pesticide_t pesticide_type, int n) {
     int total_price = n * pesticide_price[pesticide_type] * level_discount[s_player->level_stage];
     if (s_player->coins >= total_price) {
-        s_player->pesticide_bag[pesticide_type]+=n;
+        s_player->pesticide_bag[pesticide_type] += n;
         player_set_coins(s_player->coins - total_price);
+        event_send(EVENT_ON_PLAYER_PESTICIDE_CHANGE, s_player);
         return true;
     }
     return false;

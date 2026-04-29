@@ -11,6 +11,8 @@
 #include "ui_main_cb.h"
 #include "ui_window.h"
 
+#include <stdlib.h>
+
 #define FARM_GRID_N farm_get_instance()->current_size
 #define FARM_BLOCK_SIZE 80
 #define DRONE_COORD_SCALNG_FACTOR (FARM_BLOCK_SIZE / 100.0)
@@ -39,6 +41,16 @@ static lv_obj_t *g_shop_window = NULL;
 static lv_obj_t *g_setting_window = NULL;
 static lv_obj_t *g_drone_window = NULL;
 
+typedef struct {
+    pos_t *path;
+    int path_len;
+    int path_index;
+    int dwell_ticks;
+    bool active;
+} ui_drone_spray_ctx_t;
+
+static ui_drone_spray_ctx_t g_drone_spray_ctx = {0};
+
 static lv_obj_t *ui_seed_table_create(lv_obj_t *parent);
 static lv_obj_t *ui_plant_window_create(void);
 static lv_obj_t *ui_storage_window_create(void);
@@ -57,6 +69,10 @@ static void ui_update_1s(lv_timer_t *timer);
 static void ui_drone_timer_resume(void);
 static void ui_main_icon_btns_hide(bool hide);
 static void ui_seed_table_refresh(void);
+static void ui_drone_spray_reset(void);
+static bool ui_drone_spray_prepare(void);
+static bool ui_drone_move_towards_target(pos_t target);
+static pos_t ui_drone_grid_center(pos_t cell);
 
 lv_obj_t *ui_shop_window_create(void);
 lv_obj_t *ui_drone_window_create(void);
@@ -128,10 +144,14 @@ void ui_main_handle_event(event_t *event) {
         }
         case EVENT_ON_PLAYER_COIN_CHANGE:
         case EVENT_ON_PLAYER_SEED_CHANGE:
+        case EVENT_ON_PLAYER_PESTICIDE_CHANGE:
         case EVENT_ON_PLAYER_EXPERIENCE_CHANGE:
         case EVENT_ON_PLAYER_LEVEL_UPGRADE:
             if (event->type == EVENT_ON_PLAYER_SEED_CHANGE) {
                 ui_seed_table_refresh();
+            }
+            if (event->type == EVENT_ON_PLAYER_PESTICIDE_CHANGE) {
+                ui_drone_window_refresh();
             }
             if (event->type == EVENT_ON_PLAYER_COIN_CHANGE || event->type == EVENT_ON_PLAYER_LEVEL_UPGRADE ||
                 event->type == EVENT_ON_PLAYER_SEED_CHANGE) {
@@ -142,12 +162,20 @@ void ui_main_handle_event(event_t *event) {
             if (ui_timer_drone_update_100ms) {
                 lv_timer_pause(ui_timer_drone_update_100ms);
             }
+            if (!g_drone_spray_ctx.active) {
+                ui_drone_spray_prepare();
+            }
             ui_drone_set_pos(-40, 40, true, NULL);
             ui_main_icon_btns_hide(false);
             ui_drone_hud_set_visible(false);
             ui_drone_window_refresh();
             break;
         case EVENT_ON_DRONE_TO_MOVING:
+            if (drone_get_instance()->drone_state == DRONE_STATE_DETECTING) {
+                ui_drone_spray_reset();
+            } else if (!g_drone_spray_ctx.active) {
+                ui_drone_spray_prepare();
+            }
             ui_drone_set_pos(0, 0, true, ui_drone_timer_resume);
             ui_main_icon_btns_hide(true);
             if (g_drone_window && lv_obj_is_valid(g_drone_window) && ui_window_is_visible(g_drone_window)) {
@@ -494,6 +522,34 @@ static void ui_drone_update_100ms(lv_timer_t *timer) {
                 ui_drone_pest_count[pest]++;
             }
         }
+    } else if (drone->drone_state == DRONE_STATE_AUTO) {
+        if (!g_drone_spray_ctx.active && !ui_drone_spray_prepare()) {
+            drone_state_switch(DRONE_STATE_FREE);
+            return;
+        }
+
+        if (g_drone_spray_ctx.path_index >= g_drone_spray_ctx.path_len) {
+            ui_drone_spray_reset();
+            drone_state_switch(DRONE_STATE_FREE);
+            return;
+        }
+
+        pos_t target = ui_drone_grid_center(g_drone_spray_ctx.path[g_drone_spray_ctx.path_index]);
+
+        if (g_drone_spray_ctx.dwell_ticks > 0) {
+            g_drone_spray_ctx.dwell_ticks--;
+            if (g_drone_spray_ctx.dwell_ticks == 0) {
+                drone_ensure_pesticide(target);
+                g_drone_spray_ctx.path_index++;
+                if (g_drone_spray_ctx.path_index >= g_drone_spray_ctx.path_len) {
+                    ui_drone_spray_reset();
+                    drone_state_switch(DRONE_STATE_FREE);
+                    return;
+                }
+            }
+        } else if (ui_drone_move_towards_target(target)) {
+            g_drone_spray_ctx.dwell_ticks = 10;
+        }
     }
 }
 
@@ -518,4 +574,65 @@ static void ui_drone_timer_resume(void) {
     if (ui_timer_drone_update_100ms) {
         lv_timer_resume(ui_timer_drone_update_100ms);
     }
+}
+
+static void ui_drone_spray_reset(void) {
+    if (g_drone_spray_ctx.path) {
+        free(g_drone_spray_ctx.path);
+        g_drone_spray_ctx.path = NULL;
+    }
+
+    g_drone_spray_ctx.path_len = 0;
+    g_drone_spray_ctx.path_index = 0;
+    g_drone_spray_ctx.dwell_ticks = 0;
+    g_drone_spray_ctx.active = false;
+}
+
+static bool ui_drone_spray_prepare(void) {
+    if (g_drone_spray_ctx.active) {
+        return true;
+    }
+
+    int path_len = 0;
+    pos_t *path = drone_auto_path(&path_len);
+    if (!path || path_len <= 0) {
+        if (path) {
+            free(path);
+        }
+        return false;
+    }
+
+    g_drone_spray_ctx.path = path;
+    g_drone_spray_ctx.path_len = path_len;
+    g_drone_spray_ctx.path_index = 0;
+    g_drone_spray_ctx.dwell_ticks = 0;
+    g_drone_spray_ctx.active = true;
+    return true;
+}
+
+static pos_t ui_drone_grid_center(pos_t cell) {
+    return (pos_t){.x = cell.x * 100 + 50, .y = cell.y * 100 + 50};
+}
+
+static bool ui_drone_move_towards_target(pos_t target) {
+    drone_t *drone = drone_get_instance();
+    int step = drone->speed;
+
+    int dx = target.x - drone->current_pos.x;
+    int dy = target.y - drone->current_pos.y;
+
+    if (abs(dx) <= step) {
+        drone->current_pos.x = target.x;
+    } else {
+        drone->current_pos.x += dx > 0 ? step : -step;
+    }
+
+    if (abs(dy) <= step) {
+        drone->current_pos.y = target.y;
+    } else {
+        drone->current_pos.y += dy > 0 ? step : -step;
+    }
+
+    ui_drone_set_pos(drone->current_pos.x, drone->current_pos.y, false, NULL);
+    return drone->current_pos.x == target.x && drone->current_pos.y == target.y;
 }

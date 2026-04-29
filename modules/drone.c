@@ -287,16 +287,30 @@ bool drone_ensure_pesticide(pos_t pos) {
         s_drone->pesticide_storage[field->damage]--;
         field_use_pesticide(field);
         player_use_pesticide_exp();
+        event_send(EVENT_ON_PLAYER_PESTICIDE_CHANGE, player_get_instance());
         return true;
     }
     return false;
 }
 
 bool drone_add_pesticide(crop_pesticide_t pesticide, int n) { // player接口
-    player_t *player=player_get_instance();
-    if (player->pesticide_bag[pesticide]>=n&&s_drone->storage_capacity >= s_drone->pesticide_storage[pesticide] + n) {
+    player_t *player = player_get_instance();
+    if (player->pesticide_bag[pesticide] >= n &&
+        s_drone->storage_capacity >= s_drone->pesticide_storage[pesticide] + n) {
         s_drone->pesticide_storage[pesticide] += n;
-        player->pesticide_bag[pesticide]-=n;
+        player->pesticide_bag[pesticide] -= n;
+        event_send(EVENT_ON_PLAYER_PESTICIDE_CHANGE, player);
+        return true;
+    }
+    return false;
+}
+
+bool drone_remove_pesticide(crop_pesticide_t pesticide, int n) {
+    player_t *player = player_get_instance();
+    if (s_drone->pesticide_storage[pesticide] >= n) {
+        s_drone->pesticide_storage[pesticide] -= n;
+        player->pesticide_bag[pesticide] += n;
+        event_send(EVENT_ON_PLAYER_PESTICIDE_CHANGE, player);
         return true;
     }
     return false;

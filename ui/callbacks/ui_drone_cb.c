@@ -40,28 +40,15 @@ void ui_drone_pesticide_button_click_cb(lv_event_t *e) {
         return;
     }
 
-    int used = ui_drone_pesticide_used_local(drone);
-    int cur = drone->pesticide_storage[desc->pesticide];
-
     if (desc->delta > 0) {
-        if (used >= drone->storage_capacity) {
+        if (!drone_add_pesticide(desc->pesticide, 1)) {
             return;
         }
-        drone->pesticide_storage[desc->pesticide] = cur + 1;
     } else {
-        if (cur <= 0) {
+        if (!drone_remove_pesticide(desc->pesticide, 1)) {
             return;
         }
-        drone->pesticide_storage[desc->pesticide] = cur - 1;
     }
 
     ui_drone_window_refresh();
-}
-
-static int ui_drone_pesticide_used_local(const drone_t *drone) {
-    int used = 0;
-    for (crop_pesticide_t i = 0; i < CROP_PESTICIDE_NONE; i++) {
-        used += drone->pesticide_storage[i];
-    }
-    return used;
 }

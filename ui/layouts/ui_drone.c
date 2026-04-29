@@ -1,5 +1,7 @@
+#include "player.h"
 #include "ui_common.h"
 #include "ui_drone_cb.h"
+#include "ui_grid_list.h"
 #include "ui_window.h"
 
 #include "drone.h"
@@ -12,10 +14,14 @@ typedef struct {
     lv_obj_t *speed_label;
     lv_obj_t *algorithm_label;
     lv_obj_t *storage_label;
+    lv_obj_t *lower_card_title;
+    lv_obj_t *lower_row_name_labels[CROP_PESTICIDE_NONE];
     lv_obj_t *result_labels[CROP_DAMAGE_NONE];
     lv_obj_t *detect_btn;
     lv_obj_t *spray_btn;
-    lv_obj_t *pesticide_num_labels[CROP_PESTICIDE_NONE];
+    lv_obj_t *pesticide_load_labels[CROP_PESTICIDE_NONE];
+    lv_obj_t *pesticide_bag_labels[CROP_PESTICIDE_NONE];
+    ui_grid_list_t *pesticide_bag_list;
     lv_obj_t *state_label;
 } drone_panel_ctx_t;
 
@@ -24,14 +30,6 @@ static drone_panel_ctx_t g_drone_hud_ctx;
 static drone_pesticide_btn_desc_t g_drone_pesticide_btn_desc[CROP_PESTICIDE_NONE][2];
 static drone_mode_btn_desc_t g_drone_detect_btn_desc = {.target_state = DRONE_STATE_DETECTING};
 static drone_mode_btn_desc_t g_drone_spray_btn_desc = {.target_state = DRONE_STATE_AUTO};
-
-static int ui_drone_pesticide_used(const drone_t *drone) {
-    int used = 0;
-    for (crop_pesticide_t i = 0; i < CROP_PESTICIDE_NONE; i++) {
-        used += drone->pesticide_storage[i];
-    }
-    return used;
-}
 
 static void ui_drone_btn_set_text(lv_obj_t *btn, const char *text) {
     if (!btn || !lv_obj_is_valid(btn)) {
@@ -55,8 +53,6 @@ static void ui_drone_panel_refresh(drone_panel_ctx_t *ctx) {
         return;
     }
 
-    int used = ui_drone_pesticide_used(drone);
-
     if (ctx->state_label) {
         lv_label_set_text_fmt(ctx->state_label, "State: %s", drone_state_name(drone->drone_state));
     }
@@ -67,23 +63,41 @@ static void ui_drone_panel_refresh(drone_panel_ctx_t *ctx) {
         lv_label_set_text_fmt(ctx->algorithm_label, "Lv.%d", drone->algorithm_level + 1);
     }
     if (ctx->storage_label) {
-        lv_label_set_text_fmt(ctx->storage_label, "%d / %d", used, drone->storage_capacity);
-    }
-
-    for (crop_damage_t i = 0; i < CROP_DAMAGE_NONE; i++) {
-        if (ctx->result_labels[i]) {
-            lv_label_set_text_fmt(ctx->result_labels[i], "%d", ui_drone_pest_count[i]);
-        }
-    }
-
-    for (crop_pesticide_t i = 0; i < CROP_PESTICIDE_NONE; i++) {
-        if (ctx->pesticide_num_labels[i]) {
-            lv_label_set_text_fmt(ctx->pesticide_num_labels[i], "%d", drone->pesticide_storage[i]);
-        }
+        lv_label_set_text_fmt(ctx->storage_label, "%d / pesticide", drone->storage_capacity);
     }
 
     bool detecting = drone->drone_state == DRONE_STATE_DETECTING;
     bool spraying = drone->drone_state == DRONE_STATE_AUTO;
+
+    if (ctx->lower_card_title) {
+        lv_label_set_text(ctx->lower_card_title, spraying ? "Loaded Pesticide Count" : "Last Scan Pest Count");
+    }
+
+    for (crop_damage_t i = 0; i < CROP_DAMAGE_NONE; i++) {
+        if (ctx->lower_row_name_labels[i]) {
+            lv_label_set_text(ctx->lower_row_name_labels[i],
+                              spraying ? crop_pesticide_name((crop_pesticide_t)i) : crop_pest_name(i));
+        }
+
+        if (ctx->result_labels[i]) {
+            lv_label_set_text_fmt(ctx->result_labels[i], "%d",
+                                  spraying ? drone->pesticide_storage[i] : ui_drone_pest_count[i]);
+        }
+    }
+
+    player_t *player = player_get_instance();
+    if (player) {
+        for (crop_pesticide_t i = 0; i < CROP_PESTICIDE_NONE; i++) {
+            if (ctx->pesticide_load_labels[i]) {
+                lv_label_set_text_fmt(ctx->pesticide_load_labels[i], "%d", drone->pesticide_storage[i]);
+            }
+
+            if (ctx->pesticide_bag_labels[i]) {
+                lv_label_set_text_fmt(ctx->pesticide_bag_labels[i], "%s: %d", crop_pesticide_name(i),
+                                      player->pesticide_bag[i]);
+            }
+        }
+    }
 
     if (ctx->detect_btn) {
         ui_drone_btn_set_text(ctx->detect_btn, detecting ? "Recall" : "Start Detect");
@@ -217,10 +231,10 @@ lv_obj_t *ui_drone_window_create(void) {
     lv_obj_set_style_pad_all(pest_card, 8, 0);
     lv_obj_clear_flag(pest_card, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *pest_title = lv_label_create(pest_card);
-    lv_label_set_text(pest_title, "Last Scan Pest Count");
-    lv_obj_set_style_text_color(pest_title, lv_color_hex(0x5b421f), 0);
-    lv_obj_set_pos(pest_title, 0, 0);
+    g_drone_window_ctx.lower_card_title = lv_label_create(pest_card);
+    lv_label_set_text(g_drone_window_ctx.lower_card_title, "Last Scan Pest Count");
+    lv_obj_set_style_text_color(g_drone_window_ctx.lower_card_title, lv_color_hex(0x5b421f), 0);
+    lv_obj_set_pos(g_drone_window_ctx.lower_card_title, 0, 0);
 
     for (crop_damage_t i = 0; i < CROP_DAMAGE_NONE; i++) {
         const void *pest_icon = icon_get_pest(i);
@@ -228,9 +242,9 @@ lv_obj_t *ui_drone_window_create(void) {
         lv_img_set_src(icon, pest_icon ? pest_icon : &icon_pest_unknown);
         lv_obj_set_pos(icon, (i % 2) ? 248 : 8, 28 + (i / 2) * 32);
 
-        lv_obj_t *name = lv_label_create(pest_card);
-        lv_label_set_text(name, crop_pest_name(i));
-        lv_obj_set_pos(name, (i % 2) ? 270 : 30, 28 + (i / 2) * 32);
+        g_drone_window_ctx.lower_row_name_labels[i] = lv_label_create(pest_card);
+        lv_label_set_text(g_drone_window_ctx.lower_row_name_labels[i], crop_pest_name(i));
+        lv_obj_set_pos(g_drone_window_ctx.lower_row_name_labels[i], (i % 2) ? 270 : 30, 28 + (i / 2) * 32);
 
         g_drone_window_ctx.result_labels[i] = lv_label_create(pest_card);
         lv_label_set_text(g_drone_window_ctx.result_labels[i], "0");
@@ -297,22 +311,18 @@ lv_obj_t *ui_drone_window_create(void) {
     lv_obj_clear_flag(bag_card, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_t *bag_title = lv_label_create(bag_card);
-    lv_label_set_text(bag_title, "Pesticide Bag (+/-)");
+    lv_label_set_text(bag_title, "Pesticide Load (+/-)");
     lv_obj_set_style_text_color(bag_title, lv_color_hex(0x5b421f), 0);
     lv_obj_set_pos(bag_title, 0, 0);
 
     for (crop_pesticide_t i = 0; i < CROP_PESTICIDE_NONE; i++) {
         lv_obj_t *name = lv_label_create(bag_card);
         lv_label_set_text(name, crop_pesticide_name(i));
-        lv_obj_set_pos(name, 8, 34 + i * 44);
-
-        g_drone_window_ctx.pesticide_num_labels[i] = lv_label_create(bag_card);
-        lv_label_set_text(g_drone_window_ctx.pesticide_num_labels[i], "0");
-        lv_obj_set_pos(g_drone_window_ctx.pesticide_num_labels[i], 156, 34 + i * 44);
+        lv_obj_set_pos(name, 8, 34 + i * 34);
 
         lv_obj_t *minus_btn = lv_btn_create(bag_card);
         lv_obj_set_size(minus_btn, 28, 28);
-        lv_obj_set_pos(minus_btn, 224, 28 + i * 44);
+        lv_obj_set_pos(minus_btn, 168, 28 + i * 34);
         lv_obj_set_style_bg_color(minus_btn, lv_color_hex(0xefcd76), 0);
         lv_obj_set_style_border_color(minus_btn, lv_color_hex(0x8a6333), 0);
         lv_obj_set_style_border_width(minus_btn, 1, 0);
@@ -321,9 +331,14 @@ lv_obj_t *ui_drone_window_create(void) {
         lv_label_set_text(minus_label, "-");
         lv_obj_center(minus_label);
 
+        g_drone_window_ctx.pesticide_load_labels[i] = lv_label_create(bag_card);
+        lv_label_set_text(g_drone_window_ctx.pesticide_load_labels[i], "0");
+        lv_obj_set_style_text_align(g_drone_window_ctx.pesticide_load_labels[i], LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_pos(g_drone_window_ctx.pesticide_load_labels[i], 202, 34 + i * 34);
+
         lv_obj_t *add_btn = lv_btn_create(bag_card);
         lv_obj_set_size(add_btn, 28, 28);
-        lv_obj_set_pos(add_btn, 262, 28 + i * 44);
+        lv_obj_set_pos(add_btn, 230, 28 + i * 34);
         lv_obj_set_style_bg_color(add_btn, lv_color_hex(0xf4cdca), 0);
         lv_obj_set_style_border_color(add_btn, lv_color_hex(0xb66258), 0);
         lv_obj_set_style_border_width(add_btn, 1, 0);
@@ -338,6 +353,42 @@ lv_obj_t *ui_drone_window_create(void) {
                             &g_drone_pesticide_btn_desc[i][0]);
         lv_obj_add_event_cb(minus_btn, ui_drone_pesticide_button_click_cb, LV_EVENT_CLICKED,
                             &g_drone_pesticide_btn_desc[i][1]);
+    }
+
+    lv_obj_t *bag_subtitle = lv_label_create(bag_card);
+    lv_label_set_text(bag_subtitle, "Backpack");
+    lv_obj_set_style_text_color(bag_subtitle, lv_color_hex(0x5b421f), 0);
+    lv_obj_set_pos(bag_subtitle, 0, 154);
+
+    ui_grid_list_cfg_t bag_list_cfg;
+    ui_grid_list_cfg_init(&bag_list_cfg);
+    bag_list_cfg.item_w = 272;
+    bag_list_cfg.item_h = 30;
+    bag_list_cfg.col_count = 1;
+    bag_list_cfg.row_count = CROP_PESTICIDE_NONE;
+    bag_list_cfg.pad_col = 0;
+    bag_list_cfg.pad_row = 4;
+    bag_list_cfg.pad_all = 0;
+
+    g_drone_window_ctx.pesticide_bag_list = ui_grid_list_create(bag_card, &bag_list_cfg);
+    if (g_drone_window_ctx.pesticide_bag_list) {
+        lv_obj_t *bag_list_obj = ui_grid_list_get_obj(g_drone_window_ctx.pesticide_bag_list);
+        lv_obj_set_pos(bag_list_obj, 16, 180);
+
+        for (crop_pesticide_t i = 0; i < CROP_PESTICIDE_NONE; i++) {
+            lv_obj_t *item = ui_grid_list_add_item(g_drone_window_ctx.pesticide_bag_list);
+            if (!item) {
+                break;
+            }
+
+            lv_obj_set_style_pad_all(item, 0, 0);
+            lv_obj_clear_flag(item, LV_OBJ_FLAG_SCROLLABLE);
+
+            lv_obj_t *label = lv_label_create(item);
+            lv_label_set_text_fmt(label, "%s: 0", crop_pesticide_name(i));
+            lv_obj_set_pos(label, 8, 6);
+            g_drone_window_ctx.pesticide_bag_labels[i] = label;
+        }
     }
 
     g_drone_window_ctx.obj = div;
@@ -442,10 +493,10 @@ void ui_drone_hud_create(lv_obj_t *parent) {
     lv_obj_set_style_pad_all(pest_card, 8, 0);
     lv_obj_clear_flag(pest_card, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *pest_title = lv_label_create(pest_card);
-    lv_label_set_text(pest_title, "Last Scan Pest Count");
-    lv_obj_set_style_text_color(pest_title, lv_color_hex(0x5b421f), 0);
-    lv_obj_set_pos(pest_title, 0, 0);
+    g_drone_hud_ctx.lower_card_title = lv_label_create(pest_card);
+    lv_label_set_text(g_drone_hud_ctx.lower_card_title, "Last Scan Pest Count");
+    lv_obj_set_style_text_color(g_drone_hud_ctx.lower_card_title, lv_color_hex(0x5b421f), 0);
+    lv_obj_set_pos(g_drone_hud_ctx.lower_card_title, 0, 0);
 
     for (crop_damage_t i = 0; i < CROP_DAMAGE_NONE; i++) {
         const void *pest_icon = icon_get_pest(i);
@@ -453,9 +504,9 @@ void ui_drone_hud_create(lv_obj_t *parent) {
         lv_img_set_src(icon, pest_icon ? pest_icon : &icon_pest_unknown);
         lv_obj_set_pos(icon, (i % 2) ? 124 : 8, 28 + (i / 2) * 36);
 
-        lv_obj_t *name = lv_label_create(pest_card);
-        lv_label_set_text(name, crop_pest_name(i));
-        lv_obj_set_pos(name, (i % 2) ? 146 : 30, 28 + (i / 2) * 36);
+        g_drone_hud_ctx.lower_row_name_labels[i] = lv_label_create(pest_card);
+        lv_label_set_text(g_drone_hud_ctx.lower_row_name_labels[i], crop_pest_name(i));
+        lv_obj_set_pos(g_drone_hud_ctx.lower_row_name_labels[i], (i % 2) ? 146 : 30, 28 + (i / 2) * 36);
 
         g_drone_hud_ctx.result_labels[i] = lv_label_create(pest_card);
         lv_label_set_text(g_drone_hud_ctx.result_labels[i], "0");

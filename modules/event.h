@@ -12,6 +12,7 @@ typedef enum {
     EVENT_ON_FIELD_UPGRADE,            // 田地升级事件
     EVENT_ON_PLAYER_COIN_CHANGE,       // 玩家金币改变事件
     EVENT_ON_PLAYER_SEED_CHANGE,       // 玩家种子背包改变事件
+    EVENT_ON_PLAYER_PESTICIDE_CHANGE,  // 玩家农药背包改变事件
     EVENT_ON_PLAYER_EXPERIENCE_CHANGE, // 玩家经验改变事件
     EVENT_ON_PLAYER_LEVEL_UPGRADE,     // 玩家等级提升事件
     EVENT_ON_DRONE_TO_FREE,            // 无人机切换至空闲状态事件
