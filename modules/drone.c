@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include "ff.h"
 
 static drone_t s_drone_storage;
 static drone_t *s_drone = NULL;
@@ -329,4 +330,37 @@ void drone_move(pos_t vector) {
         s_drone->current_pos.y = farm->current_size * 100 - 1;
     if (new_pos.y < 0)
         s_drone->current_pos.y = 0;
+}
+
+bool drone_save() {
+    if (!s_drone) return false;
+
+    FIL fil;
+    UINT bw;
+    if (f_open(&fil, "0:/drone_save.dat", FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
+        return false;
+
+    if (f_write(&fil, s_drone, sizeof(drone_t), &bw) != FR_OK || bw != sizeof(drone_t)) {
+        f_close(&fil);
+        return false;
+    }
+
+    f_close(&fil);
+    return true;
+}
+
+bool drone_load() {
+    FIL fil;
+    UINT br;
+    if (f_open(&fil, "0:/drone_save.dat", FA_READ) != FR_OK)
+        return false;
+
+    drone_t *drone = drone_get_instance();
+    if (f_read(&fil, drone, sizeof(drone_t), &br) != FR_OK || br != sizeof(drone_t)) {
+        f_close(&fil);
+        return false;
+    }
+
+    f_close(&fil);
+    return true;
 }

@@ -15,4 +15,8 @@ bool farm_size_update();
 void farm_grow();
 int get_farm_size();
 
+//包含指针会出问题，毕竟重启后分配区域会变，只能依次存储数值依次读取数值（纯赋值）
+bool farm_save();
+bool farm_load();
+
 #endif

@@ -42,4 +42,7 @@ bool player_buy_field_output_update(pos_t pos);
 bool player_buy_field_ready_time_update(pos_t pos);
 bool player_buy_field_tolerance_update(pos_t pos);
 
+bool player_save();
+bool player_load();
+
 #endif

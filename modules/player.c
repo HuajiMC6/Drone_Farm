@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include "ff.h"
 
 static player_t s_player_storage;
 static player_t *s_player = NULL;
@@ -225,6 +226,39 @@ static void player_level_update() { // 每次碰到与经验相关操作都调�
     else if (s_player->level >= 40)
         s_player->level_stage = 6;
 };
+
+bool player_save() {
+    if (!s_player) return false;
+
+    FIL fil;
+    UINT bw;
+    if (f_open(&fil, "0:/player_save.dat", FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
+        return false;
+
+    if (f_write(&fil, s_player, sizeof(player_t), &bw) != FR_OK || bw != sizeof(player_t)) {
+        f_close(&fil);
+        return false;
+    }
+
+    f_close(&fil);
+    return true;
+}
+
+bool player_load() {
+    FIL fil;
+    UINT br;
+    if (f_open(&fil, "0:/player_save.dat", FA_READ) != FR_OK)
+        return false;
+
+    player_t *player = player_get_instance();
+    if (f_read(&fil, player, sizeof(player_t), &br) != FR_OK || br != sizeof(player_t)) {
+        f_close(&fil);
+        return false;
+    }
+
+    f_close(&fil);
+    return true;
+}
 
 int harvest_exp_earn[CROP_TYPE_NONE] = {2, 3, 4};
 
