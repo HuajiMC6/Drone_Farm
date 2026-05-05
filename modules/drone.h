@@ -40,4 +40,7 @@ bool drone_remove_pesticide(crop_pesticide_t pesticide, int n);
 // joystick_move
 void drone_move(pos_t vector);
 
+bool drone_save();
+bool drone_load();
+
 #endif
