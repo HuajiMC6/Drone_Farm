@@ -37,7 +37,7 @@ static void ui_main_toggle_window_from_desc(ui_window_toggle_desc_t *desc) {
 }
 
 void ui_main_field_block_click_cb(lv_event_t *e) {
-    lv_obj_t *btn = lv_event_get_target(e);
+    lv_obj_t *btn = lv_event_get_current_target(e);
     if (!lv_obj_has_state(btn, LV_STATE_CHECKED)) {
         return;
     }
@@ -58,9 +58,6 @@ void ui_main_field_block_click_cb(lv_event_t *e) {
 void ui_main_screen_click_cb(lv_event_t *e) {
     lv_obj_t *target = lv_event_get_target(e);
     lv_obj_t *obj = lv_event_get_user_data(e);
-    if (!obj) {
-        return;
-    }
 
     if (target == obj || lv_obj_get_parent(target) == obj) {
         return;
@@ -144,6 +141,7 @@ void ui_main_seed_drag_event_cb(lv_event_t *e) {
                 if (block_data && !block_data->is_planted) {
                     player_plant(block_data->field, type);
                 }
+                lv_obj_clear_state(current_target, LV_STATE_CHECKED);
             }
 
             if (img && lv_obj_is_valid(img)) {

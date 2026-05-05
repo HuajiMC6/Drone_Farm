@@ -12,7 +12,7 @@ void ui_init(void) {
     g_screen_load = ui_load_screen_create();
     g_screen_main = ui_main_screen_create();
 
-    ui_screen_switch(UI_SCREEN_MAIN);
+    ui_screen_switch(UI_SCREEN_LOAD);
 }
 
 void ui_screen_switch(ui_screen_type_t screen) {

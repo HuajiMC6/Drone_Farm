@@ -71,7 +71,7 @@ static void ui_main_icon_btns_hide(bool hide);
 static void ui_seed_table_refresh(void);
 static void ui_drone_spray_reset(void);
 static bool ui_drone_spray_prepare(void);
-static bool ui_drone_move_towards_target(pos_t target);
+static bool ui_drone_move_towards_target(pos_t cell);
 static pos_t ui_drone_grid_center(pos_t cell);
 
 lv_obj_t *ui_shop_window_create(void);
@@ -534,12 +534,12 @@ static void ui_drone_update_100ms(lv_timer_t *timer) {
             return;
         }
 
-        pos_t target = ui_drone_grid_center(g_drone_spray_ctx.path[g_drone_spray_ctx.path_index]);
+        pos_t cell = g_drone_spray_ctx.path[g_drone_spray_ctx.path_index];
 
         if (g_drone_spray_ctx.dwell_ticks > 0) {
             g_drone_spray_ctx.dwell_ticks--;
             if (g_drone_spray_ctx.dwell_ticks == 0) {
-                drone_ensure_pesticide(target);
+                drone_ensure_pesticide(cell);
                 g_drone_spray_ctx.path_index++;
                 if (g_drone_spray_ctx.path_index >= g_drone_spray_ctx.path_len) {
                     ui_drone_spray_reset();
@@ -547,7 +547,7 @@ static void ui_drone_update_100ms(lv_timer_t *timer) {
                     return;
                 }
             }
-        } else if (ui_drone_move_towards_target(target)) {
+        } else if (ui_drone_move_towards_target(cell)) {
             g_drone_spray_ctx.dwell_ticks = 10;
         }
     }
@@ -614,9 +614,10 @@ static pos_t ui_drone_grid_center(pos_t cell) {
     return (pos_t){.x = cell.x * 100 + 50, .y = cell.y * 100 + 50};
 }
 
-static bool ui_drone_move_towards_target(pos_t target) {
+static bool ui_drone_move_towards_target(pos_t cell) {
     drone_t *drone = drone_get_instance();
     int step = drone->speed;
+    pos_t target = ui_drone_grid_center(cell);
 
     int dx = target.x - drone->current_pos.x;
     int dy = target.y - drone->current_pos.y;
@@ -633,6 +634,7 @@ static bool ui_drone_move_towards_target(pos_t target) {
         drone->current_pos.y += dy > 0 ? step : -step;
     }
 
-    ui_drone_set_pos(drone->current_pos.x, drone->current_pos.y, false, NULL);
+    ui_drone_set_pos(drone->current_pos.x * DRONE_COORD_SCALNG_FACTOR, drone->current_pos.y * DRONE_COORD_SCALNG_FACTOR,
+                     false, NULL);
     return drone->current_pos.x == target.x && drone->current_pos.y == target.y;
 }

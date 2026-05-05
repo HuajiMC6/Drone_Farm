@@ -534,6 +534,16 @@
               <FileType>1</FileType>
               <FilePath>.\ui\layouts\ui_shop.c</FilePath>
             </File>
+            <File>
+              <FileName>ui_load_cb.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\callbacks\ui_load_cb.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_load_cb.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\ui\callbacks\ui_load_cb.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

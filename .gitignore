@@ -52,3 +52,5 @@ cmake-build-*/
 
 # 显式忽略 EventRecorder 生成的文件
 EventRecorderStub.scvd
+
+mid-report.md
