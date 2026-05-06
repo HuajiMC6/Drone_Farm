@@ -25,8 +25,8 @@ field_t *field_init(int x, int y) {
     return field;
 }
 
-//清空
-bool field_remove(field_t *field){
+// 清空
+bool field_remove(field_t *field) {
     field->crop_type = CROP_TYPE_NONE;
     field->growing_time = 0;
     field->growing_percent = 0;
@@ -81,7 +81,8 @@ void field_grow(field_t *field) {
         return;
     }
 
-    if (field->damage == CROP_DAMAGE_NONE) field->is_damaged = false;
+    if (field->damage == CROP_DAMAGE_NONE)
+        field->is_damaged = false;
 
     // 生长时间++
     field->growing_time++;

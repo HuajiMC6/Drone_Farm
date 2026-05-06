@@ -10,6 +10,7 @@ typedef enum {
     EVENT_ON_PEST_SUFFERING,           // 虫害发生事件
     EVENT_ON_PEST_CLEARED,             // 虫害清除事件
     EVENT_ON_FIELD_UPGRADE,            // 田地升级事件
+    EVENT_ON_FARM_SIZE_UPGRADE,        // 农场大小升级事件
     EVENT_ON_PLAYER_COIN_CHANGE,       // 玩家金币改变事件
     EVENT_ON_PLAYER_SEED_CHANGE,       // 玩家种子背包改变事件
     EVENT_ON_PLAYER_PESTICIDE_CHANGE,  // 玩家农药背包改变事件

@@ -44,5 +44,6 @@ bool player_buy_field_tolerance_update(pos_t pos);
 
 bool player_save();
 bool player_load();
+bool player_delete();
 
 #endif

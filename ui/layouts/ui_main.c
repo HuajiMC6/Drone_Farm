@@ -12,6 +12,7 @@
 #include "ui_window.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 #define FARM_GRID_N farm_get_instance()->current_size
 #define FARM_BLOCK_SIZE 80
@@ -73,6 +74,7 @@ static void ui_drone_spray_reset(void);
 static bool ui_drone_spray_prepare(void);
 static bool ui_drone_move_towards_target(pos_t cell);
 static pos_t ui_drone_grid_center(pos_t cell);
+static void ui_farm_grid_update(void);
 
 lv_obj_t *ui_shop_window_create(void);
 lv_obj_t *ui_drone_window_create(void);
@@ -142,6 +144,10 @@ void ui_main_handle_event(event_t *event) {
             ui_field_update(data->x, data->y);
             break;
         }
+        case EVENT_ON_FARM_SIZE_UPGRADE:
+            // 农场尺寸变化时，重建整个田地网格
+            ui_farm_grid_update();
+            break;
         case EVENT_ON_PLAYER_COIN_CHANGE:
         case EVENT_ON_PLAYER_SEED_CHANGE:
         case EVENT_ON_PLAYER_PESTICIDE_CHANGE:
@@ -254,6 +260,22 @@ static void ui_farm_grid_create(lv_obj_t *parent) {
                 lv_obj_add_flag(block->obj, LV_OBJ_FLAG_HIDDEN);
             }
         }
+    }
+}
+
+static void ui_farm_grid_update(void) {
+    // 先删除旧网格，再按最新农场尺寸重新创建
+    if (g_screen_main && farm_grid) {
+        lv_obj_remove_event_cb_with_user_data(g_screen_main, ui_main_screen_click_cb, farm_grid);
+    }
+    if (farm_grid && lv_obj_is_valid(farm_grid)) {
+        lv_obj_del(farm_grid);
+    }
+    farm_grid = NULL;
+    memset(g_farm_blocks, 0, sizeof(g_farm_blocks));
+    ui_farm_grid_create(g_screen_main);
+    if (g_screen_main && farm_grid) {
+        lv_obj_add_event_cb(g_screen_main, ui_main_screen_click_cb, LV_EVENT_CLICKED, farm_grid);
     }
 }
 
@@ -497,6 +519,21 @@ static lv_obj_t *ui_storage_window_create(void) {
 static lv_obj_t *ui_setting_window_create(void) {
     lv_obj_t *body = ui_div_create(g_screen_main);
     lv_obj_t *div = ui_window_create(g_screen_main, "SETTING", body, true);
+
+    lv_obj_t *btn = lv_btn_create(body);
+    lv_obj_set_size(btn, 120, 50);
+    lv_obj_t *btn_label = lv_label_create(btn);
+    lv_label_set_text(btn_label, "Reset Game");
+    lv_obj_center(btn_label);
+    lv_obj_add_event_cb(btn, ui_setting_reset_game_cb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *btn2 = lv_btn_create(body);
+    lv_obj_set_size(btn2, 120, 50);
+    lv_obj_set_pos(btn2, 0, 70);
+    lv_obj_t *btn2_label = lv_label_create(btn2);
+    lv_label_set_text(btn2_label, "Add coins");
+    lv_obj_center(btn2_label);
+    lv_obj_add_event_cb(btn2, ui_setting_add_coins_cb, LV_EVENT_CLICKED, NULL);
 
     lv_obj_center(div);
     lv_obj_set_size(div, 300, 400);

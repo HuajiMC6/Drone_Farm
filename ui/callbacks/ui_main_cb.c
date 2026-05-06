@@ -7,6 +7,8 @@
 static bool ui_main_obj_overlap(lv_obj_t *obj1, lv_obj_t *obj2, lv_coord_t hor_offset, lv_coord_t ver_offset);
 static void ui_main_toggle_window_from_desc(ui_window_toggle_desc_t *desc);
 
+void ui_reset(void);
+
 static void ui_main_toggle_window_from_desc(ui_window_toggle_desc_t *desc) {
     if (!desc || !desc->create) {
         return;
@@ -207,6 +209,19 @@ void ui_main_crop_growing_bar_draw_part_end_cb(lv_event_t *e) {
     txt_area.y2 = txt_area.y1 + txt_size.y - 1;
 
     lv_draw_label(dsc->draw_ctx, &label_dsc, &txt_area, buf, NULL);
+}
+
+void ui_setting_reset_game_cb(lv_event_t *e) {
+    farm_delete();
+    drone_delete();
+    player_delete();
+}
+
+void ui_setting_add_coins_cb(lv_event_t *e) {
+    player_t *player = player_get_instance();
+    if (player) {
+        player->coins += 100000;
+    }
 }
 
 static bool ui_main_obj_overlap(lv_obj_t *obj1, lv_obj_t *obj2, lv_coord_t hor_offset, lv_coord_t ver_offset) {

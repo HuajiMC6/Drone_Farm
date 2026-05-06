@@ -1,11 +1,11 @@
 #include "drone.h"
 #include "enum.h"
 #include "event.h"
+#include "ff.h"
 #include "player.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include "ff.h"
 
 static drone_t s_drone_storage;
 static drone_t *s_drone = NULL;
@@ -20,6 +20,7 @@ drone_t *drone_get_instance() {
 void drone_init() {
     if (s_drone == NULL) {
         s_drone = &s_drone_storage;
+        // 先绑定静态无人机对象，再尝试从 SD 卡恢复
         memset(s_drone, 0, sizeof(*s_drone));
         s_drone->speed = 10;
         s_drone->algorithm_level = 0;
@@ -31,6 +32,9 @@ void drone_init() {
         for (int i = 0; i < 4; i++) s_drone->pesticide_storage[i] = 0;
         s_drone->current_pos.x = 0, s_drone->current_pos.y = 0;
         s_drone->drone_state = DRONE_STATE_FREE;
+        if (drone_load()) {
+            return;
+        }
     }
 }
 
@@ -333,7 +337,8 @@ void drone_move(pos_t vector) {
 }
 
 bool drone_save() {
-    if (!s_drone) return false;
+    if (!s_drone)
+        return false;
 
     FIL fil;
     UINT bw;
@@ -355,7 +360,12 @@ bool drone_load() {
     if (f_open(&fil, "0:/drone_save.dat", FA_READ) != FR_OK)
         return false;
 
-    drone_t *drone = drone_get_instance();
+    // 直接读回静态无人机存储区，避免再次进入 drone_init()
+    if (!s_drone) {
+        s_drone = &s_drone_storage;
+    }
+
+    drone_t *drone = s_drone;
     if (f_read(&fil, drone, sizeof(drone_t), &br) != FR_OK || br != sizeof(drone_t)) {
         f_close(&fil);
         return false;
@@ -363,4 +373,10 @@ bool drone_load() {
 
     f_close(&fil);
     return true;
+}
+
+bool drone_delete() {
+    // 删除无人机存档文件；文件不存在时也视为已经删除成功
+    FRESULT res = f_unlink("0:/drone_save.dat");
+    return res == FR_OK || res == FR_NO_FILE;
 }

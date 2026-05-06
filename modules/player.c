@@ -1,10 +1,10 @@
 #include "player.h"
 #include "enum.h"
 #include "event.h"
+#include "ff.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include "ff.h"
 
 static player_t s_player_storage;
 static player_t *s_player = NULL;
@@ -14,15 +14,23 @@ static void player_set_experience(int experience);
 static void player_level_update();
 
 void player_init() {
-    if (s_player == NULL) {
-        s_player = &s_player_storage;
-        memset(s_player, 0, sizeof(*s_player));
-        s_player->level = 0;
-        s_player->level_stage = 0;
-        s_player->experience = 0;
-        s_player->coins = 500; // 500大洋启动资金
-        for (int i = 0; i < CROP_TYPE_NONE; i++) s_player->seed_bag[i] = s_player->harvest_bag[i] = 0;
+    if (s_player != NULL) {
+        return;
     }
+
+    s_player = &s_player_storage;
+    // 先绑定静态玩家对象，再尝试从 SD 卡恢复存档
+    if (player_load()) {
+        return;
+    }
+
+    // 没有存档时使用默认新档数据
+    memset(s_player, 0, sizeof(*s_player));
+    s_player->level = 0;
+    s_player->level_stage = 0;
+    s_player->experience = 0;
+    s_player->coins = 500; // 500大洋启动资金
+    for (int i = 0; i < CROP_TYPE_NONE; i++) s_player->seed_bag[i] = s_player->harvest_bag[i] = 0;
 }
 
 player_t *player_get_instance() {
@@ -228,7 +236,8 @@ static void player_level_update() { // 每次碰到与经验相关操作都调�
 };
 
 bool player_save() {
-    if (!s_player) return false;
+    if (!s_player)
+        return false;
 
     FIL fil;
     UINT bw;
@@ -250,14 +259,24 @@ bool player_load() {
     if (f_open(&fil, "0:/player_save.dat", FA_READ) != FR_OK)
         return false;
 
-    player_t *player = player_get_instance();
-    if (f_read(&fil, player, sizeof(player_t), &br) != FR_OK || br != sizeof(player_t)) {
+    // 直接读回静态玩家存储区，避免再次进入 player_get_instance()
+    if (!s_player) {
+        s_player = &s_player_storage;
+    }
+
+    if (f_read(&fil, s_player, sizeof(player_t), &br) != FR_OK || br != sizeof(player_t)) {
         f_close(&fil);
         return false;
     }
 
     f_close(&fil);
     return true;
+}
+
+bool player_delete() {
+    // 删除玩家存档文件；文件不存在时也视为已经删除成功
+    FRESULT res = f_unlink("0:/player_save.dat");
+    return res == FR_OK || res == FR_NO_FILE;
 }
 
 int harvest_exp_earn[CROP_TYPE_NONE] = {2, 3, 4};

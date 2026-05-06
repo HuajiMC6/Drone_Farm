@@ -42,5 +42,6 @@ void drone_move(pos_t vector);
 
 bool drone_save();
 bool drone_load();
+bool drone_delete();
 
 #endif
