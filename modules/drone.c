@@ -140,7 +140,7 @@ static pos_t *greedy_algorithm(int *out_len) {
     farm_t *farm = farm_get_instance();
     int n = farm->current_size;
 
-    // 先统计病田数量，以便分配准确大小的数组
+    // 1. 统计病田数量
     int count = 0;
     for (int i = 0; i < n; i++)
         for (int j = 0; j < n; j++)
@@ -149,7 +149,8 @@ static pos_t *greedy_algorithm(int *out_len) {
     *out_len = count;
     if (count == 0)
         return NULL;
-    // 提取所有病田坐标
+
+    // 2. 提取所有病田坐标
     pos_t *points = (pos_t *)malloc(sizeof(pos_t) * count);
     int idx = 0;
     for (int i = 0; i < n; i++)
@@ -160,17 +161,16 @@ static pos_t *greedy_algorithm(int *out_len) {
                 idx++;
             }
 
-    // 最近邻贪心构造路径
+    // 3. 最近邻贪心构造初始路径（与 greedy_algorithm 相同）
     pos_t *path = (pos_t *)malloc(sizeof(pos_t) * count);
     bool *visited = (bool *)calloc(count, sizeof(bool));
-
-    pos_t cur_pos = {0, 0};
+    int cur_x = 0, cur_y = 0;
     for (int step = 0; step < count; step++) {
         int nearest = -1;
         int min_dist = 1e9;
         for (int i = 0; i < count; i++) {
             if (!visited[i]) {
-                int dist = manhattan_dist(points[i], cur_pos);
+                int dist = abs(points[i].x - cur_x) + abs(points[i].y - cur_y);
                 if (dist < min_dist) {
                     min_dist = dist;
                     nearest = i;
@@ -179,7 +179,8 @@ static pos_t *greedy_algorithm(int *out_len) {
         }
         path[step] = points[nearest];
         visited[nearest] = true;
-        cur_pos = points[nearest];
+        cur_x = points[nearest].x;
+        cur_y = points[nearest].y;
     }
     free(points);
     free(visited);
