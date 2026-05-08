@@ -32,7 +32,6 @@ bool field_remove(field_t *field) {
     field->growing_percent = 0;
     field->stage = CROP_STAGE_NONE;
     field->damage = CROP_DAMAGE_NONE;
-    field->is_damaged = false;
     field->is_detected = false;
     field->base_output = 0;
     field->factor = 1;
@@ -53,8 +52,7 @@ bool field_plant(field_t *field, crop_type_t type) {
     field->growing_time = 0;
     field->growing_percent = 0;
     field->stage = CROP_STAGE_SEED;
-    field->damage = max_possibility(field);
-    field->is_damaged = false;
+    field->damage = CROP_DAMAGE_NONE; // 种植时无虫害
     field->is_detected = false;
     field->base_output = 100;
     field->factor = 1;
@@ -73,7 +71,6 @@ bool field_plant(field_t *field, crop_type_t type) {
 void field_grow(field_t *field) {
     if (field->crop_type == CROP_TYPE_NONE || field->stage == CROP_STAGE_READY) {
         field->damage = CROP_DAMAGE_NONE;
-        field->is_detected = false;
         return;
     }
     if (field->factor < 0.5) {
@@ -81,15 +78,12 @@ void field_grow(field_t *field) {
         return;
     }
 
-    if (field->damage == CROP_DAMAGE_NONE)
-        field->is_damaged = false;
-
     // 生长时间++
     field->growing_time++;
     field->growing_percent = (double)field->growing_time / field->ready_time;
 
     // 产量因子变化
-    if (field->is_damaged)
+    if (field_is_damaged(field))
         field->factor -= 0.01;
     else if (field->factor + 0.005 > 1)
         field->factor = 1;
@@ -102,16 +96,15 @@ void field_grow(field_t *field) {
     if (pre != field->stage) {
         event_send(EVENT_ON_CROP_STAGE_CHANGE, field);
     }
-    if (!field->is_damaged && pre != field->stage) { // 没患病且生长阶段更新，刷新患病概率
-        field->damage = max_possibility(field);
-    }
 
-    // 随机数结算患病情况
-    if (!field->is_damaged) {
+    // 当前无虫害时检查是否发生感染
+    if (!field_is_damaged(field)) {
+        // 计算当前生长阶段最可能的虫害类型
+        crop_damage_t potential = max_possibility(field);
         int random = rand() % 100;
-        int prob = 100 * get_damage_possibility(field->damage, field->growing_percent, field->tolerance);
+        int prob = 100 * get_damage_possibility(potential, field->growing_percent, field->tolerance);
         if (prob > random * 15) {
-            field->is_damaged = true;
+            field->damage = potential; // 感染该虫害
             field->is_detected = false;
 
             event_send(EVENT_ON_PEST_SUFFERING, field);
@@ -133,9 +126,8 @@ int field_harvest(field_t *field) {
 void field_use_pesticide(field_t *field) {
     if (field->crop_type == CROP_TYPE_NONE || field->stage == CROP_STAGE_READY)
         return;
-    field->is_damaged = false;
     field->is_detected = false;
-    field->damage = max_possibility(field); // 打农药，刷新患病概率
+    field->damage = CROP_DAMAGE_NONE; // 清除虫害
 
     event_send(EVENT_ON_PEST_CLEARED, field);
 }
@@ -171,6 +163,11 @@ crop_damage_t field_get_damage(field_t *field) {
     field->is_detected = true;
     event_send(EVENT_ON_PEST_DETECTED, field);
     return field->damage;
+}
+
+bool field_is_damaged(const field_t *field) {
+    // 通过虫害类型判断是否患病
+    return field->damage != CROP_DAMAGE_NONE;
 }
 
 // 阶段判断与更新

@@ -56,8 +56,10 @@ crop_damage_t drone_detect_damage() {
     if (field->is_detected)
         return CROP_DAMAGE_NONE;
     else {
-        if (field->damage != CROP_DAMAGE_NONE)
+        if (field_is_damaged(field))
             s_drone->one_zero_matrix[matrix_pos.x][matrix_pos.y] = 1;
+        else
+            s_drone->one_zero_matrix[matrix_pos.x][matrix_pos.y] = 0;
         return field_get_damage(field);
     }
 }
@@ -287,7 +289,7 @@ pos_t *drone_auto_path(int *out_len) { // 前端接口，用来前端写路径�
 bool drone_ensure_pesticide(pos_t pos) {
     farm_t *farm = farm_get_instance();
     field_t *field = farm->fields[pos.x][pos.y];
-    if (field->crop_type == CROP_TYPE_NONE || field->stage == CROP_STAGE_READY || field->damage == CROP_DAMAGE_NONE)
+    if (field->crop_type == CROP_TYPE_NONE || field->stage == CROP_STAGE_READY || !field_is_damaged(field))
         return false;                                    // 期间可能死了或成熟了
     if (s_drone->pesticide_storage[field->damage] > 0) { // 有药用药
         s_drone->pesticide_storage[field->damage]--;

@@ -42,6 +42,8 @@ static lv_obj_t *g_shop_window = NULL;
 static lv_obj_t *g_setting_window = NULL;
 static lv_obj_t *g_drone_window = NULL;
 
+static lv_obj_t *g_gold_bar_label = NULL;
+
 typedef struct {
     pos_t *path;
     int path_len;
@@ -61,6 +63,7 @@ static void ui_farm_grid_create(lv_obj_t *parent);
 static void ui_field_update(int x, int y);
 static lv_obj_t *ui_crop_grwoing_bar(lv_obj_t *parent);
 static void ui_gold_bar_create(lv_obj_t *parent);
+static void ui_gold_bar_refresh(void);
 static lv_obj_t *ui_icon_btn_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h, const void *img, lv_coord_t x,
                                     lv_coord_t y);
 static const void *ui_crop_drag_img(crop_type_t type);
@@ -153,6 +156,9 @@ void ui_main_handle_event(event_t *event) {
         case EVENT_ON_PLAYER_PESTICIDE_CHANGE:
         case EVENT_ON_PLAYER_EXPERIENCE_CHANGE:
         case EVENT_ON_PLAYER_LEVEL_UPGRADE:
+            if (event->type == EVENT_ON_PLAYER_COIN_CHANGE) {
+                ui_gold_bar_refresh();
+            }
             if (event->type == EVENT_ON_PLAYER_SEED_CHANGE) {
                 ui_seed_table_refresh();
             }
@@ -216,7 +222,7 @@ static void ui_farm_grid_create(lv_obj_t *parent) {
             farm_block_t *block = &g_farm_blocks[i][j];
             block->field = field;
             block->is_planted = field->crop_type != CROP_TYPE_NONE;
-            block->has_pest = field->is_damaged;
+            block->has_pest = field_is_damaged(field);
             block->is_detected = field->is_detected;
             block->x = i;
             block->y = j;
@@ -282,7 +288,7 @@ static void ui_farm_grid_update(void) {
 static void ui_field_update(int x, int y) {
     farm_block_t *block = &g_farm_blocks[x][y];
     block->is_planted = block->field->crop_type != CROP_TYPE_NONE;
-    block->has_pest = block->field->is_damaged;
+    block->has_pest = field_is_damaged(block->field);
     block->is_detected = block->field->is_detected;
 
     if (block->is_planted) {
@@ -378,6 +384,20 @@ static void ui_gold_bar_create(lv_obj_t *parent) {
     lv_obj_set_pos(bar, 200, 8);
     lv_obj_set_style_bg_img_src(bar, &icon_gold_bar_bg, 0);
     lv_obj_add_flag(bar, LV_OBJ_FLAG_FLOATING);
+
+    lv_obj_t *coin_label = lv_label_create(bar);
+    lv_label_set_text_fmt(coin_label, "%d", player_get_instance()->coins);
+    lv_obj_set_style_text_color(coin_label, lv_color_make(60, 42, 29), 0);
+    lv_obj_align(coin_label, LV_ALIGN_RIGHT_MID, -10, 1);
+    lv_obj_set_style_text_align(coin_label, LV_TEXT_ALIGN_RIGHT, 0);
+
+    g_gold_bar_label = coin_label;
+}
+
+static void ui_gold_bar_refresh(void) {
+    if (g_gold_bar_label && lv_obj_is_valid(g_gold_bar_label)) {
+        lv_label_set_text_fmt(g_gold_bar_label, "%d", player_get_instance()->coins);
+    }
 }
 
 static lv_obj_t *ui_icon_btn_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h, const void *img, lv_coord_t x,

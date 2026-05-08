@@ -140,7 +140,7 @@ bool farm_save() {
                 return false;
             }
 
-            int damaged = f->is_damaged ? 1 : 0;
+            int damaged = field_is_damaged(f) ? 1 : 0;
             int detected = f->is_detected ? 1 : 0;
             if (f_write(&fil, &damaged, sizeof(int), &bw) != FR_OK || bw != sizeof(int)) {
                 f_close(&fil);
@@ -260,7 +260,8 @@ bool farm_load() {
             }
             f->damage = (crop_damage_t)damage;
 
-            int damaged, detected;
+            int detected;
+            int damaged; // 兼容旧存档，读后不使用（现在由 field_is_damaged() 代替）
             if (f_read(&fil, &damaged, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
                 f_close(&fil);
                 return false;
@@ -269,7 +270,6 @@ bool farm_load() {
                 f_close(&fil);
                 return false;
             }
-            f->is_damaged = damaged ? true : false;
             f->is_detected = detected ? true : false;
 
             if (f_read(&fil, &f->base_output, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
