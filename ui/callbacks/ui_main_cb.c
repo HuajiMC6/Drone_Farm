@@ -40,21 +40,34 @@ static void ui_main_toggle_window_from_desc(ui_window_toggle_desc_t *desc) {
 
 void ui_main_field_block_click_cb(lv_event_t *e) {
     lv_obj_t *btn = lv_event_get_current_target(e);
-    if (!lv_obj_has_state(btn, LV_STATE_CHECKED)) {
-        return;
-    }
+    farm_block_t *info = lv_obj_get_user_data(btn);
 
-    lv_obj_t *parent = lv_obj_get_parent(btn);
-    lv_obj_t *child;
-    uint8_t idx = 0;
-    while ((child = lv_obj_get_child(parent, idx++)) != NULL) {
-        if (child != btn && lv_obj_has_flag(child, LV_OBJ_FLAG_CHECKABLE)) {
-            lv_obj_clear_state(child, LV_STATE_CHECKED);
+    static uint32_t last_click_tick = 0;
+    uint32_t current_tick = lv_tick_get();
+
+    // 检测双击or单击
+    if (current_tick - last_click_tick < 250) { // 双击，触发收获判定
+        last_click_tick = 0;
+
+        if (info->is_planted) {
+            player_harvest(info->field);
+        }
+    } else { // 单击，触发选中状态切换
+        last_click_tick = current_tick;
+
+        if (!lv_obj_has_state(btn, LV_STATE_CHECKED)) {
+            return;
+        }
+
+        lv_obj_t *parent = lv_obj_get_parent(btn);
+        lv_obj_t *child;
+        uint8_t idx = 0;
+        while ((child = lv_obj_get_child(parent, idx++)) != NULL) {
+            if (child != btn && lv_obj_has_flag(child, LV_OBJ_FLAG_CHECKABLE)) {
+                lv_obj_clear_state(child, LV_STATE_CHECKED);
+            }
         }
     }
-
-    farm_block_t *info = lv_obj_get_user_data(btn);
-    (void)info;
 }
 
 void ui_main_screen_click_cb(lv_event_t *e) {
@@ -211,6 +224,8 @@ void ui_main_crop_growing_bar_draw_part_end_cb(lv_event_t *e) {
     lv_draw_label(dsc->draw_ctx, &label_dsc, &txt_area, buf, NULL);
 }
 
+// for debug ---
+
 void ui_setting_reset_game_cb(lv_event_t *e) {
     farm_delete();
     drone_delete();
@@ -223,6 +238,23 @@ void ui_setting_add_coins_cb(lv_event_t *e) {
         player->coins += 100000;
     }
 }
+
+void debug_heartbear_timer_set_period(uint32_t period_ms);
+
+void debug_timer_period_slider_event_cb(lv_event_t *e) {
+    lv_obj_t *slider = lv_event_get_current_target(e);
+    lv_obj_t *label = lv_event_get_user_data(e);
+
+    int value = lv_slider_get_value(slider);
+    char buf[16];
+    int ms = 19 * value + 50;
+    lv_snprintf(buf, sizeof(buf), "%dms", ms);
+    lv_label_set_text(label, buf);
+
+    debug_heartbear_timer_set_period(ms);
+}
+
+// for debug ---
 
 static bool ui_main_obj_overlap(lv_obj_t *obj1, lv_obj_t *obj2, lv_coord_t hor_offset, lv_coord_t ver_offset) {
     lv_area_t a1, a2;

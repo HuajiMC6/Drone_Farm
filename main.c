@@ -85,3 +85,9 @@ void game_pause(void) {
         lv_timer_pause(g_heartbeat_timer);
     }
 }
+
+void debug_heartbear_timer_set_period(uint32_t period_ms) {
+    if (g_heartbeat_timer) {
+        lv_timer_set_period(g_heartbeat_timer, period_ms);
+    }
+}

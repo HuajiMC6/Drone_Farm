@@ -113,6 +113,8 @@ lv_obj_t *ui_main_screen_create(void) {
     g_drone = ui_drone_create(g_screen_main);
     ui_drone_hud_create(g_screen_main);
     ui_drone_set_pos(-40, 40, false, NULL);
+    // 启动时获取一次虫害数据，确保无人机窗口初始显示正确
+    drone_get_detected_pest_counts((int *)ui_drone_pest_count);
 
     shop_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_shop_btn, 40, 380);
     storage_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_storage_btn, 40, 460);
@@ -145,6 +147,12 @@ void ui_main_handle_event(event_t *event) {
         case EVENT_ON_FIELD_UPGRADE: {
             field_t *data = event->data;
             ui_field_update(data->x, data->y);
+
+            if (event->type == EVENT_ON_PEST_DETECTED || event->type == EVENT_ON_PEST_CLEARED) {
+                drone_get_detected_pest_counts((int *)ui_drone_pest_count);
+                // 虫害检测/清除时按需刷新无人机窗口
+                ui_drone_window_refresh();
+            }
             break;
         }
         case EVENT_ON_FARM_SIZE_UPGRADE:
@@ -555,6 +563,16 @@ static lv_obj_t *ui_setting_window_create(void) {
     lv_obj_center(btn2_label);
     lv_obj_add_event_cb(btn2, ui_setting_add_coins_cb, LV_EVENT_CLICKED, NULL);
 
+    /*Create a slider in the center of the display*/
+    lv_obj_t *slider = lv_slider_create(body);
+    lv_obj_center(slider);
+    /*Create a label below the slider*/
+    lv_obj_t *slider_label = lv_label_create(body);
+    lv_label_set_text(slider_label, "1000ms");
+    lv_slider_set_value(slider, 50, LV_ANIM_OFF);
+    lv_obj_align_to(slider_label, slider, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
+    lv_obj_add_event_cb(slider, debug_timer_period_slider_event_cb, LV_EVENT_VALUE_CHANGED, slider_label);
+
     lv_obj_center(div);
     lv_obj_set_size(div, 300, 400);
 
@@ -596,7 +614,10 @@ static void ui_drone_update_100ms(lv_timer_t *timer) {
         if (g_drone_spray_ctx.dwell_ticks > 0) {
             g_drone_spray_ctx.dwell_ticks--;
             if (g_drone_spray_ctx.dwell_ticks == 0) {
-                drone_ensure_pesticide(cell);
+                crop_damage_t pest = field_get_damage(g_farm_blocks[cell.x][cell.y].field);
+                if (drone_ensure_pesticide(cell)) {
+                    ui_drone_pest_count[pest]++;
+                }
                 g_drone_spray_ctx.path_index++;
                 if (g_drone_spray_ctx.path_index >= g_drone_spray_ctx.path_len) {
                     ui_drone_spray_reset();
@@ -624,7 +645,7 @@ static void ui_update_1s(lv_timer_t *timer) {
     }
 
     ui_seed_table_refresh();
-    ui_drone_window_refresh();
+    // 改为事件驱动刷新无人机窗口，避免每秒无条件刷新
 }
 
 static void ui_drone_timer_resume(void) {

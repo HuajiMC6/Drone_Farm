@@ -26,5 +26,6 @@ void ui_main_crop_growing_bar_draw_part_end_cb(lv_event_t *e);
 
 void ui_setting_reset_game_cb(lv_event_t *e);
 void ui_setting_add_coins_cb(lv_event_t *e);
+void debug_timer_period_slider_event_cb(lv_event_t *e);
 
 #endif

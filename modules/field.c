@@ -160,9 +160,12 @@ bool field_tolerance_upgrade(field_t *field) {
 }
 
 crop_damage_t field_get_damage(field_t *field) {
+    return field->damage;
+}
+
+void field_detect(field_t *field) {
     field->is_detected = true;
     event_send(EVENT_ON_PEST_DETECTED, field);
-    return field->damage;
 }
 
 bool field_is_damaged(const field_t *field) {

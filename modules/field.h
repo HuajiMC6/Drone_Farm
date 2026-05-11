@@ -36,6 +36,7 @@ void field_grow(field_t *field);
 int field_harvest(field_t *field);
 void field_use_pesticide(field_t *field);
 crop_damage_t field_get_damage(field_t *field);
+void field_detect(field_t *field);
 bool field_is_damaged(const field_t *field);
 
 // 升级接口(升级下一季生效)

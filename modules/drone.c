@@ -28,7 +28,7 @@ void drone_init() {
         s_drone->storage_level = 0;
         s_drone->storage_capacity = 10;
         for (int i = 0; i < 10; i++)
-            for (int j = 0; j < 10; j++) s_drone->one_zero_matrix[i][j] = 0;
+            for (int j = 0; j < 10; j++) s_drone->one_zero_matrix[i][j] = CROP_DAMAGE_NONE;
         for (int i = 0; i < 4; i++) s_drone->pesticide_storage[i] = 0;
         s_drone->current_pos.x = 0, s_drone->current_pos.y = 0;
         s_drone->drone_state = DRONE_STATE_FREE;
@@ -56,12 +56,21 @@ crop_damage_t drone_detect_damage() {
     if (field->is_detected)
         return CROP_DAMAGE_NONE;
     else {
-        if (field_is_damaged(field))
-            s_drone->one_zero_matrix[matrix_pos.x][matrix_pos.y] = 1;
-        else
-            s_drone->one_zero_matrix[matrix_pos.x][matrix_pos.y] = 0;
+        field_detect(field); // 标记为已检测
+        s_drone->one_zero_matrix[matrix_pos.x][matrix_pos.y] = field_get_damage(field);
         return field_get_damage(field);
     }
+}
+
+void drone_get_detected_pest_counts(int counts[CROP_DAMAGE_NONE]) {
+    for (int i = 0; i < CROP_DAMAGE_NONE; i++) counts[i] = 0;
+    for (int i = 0; i < 10; i++)
+        for (int j = 0; j < 10; j++) {
+            crop_damage_t damage = s_drone->one_zero_matrix[i][j];
+            if (damage != CROP_DAMAGE_NONE) {
+                counts[damage]++;
+            }
+        }
 }
 
 bool drone_algorithm_update() { // player接口
@@ -101,93 +110,8 @@ bool drone_storage_update() { // player接口
     return true;
 }
 
-static void reset_matrix() {
-    for (int i = 0; i < 10; i++)
-        for (int j = 0; j < 10; j++) s_drone->one_zero_matrix[i][j] = 0;
-}
-
 static int manhattan_dist(pos_t a, pos_t b) { // 曼哈顿距离
     return abs(a.x - b.x) + abs(a.y - b.y);
-}
-
-static pos_t *traversal_algorithm(int *out_len) { // 全部遍历，可以不写，交给前端，节省空间，但更重要的是保持一致性
-    farm_t *farm = farm_get_instance();
-    int n = farm->current_size;
-    // 先统计病田数量，以便分配准确大小的数组
-    int count = 0;
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < n; j++)
-            if (s_drone->one_zero_matrix[i][j] == 1)
-                count++;
-    if (count == 0) {
-        *out_len = 0;
-        return NULL;
-    }
-    *out_len = n * n;
-    pos_t *arr = (pos_t *)malloc(sizeof(pos_t) * n * n);
-    int index = 0;
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            if (i % 2 == 0)
-                arr[index].x = i, arr[index].y = j, index++;
-            else
-                arr[index].x = i, arr[index].y = n - 1 - j, index++;
-        }
-    }
-    reset_matrix();
-    return arr;
-}
-
-static pos_t *greedy_algorithm(int *out_len) {
-    farm_t *farm = farm_get_instance();
-    int n = farm->current_size;
-
-    // 1. 统计病田数量
-    int count = 0;
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < n; j++)
-            if (s_drone->one_zero_matrix[i][j] == 1)
-                count++;
-    *out_len = count;
-    if (count == 0)
-        return NULL;
-
-    // 2. 提取所有病田坐标
-    pos_t *points = (pos_t *)malloc(sizeof(pos_t) * count);
-    int idx = 0;
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < n; j++)
-            if (s_drone->one_zero_matrix[i][j] == 1) {
-                points[idx].x = i;
-                points[idx].y = j;
-                idx++;
-            }
-
-    // 3. 最近邻贪心构造初始路径（与 greedy_algorithm 相同）
-    pos_t *path = (pos_t *)malloc(sizeof(pos_t) * count);
-    bool *visited = (bool *)calloc(count, sizeof(bool));
-    int cur_x = 0, cur_y = 0;
-    for (int step = 0; step < count; step++) {
-        int nearest = -1;
-        int min_dist = 1e9;
-        for (int i = 0; i < count; i++) {
-            if (!visited[i]) {
-                int dist = abs(points[i].x - cur_x) + abs(points[i].y - cur_y);
-                if (dist < min_dist) {
-                    min_dist = dist;
-                    nearest = i;
-                }
-            }
-        }
-        path[step] = points[nearest];
-        visited[nearest] = true;
-        cur_x = points[nearest].x;
-        cur_y = points[nearest].y;
-    }
-    free(points);
-    free(visited);
-    reset_matrix();
-    return path;
 }
 
 // 对路径执行 2-opt 优化（开放路径，起点固定）
@@ -228,7 +152,7 @@ static pos_t *optimized_greedy_algorithm(int *out_len) {
     int count = 0;
     for (int i = 0; i < n; i++)
         for (int j = 0; j < n; j++)
-            if (s_drone->one_zero_matrix[i][j] == 1)
+            if (s_drone->one_zero_matrix[i][j] != CROP_DAMAGE_NONE)
                 count++;
     *out_len = count;
     if (count == 0)
@@ -239,7 +163,7 @@ static pos_t *optimized_greedy_algorithm(int *out_len) {
     int idx = 0;
     for (int i = 0; i < n; i++)
         for (int j = 0; j < n; j++)
-            if (s_drone->one_zero_matrix[i][j] == 1) {
+            if (s_drone->one_zero_matrix[i][j] != CROP_DAMAGE_NONE) {
                 points[idx].x = i;
                 points[idx].y = j;
                 idx++;
@@ -271,30 +195,27 @@ static pos_t *optimized_greedy_algorithm(int *out_len) {
 
     // 4. 应用 2-opt 优化
     two_opt_optimize(path, count);
-    reset_matrix();
+    // reset_matrix();
 
     return path;
 }
 
 pos_t *drone_auto_path(int *out_len) { // 前端接口，用来前端写路径可视化，即飞行轨迹，并非喷药
-    if (s_drone->algorithm_level == 0)
-        return traversal_algorithm(out_len);
-    else if (s_drone->algorithm_level == 1)
-        return greedy_algorithm(out_len);
-    else if (s_drone->algorithm_level == 2)
-        return optimized_greedy_algorithm(out_len);
-    return NULL;
+    return optimized_greedy_algorithm(out_len);
 }
 
 bool drone_ensure_pesticide(pos_t pos) {
     farm_t *farm = farm_get_instance();
     field_t *field = farm->fields[pos.x][pos.y];
-    if (field->crop_type == CROP_TYPE_NONE || field->stage == CROP_STAGE_READY || !field_is_damaged(field))
-        return false;                                    // 期间可能死了或成熟了
+    if (field->crop_type == CROP_TYPE_NONE || field->stage == CROP_STAGE_READY || !field_is_damaged(field)) {
+        s_drone->one_zero_matrix[pos.x][pos.y] = CROP_DAMAGE_NONE; // 死了或成熟了标记为无病
+        return false;                                              // 期间可能死了或成熟了
+    }
     if (s_drone->pesticide_storage[field->damage] > 0) { // 有药用药
         s_drone->pesticide_storage[field->damage]--;
         field_use_pesticide(field);
         player_use_pesticide_exp();
+        s_drone->one_zero_matrix[pos.x][pos.y] = CROP_DAMAGE_NONE; // 喷药后标记为无病
         event_send(EVENT_ON_PLAYER_PESTICIDE_CHANGE, player_get_instance());
         return true;
     }
