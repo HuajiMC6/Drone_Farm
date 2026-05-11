@@ -114,7 +114,7 @@ lv_obj_t *ui_main_screen_create(void) {
     ui_drone_hud_create(g_screen_main);
     ui_drone_set_pos(-40, 40, false, NULL);
     // 启动时获取一次虫害数据，确保无人机窗口初始显示正确
-    drone_get_detected_pest_counts((int *)ui_drone_pest_count);
+    drone_get_detected_pest_counts(ui_drone_pest_count);
 
     shop_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_shop_btn, 40, 380);
     storage_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_storage_btn, 40, 460);
@@ -149,7 +149,7 @@ void ui_main_handle_event(event_t *event) {
             ui_field_update(data->x, data->y);
 
             if (event->type == EVENT_ON_PEST_DETECTED || event->type == EVENT_ON_PEST_CLEARED) {
-                drone_get_detected_pest_counts((int *)ui_drone_pest_count);
+                drone_get_detected_pest_counts(ui_drone_pest_count);
                 // 虫害检测/清除时按需刷新无人机窗口
                 ui_drone_window_refresh();
             }

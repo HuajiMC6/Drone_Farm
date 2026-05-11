@@ -62,7 +62,7 @@ crop_damage_t drone_detect_damage() {
     }
 }
 
-void drone_get_detected_pest_counts(int counts[CROP_DAMAGE_NONE]) {
+void drone_get_detected_pest_counts(uint8_t counts[CROP_DAMAGE_NONE]) {
     for (int i = 0; i < CROP_DAMAGE_NONE; i++) counts[i] = 0;
     for (int i = 0; i < 10; i++)
         for (int j = 0; j < 10; j++) {

@@ -3,6 +3,7 @@
 #include "enum.h"
 #include "farm.h"
 #include <stdbool.h>
+#include <stdint.h>
 
 typedef struct {
     int x;
@@ -27,7 +28,7 @@ void drone_init();
 void drone_state_switch(drone_state_t drone_state);
 
 crop_damage_t drone_detect_damage();
-void drone_get_detected_pest_counts(int counts[CROP_DAMAGE_NONE]);
+void drone_get_detected_pest_counts(uint8_t counts[CROP_DAMAGE_NONE]);
 
 bool drone_algorithm_update();
 bool drone_speed_update();
