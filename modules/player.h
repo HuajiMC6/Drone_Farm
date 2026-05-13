@@ -38,9 +38,9 @@ bool player_buy_drone_storage_update();
 bool player_buy_farm_size_update();
 
 // field
-bool player_buy_field_output_update(pos_t pos);
-bool player_buy_field_ready_time_update(pos_t pos);
-bool player_buy_field_tolerance_update(pos_t pos);
+bool player_buy_field_output_upgrade(field_t *field);
+bool player_buy_field_ready_time_upgrade(field_t *field);
+bool player_buy_field_tolerance_upgrade(field_t *field);
 
 bool player_save();
 bool player_load();

@@ -51,6 +51,7 @@ void ui_main_field_block_click_cb(lv_event_t *e) {
 
         if (info->is_planted) {
             player_harvest(info->field);
+            lv_obj_add_state(btn, LV_STATE_CHECKED); // 收获保持选中状态
         }
     } else { // 单击，触发选中状态切换
         last_click_tick = current_tick;
@@ -68,6 +69,42 @@ void ui_main_field_block_click_cb(lv_event_t *e) {
             }
         }
     }
+}
+
+void ui_main_field_block_long_press_cb(lv_event_t *e) {
+    lv_obj_t *btn = lv_event_get_current_target(e);
+    farm_block_t *block = lv_obj_get_user_data(btn);
+    void (*window_show)(void *) = lv_event_get_user_data(e);
+    if (block) {
+        window_show(block);
+    }
+}
+
+void ui_main_filed_output_upgrade_click_cb(lv_event_t *e) {
+    field_t **field = lv_event_get_user_data(e);
+    if (!field || !*field) {
+        return;
+    }
+
+    player_buy_field_output_upgrade(*field);
+}
+
+void ui_main_ready_time_upgrade_click_cb(lv_event_t *e) {
+    field_t **field = lv_event_get_user_data(e);
+    if (!field || !*field) {
+        return;
+    }
+
+    player_buy_field_ready_time_upgrade(*field);
+}
+
+void ui_main_tolerance_upgrade_click_cb(lv_event_t *e) {
+    field_t **field = lv_event_get_user_data(e);
+    if (!field || !*field) {
+        return;
+    }
+
+    player_buy_field_tolerance_upgrade(*field);
 }
 
 void ui_main_screen_click_cb(lv_event_t *e) {

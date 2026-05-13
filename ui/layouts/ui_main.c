@@ -41,6 +41,7 @@ static lv_obj_t *g_storage_window = NULL;
 static lv_obj_t *g_shop_window = NULL;
 static lv_obj_t *g_setting_window = NULL;
 static lv_obj_t *g_drone_window = NULL;
+static lv_obj_t *g_field_upgrade_window = NULL;
 
 static lv_obj_t *g_gold_bar_label = NULL;
 
@@ -54,6 +55,16 @@ typedef struct {
 
 static ui_drone_spray_ctx_t g_drone_spray_ctx = {0};
 
+typedef struct {
+    lv_obj_t *output_label;
+    lv_obj_t *ready_time_label;
+    lv_obj_t *tolerance_label;
+
+    field_t *current_field;
+} ui_field_upgrade_window_ctx_t;
+
+static ui_field_upgrade_window_ctx_t g_field_upgrade_window_ctx;
+
 static lv_obj_t *ui_seed_table_create(lv_obj_t *parent);
 static lv_obj_t *ui_plant_window_create(void);
 static lv_obj_t *ui_storage_window_create(void);
@@ -61,6 +72,9 @@ static lv_obj_t *ui_setting_window_create(void);
 static lv_obj_t *ui_drone_create(lv_obj_t *parent);
 static void ui_farm_grid_create(lv_obj_t *parent);
 static void ui_field_update(int x, int y);
+static lv_obj_t *ui_field_upgrade_window_create(void);
+static void ui_field_upgrade_window_change_field(farm_block_t *block);
+static void ui_field_upgrade_window_refresh(void);
 static lv_obj_t *ui_crop_grwoing_bar(lv_obj_t *parent);
 static void ui_gold_bar_create(lv_obj_t *parent);
 static void ui_gold_bar_refresh(void);
@@ -95,6 +109,9 @@ static ui_window_toggle_desc_t g_setting_window_toggle = {
 };
 static ui_window_toggle_desc_t g_drone_window_toggle = {.create = ui_drone_window_create,
                                                         .window_ref = &g_drone_window};
+
+static ui_window_toggle_desc_t g_field_upgrade_window_toggle = {.create = ui_field_upgrade_window_create,
+                                                                .window_ref = &g_field_upgrade_window};
 
 lv_obj_t *ui_main_screen_create(void) {
     if (g_screen_main && lv_obj_is_valid(g_screen_main)) {
@@ -152,6 +169,10 @@ void ui_main_handle_event(event_t *event) {
                 drone_get_detected_pest_counts(ui_drone_pest_count);
                 // 虫害检测/清除时按需刷新无人机窗口
                 ui_drone_window_refresh();
+            }
+            if (event->type == EVENT_ON_FIELD_UPGRADE && g_field_upgrade_window_ctx.current_field == data) {
+                // 田地升级时、且与当前显示的field匹配时刷新田地升级窗口
+                ui_field_upgrade_window_refresh();
             }
             break;
         }
@@ -244,11 +265,14 @@ static void ui_farm_grid_create(lv_obj_t *parent) {
             lv_obj_set_style_pad_all(bg_layer, -2, 0);
             lv_obj_set_style_border_width(bg_layer, 2, LV_STATE_CHECKED);
             lv_obj_add_event_cb(bg_layer, ui_main_field_block_click_cb, LV_EVENT_CLICKED, g_screen_main);
+            lv_obj_add_event_cb(
+                bg_layer, ui_main_field_block_long_press_cb, LV_EVENT_LONG_PRESSED,
+                ui_field_upgrade_window_change_field); // 长按事件显示田地升级窗口时，根据当前field刷新窗口内容
             lv_obj_set_user_data(bg_layer, block);
 
             block->obj = ui_div_create(bg_layer);
             lv_obj_set_size(block->obj, FARM_BLOCK_SIZE, FARM_BLOCK_SIZE);
-            lv_obj_add_flag(block->obj, LV_OBJ_FLAG_EVENT_BUBBLE);
+            lv_obj_add_flag(block->obj, LV_OBJ_FLAG_EVENT_BUBBLE); // 将作物图层的事件冒泡到bg_layer统一处理
             lv_obj_center(block->obj);
 
             block->growing_bar = ui_crop_grwoing_bar(block->obj);
@@ -291,6 +315,101 @@ static void ui_farm_grid_update(void) {
     if (g_screen_main && farm_grid) {
         lv_obj_add_event_cb(g_screen_main, ui_main_screen_click_cb, LV_EVENT_CLICKED, farm_grid);
     }
+}
+
+static lv_obj_t *ui_field_upgrade_window_item_create(lv_obj_t *parent, lv_event_cb_t btn_event_cb,
+                                                     void *event_user_data) {
+    lv_obj_t *cont = ui_div_create(parent);
+    lv_obj_set_size(cont, lv_pct(100), 30);
+
+    lv_obj_t *label = lv_label_create(cont);
+
+    lv_obj_t *btn = lv_btn_create(cont);
+    lv_obj_set_size(btn, 28, 28);
+    lv_obj_set_style_bg_color(btn, lv_color_hex(0xf4cdca), 0);
+    lv_obj_set_style_border_color(btn, lv_color_hex(0xb66258), 0);
+    lv_obj_set_style_border_width(btn, 1, 0);
+    lv_obj_align(btn, LV_ALIGN_RIGHT_MID, -4, 0);
+    lv_obj_t *btn_label = lv_label_create(btn);
+    lv_label_set_text(btn_label, "+");
+    lv_obj_center(btn_label);
+    if (btn_event_cb) {
+        lv_obj_add_event_cb(btn, btn_event_cb, LV_EVENT_CLICKED, event_user_data);
+    }
+
+    return label;
+}
+
+static lv_obj_t *ui_field_upgrade_window_create(void) {
+    lv_obj_t *body = lv_obj_create(lv_scr_act());
+    lv_obj_set_style_bg_color(body, lv_color_hex(0xf6dc8f), 0);
+    lv_obj_set_style_bg_opa(body, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(body, 0, 0);
+    lv_obj_set_style_pad_all(body, 8, 0);
+    lv_obj_set_flex_flow(body, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(body, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
+    lv_obj_t *win = ui_window_create(g_screen_main, "Field Info", body, false);
+    lv_obj_set_size(win, 200, 180);
+
+    ui_window_hide(win); // 初始隐藏，长按田地时显示
+
+    g_field_upgrade_window = win;
+
+    g_field_upgrade_window_ctx.output_label = ui_field_upgrade_window_item_create(
+        body, ui_main_filed_output_upgrade_click_cb, &g_field_upgrade_window_ctx.current_field);
+    g_field_upgrade_window_ctx.ready_time_label = ui_field_upgrade_window_item_create(
+        body, ui_main_ready_time_upgrade_click_cb, &g_field_upgrade_window_ctx.current_field);
+    g_field_upgrade_window_ctx.tolerance_label = ui_field_upgrade_window_item_create(
+        body, ui_main_tolerance_upgrade_click_cb, &g_field_upgrade_window_ctx.current_field);
+
+    return win;
+}
+
+static void ui_field_upgrade_window_change_field(farm_block_t *block) {
+    if (!block) {
+        return;
+    }
+    field_t *field = block->field;
+    if (!field) {
+        return;
+    }
+
+    if (!g_field_upgrade_window || !lv_obj_is_valid(g_field_upgrade_window)) {
+        g_field_upgrade_window = ui_field_upgrade_window_create();
+    }
+
+    g_field_upgrade_window_ctx.current_field = block->field;
+
+    char buf[32];
+    snprintf(buf, sizeof(buf), "Output: Lv.%d", field->output_level);
+    lv_label_set_text(g_field_upgrade_window_ctx.output_label, buf);
+
+    snprintf(buf, sizeof(buf), "Ready Time: Lv.%d", field->ready_time_level);
+    lv_label_set_text(g_field_upgrade_window_ctx.ready_time_label, buf);
+
+    snprintf(buf, sizeof(buf), "Tolerance: Lv.%d", field->tolerance_level);
+    lv_label_set_text(g_field_upgrade_window_ctx.tolerance_label, buf);
+
+    lv_obj_align_to(g_field_upgrade_window, block->obj, LV_ALIGN_OUT_RIGHT_TOP, 5, 0);
+    ui_window_show(g_field_upgrade_window);
+}
+
+static void ui_field_upgrade_window_refresh(void) {
+    field_t *field = g_field_upgrade_window_ctx.current_field;
+    if (!field || !g_field_upgrade_window || !lv_obj_is_valid(g_field_upgrade_window) ||
+        !ui_window_is_visible(g_field_upgrade_window)) {
+        return;
+    }
+
+    char buf[32];
+    snprintf(buf, sizeof(buf), "Output: Lv.%d", field->output_level);
+    lv_label_set_text(g_field_upgrade_window_ctx.output_label, buf);
+
+    snprintf(buf, sizeof(buf), "Ready Time: Lv.%d", field->ready_time_level);
+    lv_label_set_text(g_field_upgrade_window_ctx.ready_time_label, buf);
+
+    snprintf(buf, sizeof(buf), "Tolerance: Lv.%d", field->tolerance_level);
+    lv_label_set_text(g_field_upgrade_window_ctx.tolerance_label, buf);
 }
 
 static void ui_field_update(int x, int y) {
