@@ -15,6 +15,7 @@ const void *icon_get_pest(crop_damage_t pest);
 LV_IMG_DECLARE(icon_field_bg);
 LV_IMG_DECLARE(icon_farm_bg);
 LV_IMG_DECLARE(icon_gold_bar_bg);
+LV_IMG_DECLARE(icon_exp_bar_bg);
 LV_IMG_DECLARE(icon_plant_btn);
 LV_IMG_DECLARE(icon_shop_btn);
 LV_IMG_DECLARE(icon_storage_btn);

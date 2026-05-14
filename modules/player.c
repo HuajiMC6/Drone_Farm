@@ -210,6 +210,28 @@ static void player_set_experience(int experience) {
     event_send(EVENT_ON_PLAYER_EXPERIENCE_CHANGE, s_player);
 }
 
+int player_get_level() {
+    return s_player->level + 1; // level从0开始计数，但对玩家展示时从1开始
+}
+
+int player_get_experience() {
+    return s_player->experience;
+}
+
+int player_get_next_level_experience() {
+    if (s_player->level >= 39) {
+        return -1; // 已满级
+    }
+    return experience_level[s_player->level];
+}
+
+int player_get_this_level_experience() {
+    if (s_player->level == 0) {
+        return 0;
+    }
+    return experience_level[s_player->level - 1];
+}
+
 static void player_level_update() { // 每次碰到与经验相关操作都调用
     while (s_player->level < 40 && s_player->experience >= experience_level[s_player->level]) {
         s_player->level++;

@@ -66,6 +66,14 @@ typedef struct {
 
 static ui_field_upgrade_window_ctx_t g_field_upgrade_window_ctx;
 
+typedef struct {
+    lv_obj_t *level_label;
+    lv_obj_t *exp_label;
+    lv_obj_t *exp_bar;
+} ui_player_exp_ctx_t;
+
+ui_player_exp_ctx_t g_player_exp_ctx;
+
 static lv_obj_t *ui_seed_table_create(lv_obj_t *parent);
 static lv_obj_t *ui_plant_window_create(void);
 static lv_obj_t *ui_setting_window_create(void);
@@ -78,6 +86,8 @@ static void ui_field_upgrade_window_refresh(void);
 static lv_obj_t *ui_crop_grwoing_bar(lv_obj_t *parent);
 static void ui_gold_bar_create(lv_obj_t *parent);
 static void ui_gold_bar_refresh(void);
+static void ui_exp_bar_create(lv_obj_t *parent);
+static void ui_exp_bar_refresh(void);
 static lv_obj_t *ui_icon_btn_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h, const void *img, lv_coord_t x,
                                     lv_coord_t y);
 static const void *ui_crop_drag_img(crop_type_t type);
@@ -128,6 +138,7 @@ lv_obj_t *ui_main_screen_create(void) {
     lv_obj_add_event_cb(g_screen_main, ui_main_screen_click_cb, LV_EVENT_CLICKED, farm_grid);
 
     ui_gold_bar_create(g_screen_main);
+    ui_exp_bar_create(g_screen_main);
 
     g_drone = ui_drone_create(g_screen_main);
     ui_drone_hud_create(g_screen_main);
@@ -205,6 +216,9 @@ void ui_main_handle_event(event_t *event) {
             if (event->type == EVENT_ON_PLAYER_COIN_CHANGE || event->type == EVENT_ON_PLAYER_LEVEL_UPGRADE ||
                 event->type == EVENT_ON_PLAYER_SEED_CHANGE) {
                 ui_shop_refresh();
+            }
+            if (event->type == EVENT_ON_PLAYER_EXPERIENCE_CHANGE) {
+                ui_exp_bar_refresh();
             }
             break;
         case EVENT_ON_DRONE_TO_FREE:
@@ -515,8 +529,8 @@ static lv_obj_t *ui_crop_grwoing_bar(lv_obj_t *parent) {
 
 static void ui_gold_bar_create(lv_obj_t *parent) {
     lv_obj_t *bar = ui_div_create(parent);
-    lv_obj_set_size(bar, 120, 40);
-    lv_obj_set_pos(bar, 200, 8);
+    lv_obj_set_size(bar, 130, 40);
+    lv_obj_set_pos(bar, 720, 15);
     lv_obj_set_style_bg_img_src(bar, &icon_gold_bar_bg, 0);
     lv_obj_add_flag(bar, LV_OBJ_FLAG_FLOATING);
 
@@ -532,6 +546,62 @@ static void ui_gold_bar_create(lv_obj_t *parent) {
 static void ui_gold_bar_refresh(void) {
     if (g_gold_bar_label && lv_obj_is_valid(g_gold_bar_label)) {
         lv_label_set_text_fmt(g_gold_bar_label, "%d", player_get_instance()->coins);
+    }
+}
+
+static void ui_exp_bar_create(lv_obj_t *parent) {
+    lv_obj_t *bar = ui_div_create(parent);
+    lv_obj_set_size(bar, 206, 75);
+    lv_obj_set_pos(bar, 24, 8);
+    lv_obj_set_style_bg_img_src(bar, &icon_exp_bar_bg, 0);
+    lv_obj_add_flag(bar, LV_OBJ_FLAG_FLOATING);
+
+    lv_obj_t *level_cont = ui_div_create(bar);
+    lv_obj_set_size(level_cont, 75, 75);
+    lv_obj_set_pos(level_cont, 0, 0);
+
+    lv_obj_t *level_label = lv_label_create(level_cont);
+    player_t *player = player_get_instance();
+    lv_label_set_text_fmt(level_label, "%d", player_get_level());
+    lv_obj_set_style_text_color(level_label, lv_color_white(), 0);
+    lv_obj_set_style_text_font(level_label, &lv_font_montserrat_30, 0);
+    lv_obj_center(level_label);
+
+    lv_obj_t *exp_label = lv_label_create(bar);
+    lv_label_set_text_fmt(exp_label, "%d / %d", player_get_experience(), player_get_next_level_experience());
+    lv_obj_set_style_text_color(exp_label, lv_color_hex(0xC05E01), 0);
+    lv_obj_align(exp_label, LV_ALIGN_BOTTOM_RIGHT, -14, -16);
+
+    lv_obj_t *exp_bar = lv_bar_create(bar);
+    lv_obj_set_size(exp_bar, 128, 18);
+    lv_obj_set_pos(exp_bar, 66, 19);
+    lv_obj_set_style_bg_color(exp_bar, lv_color_hex(0xFEC709), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(exp_bar, lv_color_hex(0xFCAC0B), LV_PART_MAIN);
+    lv_bar_set_range(exp_bar, player_get_this_level_experience(), player_get_next_level_experience());
+    lv_bar_set_value(exp_bar, player_get_experience(), LV_ANIM_OFF);
+
+    g_player_exp_ctx.level_label = level_label;
+    g_player_exp_ctx.exp_label = exp_label;
+    g_player_exp_ctx.exp_bar = exp_bar;
+}
+
+static void ui_exp_bar_refresh(void) {
+    player_t *player = player_get_instance();
+    if (!player) {
+        return;
+    }
+
+    if (g_player_exp_ctx.level_label && lv_obj_is_valid(g_player_exp_ctx.level_label)) {
+        lv_label_set_text_fmt(g_player_exp_ctx.level_label, "%d", player_get_level());
+    }
+    if (g_player_exp_ctx.exp_label && lv_obj_is_valid(g_player_exp_ctx.exp_label)) {
+        lv_label_set_text_fmt(g_player_exp_ctx.exp_label, "%d / %d", player_get_experience(),
+                              player_get_next_level_experience());
+    }
+    if (g_player_exp_ctx.exp_bar && lv_obj_is_valid(g_player_exp_ctx.exp_bar)) {
+        lv_bar_set_range(g_player_exp_ctx.exp_bar, player_get_this_level_experience(),
+                         player_get_next_level_experience());
+        lv_bar_set_value(g_player_exp_ctx.exp_bar, player_get_experience(), LV_ANIM_OFF);
     }
 }
 
