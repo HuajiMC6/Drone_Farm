@@ -80,6 +80,7 @@ bool player_harvest(field_t *field) {
         int output = field_harvest(field);
         s_player->harvest_bag[crop_type] += output;
         player_set_experience(s_player->experience + output * harvest_exp_earn[crop_type]);
+        event_send(EVENT_ON_PLAYER_HARVEST_BAG_CHANGE, s_player);
         return true;
     }
     return false;
@@ -89,6 +90,7 @@ bool player_sold(crop_type_t crop_type, int n) {
     if (s_player->harvest_bag[crop_type] >= n) {
         player_set_coins(s_player->coins + n * harvest_price[crop_type]);
         s_player->harvest_bag[crop_type] -= n;
+        event_send(EVENT_ON_PLAYER_HARVEST_BAG_CHANGE, s_player);
         return true;
     }
     return false;

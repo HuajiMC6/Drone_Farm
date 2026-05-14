@@ -475,6 +475,21 @@
               <FilePath>.\ui\callbacks\ui_shop_cb.c</FilePath>
             </File>
             <File>
+              <FileName>ui_storage.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\layouts\ui_storage.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_storage_cb.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\ui\callbacks\ui_storage_cb.h</FilePath>
+            </File>
+            <File>
+              <FileName>ui_storage_cb.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\callbacks\ui_storage_cb.c</FilePath>
+            </File>
+            <File>
               <FileName>ui_window_cb.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\ui\callbacks\ui_window_cb.h</FilePath>

@@ -9,6 +9,7 @@
 #include "ui_drone_cb.h"
 #include "ui_grid_list.h"
 #include "ui_main_cb.h"
+#include "ui_storage_cb.h"
 #include "ui_window.h"
 
 #include <stdlib.h>
@@ -37,8 +38,8 @@ static lv_timer_t *ui_timer_drone_update_100ms = NULL;
 static lv_timer_t *ui_timer_update_1s = NULL;
 
 static lv_obj_t *g_plant_window = NULL;
-static lv_obj_t *g_storage_window = NULL;
 static lv_obj_t *g_shop_window = NULL;
+static lv_obj_t *g_storage_window = NULL;
 static lv_obj_t *g_setting_window = NULL;
 static lv_obj_t *g_drone_window = NULL;
 static lv_obj_t *g_field_upgrade_window = NULL;
@@ -67,7 +68,6 @@ static ui_field_upgrade_window_ctx_t g_field_upgrade_window_ctx;
 
 static lv_obj_t *ui_seed_table_create(lv_obj_t *parent);
 static lv_obj_t *ui_plant_window_create(void);
-static lv_obj_t *ui_storage_window_create(void);
 static lv_obj_t *ui_setting_window_create(void);
 static lv_obj_t *ui_drone_create(lv_obj_t *parent);
 static void ui_farm_grid_create(lv_obj_t *parent);
@@ -95,12 +95,14 @@ static void ui_farm_grid_update(void);
 
 lv_obj_t *ui_shop_window_create(void);
 lv_obj_t *ui_drone_window_create(void);
+lv_obj_t *ui_storage_window_create(void);
+void ui_storage_window_refresh(void);
 
 static ui_window_toggle_desc_t g_plant_window_toggle = {.create = ui_plant_window_create,
                                                         .window_ref = &g_plant_window};
 static ui_window_toggle_desc_t g_storage_window_toggle = {
     .create = ui_storage_window_create,
-    .window_ref = &g_storage_window,
+    .window_ref = NULL,
 };
 static ui_window_toggle_desc_t g_shop_window_toggle = {.create = ui_shop_window_create, .window_ref = &g_shop_window};
 static ui_window_toggle_desc_t g_setting_window_toggle = {
@@ -137,6 +139,8 @@ lv_obj_t *ui_main_screen_create(void) {
     storage_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_storage_btn, 40, 460);
     plant_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_plant_btn, 920, 450);
     setting_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_setting_btn, 920, 40);
+
+    g_storage_window_toggle.window_ref = &g_storage_window;
 
     lv_obj_add_event_cb(plant_btn, ui_main_floating_button_click_cb, LV_EVENT_CLICKED, &g_plant_window_toggle);
     lv_obj_add_event_cb(storage_btn, ui_main_floating_button_click_cb, LV_EVENT_CLICKED, &g_storage_window_toggle);
@@ -182,6 +186,7 @@ void ui_main_handle_event(event_t *event) {
             break;
         case EVENT_ON_PLAYER_COIN_CHANGE:
         case EVENT_ON_PLAYER_SEED_CHANGE:
+        case EVENT_ON_PLAYER_HARVEST_BAG_CHANGE:
         case EVENT_ON_PLAYER_PESTICIDE_CHANGE:
         case EVENT_ON_PLAYER_EXPERIENCE_CHANGE:
         case EVENT_ON_PLAYER_LEVEL_UPGRADE:
@@ -190,6 +195,9 @@ void ui_main_handle_event(event_t *event) {
             }
             if (event->type == EVENT_ON_PLAYER_SEED_CHANGE) {
                 ui_seed_table_refresh();
+            }
+            if (event->type == EVENT_ON_PLAYER_HARVEST_BAG_CHANGE) {
+                ui_storage_window_refresh();
             }
             if (event->type == EVENT_ON_PLAYER_PESTICIDE_CHANGE) {
                 ui_drone_window_refresh();
@@ -647,18 +655,6 @@ static lv_obj_t *ui_plant_window_create(void) {
     lv_obj_set_size(div, 206, 290);
 
     g_plant_window = div;
-
-    return div;
-}
-
-static lv_obj_t *ui_storage_window_create(void) {
-    lv_obj_t *body = ui_div_create(g_screen_main);
-    lv_obj_t *div = ui_window_create(g_screen_main, "STORAGE", body, true);
-
-    lv_obj_center(div);
-    lv_obj_set_size(div, 700, 400);
-
-    g_storage_window = div;
 
     return div;
 }
