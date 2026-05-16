@@ -35,7 +35,6 @@ bool field_remove(field_t *field) {
     field->is_detected = false;
     field->base_output = 0;
     field->factor = 1;
-    field->extra_factor = 0.0;
     field->tolerance = 0.0;
 
     event_send(EVENT_ON_FIELD_CLEARED, field);
@@ -56,7 +55,6 @@ bool field_plant(field_t *field, crop_type_t type) {
     field->is_detected = false;
     field->base_output = 100;
     field->factor = 1;
-    field->extra_factor = 0;
     field->tolerance = 0;
     load_output_upgrade(field);
     load_ready_time_upgrade(field);
@@ -73,8 +71,18 @@ void field_grow(field_t *field) {
         field->damage = CROP_DAMAGE_NONE;
         return;
     }
-    if (field->factor < 0.5) {
-        field_remove(field); // 植物死亡
+    // 计算升级带来的额外加成（从等级映射）并把动态因子视为 factor - upgrade_extra
+    double upgrade_extra = 0.0;
+    if (field->output_level == 1)
+        upgrade_extra = 0.2;
+    else if (field->output_level == 2)
+        upgrade_extra = 0.4;
+    else if (field->output_level == 3)
+        upgrade_extra = 0.5;
+
+    double dynamic = field->factor - upgrade_extra;
+    if (dynamic < FIELD_FACTOR_THRESHOLD) {
+        field_remove(field); // 植物死亡（基于动态部分）
         return;
     }
 
@@ -82,13 +90,14 @@ void field_grow(field_t *field) {
     field->growing_time++;
     field->growing_percent = (double)field->growing_time / field->ready_time;
 
-    // 产量因子变化
+    // 产量因子变化：仅调整动态部分（不影响升级加成）
     if (field_is_damaged(field))
-        field->factor -= 0.01;
-    else if (field->factor + 0.005 > 1)
-        field->factor = 1;
+        dynamic -= 0.01;
+    else if (dynamic + 0.005 > 1.0)
+        dynamic = 1.0;
     else
-        field->factor += 0.005;
+        dynamic += 0.005;
+    field->factor = dynamic + upgrade_extra;
 
     // 生长阶段变化
     crop_stage_t pre = field->stage;
@@ -116,7 +125,7 @@ void field_grow(field_t *field) {
 int field_harvest(field_t *field) {
     if (field->crop_type == CROP_TYPE_NONE || field->stage != CROP_STAGE_READY)
         return 0;
-    int output = field->base_output * (field->factor + field->extra_factor);
+    int output = field->base_output * field->factor;
     field_remove(field); // 移除植物
     event_send(EVENT_ON_FIELD_HARVESTED, field);
     return output;
@@ -137,6 +146,7 @@ bool field_output_upgrade(field_t *field) {
     if (field->output_level >= 3)
         return false;
     field->output_level++;
+    load_output_upgrade(field);
     event_send(EVENT_ON_FIELD_UPGRADE, field);
     return true;
 }
@@ -168,9 +178,20 @@ void field_detect(field_t *field) {
     event_send(EVENT_ON_PEST_DETECTED, field);
 }
 
+// 判断田地是否患病
 bool field_is_damaged(const field_t *field) {
     // 通过虫害类型判断是否患病
     return field->damage != CROP_DAMAGE_NONE;
+}
+
+// 获取死亡进度百分比
+int field_get_death_percentage(field_t *field) {
+    if (field->crop_type == CROP_TYPE_NONE)
+        return 0;
+    if (field->factor < FIELD_FACTOR_THRESHOLD)
+        return 100;
+    // 线性映射，因子从1降到阈值时死亡率从0升到100
+    return (int)((1.0 - field->factor) / (1.0 - FIELD_FACTOR_THRESHOLD) * 100);
 }
 
 // 阶段判断与更新
@@ -252,14 +273,25 @@ static crop_damage_t max_possibility(field_t *field) {
 // 产量等级数据获取
 static void load_output_upgrade(field_t *field) {
     int level = field->output_level;
-    if (level == 0)
-        field->extra_factor = 0;
-    else if (level == 1)
-        field->extra_factor = 0.2;
+    double new_extra = 0.0;
+    if (level == 1)
+        new_extra = 0.2;
     else if (level == 2)
-        field->extra_factor = 0.4;
+        new_extra = 0.4;
     else if (level == 3)
-        field->extra_factor = 0.5;
+        new_extra = 0.5;
+
+    int prev_level = (level > 0) ? (level - 1) : 0;
+    double old_extra = 0.0;
+    if (prev_level == 1)
+        old_extra = 0.2;
+    else if (prev_level == 2)
+        old_extra = 0.4;
+    else if (prev_level == 3)
+        old_extra = 0.5;
+
+    // 将等级带来的额外加成合并到 factor（增加或减少差值）
+    field->factor += (new_extra - old_extra);
 }
 
 // 产速等级数据获取

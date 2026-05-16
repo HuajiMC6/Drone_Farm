@@ -83,7 +83,8 @@ static void ui_field_update(int x, int y);
 static lv_obj_t *ui_field_upgrade_window_create(void);
 static void ui_field_upgrade_window_change_field(farm_block_t *block);
 static void ui_field_upgrade_window_refresh(void);
-static lv_obj_t *ui_crop_grwoing_bar(lv_obj_t *parent);
+static lv_obj_t *ui_crop_growing_bar(lv_obj_t *parent);
+static lv_obj_t *ui_crop_death_bar(lv_obj_t *parent);
 static void ui_gold_bar_create(lv_obj_t *parent);
 static void ui_gold_bar_refresh(void);
 static void ui_exp_bar_create(lv_obj_t *parent);
@@ -297,9 +298,12 @@ static void ui_farm_grid_create(lv_obj_t *parent) {
             lv_obj_add_flag(block->obj, LV_OBJ_FLAG_EVENT_BUBBLE); // 将作物图层的事件冒泡到bg_layer统一处理
             lv_obj_center(block->obj);
 
-            block->growing_bar = ui_crop_grwoing_bar(block->obj);
+            block->growing_bar = ui_crop_growing_bar(block->obj);
             lv_bar_set_range(block->growing_bar, 0, field->ready_time);
             lv_bar_set_value(block->growing_bar, field->growing_time, LV_ANIM_OFF);
+
+            block->death_bar = ui_crop_death_bar(block->obj);
+            lv_obj_add_flag(block->death_bar, LV_OBJ_FLAG_HIDDEN);
 
             block->crop_img = lv_img_create(block->obj);
             lv_obj_center(block->crop_img);
@@ -516,12 +520,26 @@ static void ui_main_icon_btns_hide(bool hide) {
     }
 }
 
-static lv_obj_t *ui_crop_grwoing_bar(lv_obj_t *parent) {
+// 生长进度条
+static lv_obj_t *ui_crop_growing_bar(lv_obj_t *parent) {
     lv_obj_t *bar = lv_bar_create(parent);
-    lv_obj_add_event_cb(bar, ui_main_crop_growing_bar_draw_part_end_cb, LV_EVENT_DRAW_PART_END, NULL);
-    lv_obj_set_size(bar, 75, 10);
+    lv_obj_add_event_cb(bar, ui_main_crop_bar_draw_part_end_cb, LV_EVENT_DRAW_PART_END, NULL);
+    lv_obj_set_size(bar, 75, 8);
     lv_obj_set_align(bar, LV_ALIGN_BOTTOM_MID);
     lv_obj_set_pos(bar, 0, -2);
+    lv_obj_set_style_bg_color(bar, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(bar, LV_OPA_50, LV_PART_MAIN);
+    return bar;
+}
+
+// 死亡倒计时进度条（仅在作物即将死亡时显示）
+static lv_obj_t *ui_crop_death_bar(lv_obj_t *parent) {
+    lv_obj_t *bar = lv_bar_create(parent);
+    lv_obj_add_event_cb(bar, ui_main_crop_bar_draw_part_end_cb, LV_EVENT_DRAW_PART_END, NULL);
+    lv_obj_set_size(bar, 75, 8);
+    lv_obj_set_align(bar, LV_ALIGN_BOTTOM_MID);
+    lv_obj_set_pos(bar, 0, -10);
+    lv_obj_set_style_bg_color(bar, lv_color_hex(0xFF0000), LV_PART_INDICATOR);
     lv_obj_set_style_bg_color(bar, lv_color_white(), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(bar, LV_OPA_50, LV_PART_MAIN);
     return bar;
@@ -833,6 +851,14 @@ static void ui_update_1s(lv_timer_t *timer) {
             if (block->is_planted) {
                 lv_bar_set_range(block->growing_bar, 0, block->field->ready_time);
                 lv_bar_set_value(block->growing_bar, block->field->growing_time, LV_ANIM_OFF);
+
+                int death_percentage = field_get_death_percentage(block->field);
+                if (death_percentage > 50) {
+                    lv_obj_clear_flag(block->death_bar, LV_OBJ_FLAG_HIDDEN);
+                    lv_bar_set_value(block->death_bar, death_percentage, LV_ANIM_OFF);
+                } else {
+                    lv_obj_add_flag(block->death_bar, LV_OBJ_FLAG_HIDDEN);
+                }
             }
         }
     }

@@ -225,7 +225,7 @@ void ui_main_drone_click_cb(lv_event_t *e) {
     in_drone_click = false;
 }
 
-void ui_main_crop_growing_bar_draw_part_end_cb(lv_event_t *e) {
+void ui_main_crop_bar_draw_part_end_cb(lv_event_t *e) {
     lv_obj_draw_part_dsc_t *dsc = lv_event_get_param(e);
     if (dsc->part != LV_PART_INDICATOR) {
         return;
@@ -235,7 +235,7 @@ void ui_main_crop_growing_bar_draw_part_end_cb(lv_event_t *e) {
 
     lv_draw_label_dsc_t label_dsc;
     lv_draw_label_dsc_init(&label_dsc);
-    label_dsc.font = &lv_font_montserrat_10;
+    label_dsc.font = &lv_font_montserrat_8;
 
     char buf[8];
     lv_snprintf(buf, sizeof(buf), "%d", (int)lv_bar_get_value(obj));

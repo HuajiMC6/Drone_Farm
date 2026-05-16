@@ -140,12 +140,7 @@ bool farm_save() {
                 return false;
             }
 
-            int damaged = field_is_damaged(f) ? 1 : 0;
             int detected = f->is_detected ? 1 : 0;
-            if (f_write(&fil, &damaged, sizeof(int), &bw) != FR_OK || bw != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
             if (f_write(&fil, &detected, sizeof(int), &bw) != FR_OK || bw != sizeof(int)) {
                 f_close(&fil);
                 return false;
@@ -156,10 +151,6 @@ bool farm_save() {
                 return false;
             }
             if (f_write(&fil, &f->factor, sizeof(double), &bw) != FR_OK || bw != sizeof(double)) {
-                f_close(&fil);
-                return false;
-            }
-            if (f_write(&fil, &f->extra_factor, sizeof(double), &bw) != FR_OK || bw != sizeof(double)) {
                 f_close(&fil);
                 return false;
             }
@@ -261,11 +252,6 @@ bool farm_load() {
             f->damage = (crop_damage_t)damage;
 
             int detected;
-            int damaged; // 兼容旧存档，读后不使用（现在由 field_is_damaged() 代替）
-            if (f_read(&fil, &damaged, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
             if (f_read(&fil, &detected, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
                 f_close(&fil);
                 return false;
@@ -277,10 +263,6 @@ bool farm_load() {
                 return false;
             }
             if (f_read(&fil, &f->factor, sizeof(double), &br) != FR_OK || br != sizeof(double)) {
-                f_close(&fil);
-                return false;
-            }
-            if (f_read(&fil, &f->extra_factor, sizeof(double), &br) != FR_OK || br != sizeof(double)) {
                 f_close(&fil);
                 return false;
             }
