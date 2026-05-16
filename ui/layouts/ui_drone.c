@@ -353,7 +353,7 @@ lv_obj_t *ui_drone_window_create(void) {
 
     lv_obj_t *div = ui_window_create(lv_scr_act(), "DRONE OPERATION", body, true);
     lv_obj_center(div);
-    lv_obj_set_size(div, 820, 470);
+    lv_obj_set_size(div, 714, 432);
 
     // 左右面板容器：仅负责分区，不承担视觉样式。
     lv_obj_t *left_panel = ui_drone_transparent_container_create(body, 382, 366);
