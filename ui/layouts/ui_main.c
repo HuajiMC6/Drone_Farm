@@ -80,6 +80,7 @@ static lv_obj_t *ui_setting_window_create(void);
 static lv_obj_t *ui_drone_create(lv_obj_t *parent);
 static void ui_farm_grid_create(lv_obj_t *parent);
 static void ui_field_update(int x, int y);
+static void ui_field_update_bars(farm_block_t *block);
 static lv_obj_t *ui_field_upgrade_window_create(void);
 static void ui_field_upgrade_window_change_field(farm_block_t *block);
 static void ui_field_upgrade_window_refresh(void);
@@ -444,6 +445,8 @@ static void ui_field_update(int x, int y) {
     block->has_pest = field_is_damaged(block->field);
     block->is_detected = block->field->is_detected;
 
+    ui_field_update_bars(block);
+
     if (block->is_planted) {
         lv_obj_clear_flag(block->obj, LV_OBJ_FLAG_HIDDEN);
         lv_img_set_src(block->crop_img, icon_get_crop(block->field->crop_type, block->field->stage));
@@ -457,6 +460,24 @@ static void ui_field_update(int x, int y) {
         }
     } else {
         lv_obj_add_flag(block->obj, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+static void ui_field_update_bars(farm_block_t *block) {
+    if (!block) {
+        return;
+    }
+    if (block->is_planted) {
+        lv_bar_set_range(block->growing_bar, 0, block->field->ready_time);
+        lv_bar_set_value(block->growing_bar, block->field->growing_time, LV_ANIM_OFF);
+
+        int death_percentage = field_get_death_percentage(block->field);
+        if (death_percentage > 50) {
+            lv_obj_clear_flag(block->death_bar, LV_OBJ_FLAG_HIDDEN);
+            lv_bar_set_value(block->death_bar, death_percentage, LV_ANIM_OFF);
+        } else {
+            lv_obj_add_flag(block->death_bar, LV_OBJ_FLAG_HIDDEN);
+        }
     }
 }
 
@@ -848,18 +869,7 @@ static void ui_update_1s(lv_timer_t *timer) {
     for (int i = 0; i < FARM_GRID_N; i++) {
         for (int j = 0; j < FARM_GRID_N; j++) {
             farm_block_t *block = &g_farm_blocks[i][j];
-            if (block->is_planted) {
-                lv_bar_set_range(block->growing_bar, 0, block->field->ready_time);
-                lv_bar_set_value(block->growing_bar, block->field->growing_time, LV_ANIM_OFF);
-
-                int death_percentage = field_get_death_percentage(block->field);
-                if (death_percentage > 50) {
-                    lv_obj_clear_flag(block->death_bar, LV_OBJ_FLAG_HIDDEN);
-                    lv_bar_set_value(block->death_bar, death_percentage, LV_ANIM_OFF);
-                } else {
-                    lv_obj_add_flag(block->death_bar, LV_OBJ_FLAG_HIDDEN);
-                }
-            }
+            ui_field_update_bars(block);
         }
     }
 
