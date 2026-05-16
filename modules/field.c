@@ -71,18 +71,9 @@ void field_grow(field_t *field) {
         field->damage = CROP_DAMAGE_NONE;
         return;
     }
-    // 计算升级带来的额外加成（从等级映射）并把动态因子视为 factor - upgrade_extra
-    double upgrade_extra = 0.0;
-    if (field->output_level == 1)
-        upgrade_extra = 0.2;
-    else if (field->output_level == 2)
-        upgrade_extra = 0.4;
-    else if (field->output_level == 3)
-        upgrade_extra = 0.5;
 
-    double dynamic = field->factor - upgrade_extra;
-    if (dynamic < FIELD_FACTOR_THRESHOLD) {
-        field_remove(field); // 植物死亡（基于动态部分）
+    if (field->factor < FIELD_FACTOR_THRESHOLD) {
+        field_remove(field); // 植物死亡
         return;
     }
 
@@ -90,14 +81,11 @@ void field_grow(field_t *field) {
     field->growing_time++;
     field->growing_percent = (double)field->growing_time / field->ready_time;
 
-    // 产量因子变化：仅调整动态部分（不影响升级加成）
+    // 产量因子变化
     if (field_is_damaged(field))
-        dynamic -= 0.01;
-    else if (dynamic + 0.005 > 1.0)
-        dynamic = 1.0;
+        field->factor -= 0.01;
     else
-        dynamic += 0.005;
-    field->factor = dynamic + upgrade_extra;
+        field->factor += 0.005;
 
     // 生长阶段变化
     crop_stage_t pre = field->stage;
