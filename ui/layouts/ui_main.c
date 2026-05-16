@@ -146,10 +146,10 @@ lv_obj_t *ui_main_screen_create(void) {
     // 启动时获取一次虫害数据，确保无人机窗口初始显示正确
     drone_get_detected_pest_counts(ui_drone_pest_count);
 
-    shop_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_shop_btn, 40, 380);
-    storage_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_storage_btn, 40, 460);
-    plant_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_plant_btn, 920, 450);
-    setting_btn = ui_icon_btn_create(g_screen_main, 64, 64, &icon_setting_btn, 920, 40);
+    shop_btn = ui_icon_btn_create(g_screen_main, 56, 56, &icon_shop_btn, 40, 380);
+    storage_btn = ui_icon_btn_create(g_screen_main, 56, 56, &icon_storage_btn, 40, 460);
+    plant_btn = ui_icon_btn_create(g_screen_main, 56, 56, &icon_plant_btn, 920, 450);
+    setting_btn = ui_icon_btn_create(g_screen_main, 47, 47, &icon_setting_btn, 920, 40);
 
     g_storage_window_toggle.window_ref = &g_storage_window;
 
@@ -610,9 +610,17 @@ static lv_obj_t *ui_icon_btn_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h
     lv_obj_t *btn = ui_div_create(parent);
     lv_obj_set_size(btn, w, h);
     lv_obj_set_style_bg_img_src(btn, img, 0);
+    lv_obj_set_style_radius(btn, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_pos(btn, x, y);
     lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_flag(btn, LV_OBJ_FLAG_FLOATING);
+
+    lv_obj_set_style_shadow_width(btn, 8, LV_STATE_PRESSED);
+    lv_obj_set_style_shadow_color(btn, lv_color_hex(0x000000), LV_STATE_PRESSED);
+    lv_obj_set_style_shadow_opa(btn, LV_OPA_40, LV_STATE_PRESSED);
+    lv_obj_set_style_shadow_ofs_x(btn, 1, LV_STATE_PRESSED);
+    lv_obj_set_style_shadow_ofs_y(btn, 2, LV_STATE_PRESSED);
+    lv_obj_set_style_shadow_spread(btn, 1, LV_STATE_PRESSED);
 
     return btn;
 }
