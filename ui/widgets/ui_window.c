@@ -74,8 +74,8 @@ static lv_obj_t *ui_window_mask_ensure(lv_obj_t *parent) {
             g_window_mask = NULL;
         }
 
-        g_window_mask = lv_obj_create(parent);
-        lv_obj_set_size(g_window_mask, LV_PCT(100), LV_PCT(100));
+        g_window_mask = lv_obj_create(lv_scr_act());
+        lv_obj_set_size(g_window_mask, 1024, 600);
         lv_obj_set_style_radius(g_window_mask, 0, 0);
         lv_obj_set_style_border_width(g_window_mask, 0, 0);
         lv_obj_set_style_bg_color(g_window_mask, lv_color_make(20, 20, 20), 0);
@@ -83,6 +83,7 @@ static lv_obj_t *ui_window_mask_ensure(lv_obj_t *parent) {
         lv_obj_set_style_pad_all(g_window_mask, 0, 0);
         lv_obj_clear_flag(g_window_mask, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_flag(g_window_mask, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_flag(g_window_mask, LV_OBJ_FLAG_FLOATING); // 不随屏幕滚动而滚动，保证显示正常
         lv_obj_add_event_cb(g_window_mask, ui_window_mask_click_cb, LV_EVENT_CLICKED, NULL);
         lv_obj_add_flag(g_window_mask, LV_OBJ_FLAG_HIDDEN);
     }
@@ -169,10 +170,16 @@ lv_obj_t *ui_window_create(lv_obj_t *parent, const char *title, lv_obj_t *body, 
 
     lv_obj_clear_flag(div, LV_OBJ_FLAG_SCROLLABLE);
 
+    lv_obj_add_flag(div, LV_OBJ_FLAG_FLOATING); // 默认：不随屏幕滚动而滚动，保证显示正常
+
     ui_window_meta_set(div, enable_mask);
 
     ui_window_show(div);
     return div;
+}
+
+void ui_window_set_display_relative(lv_obj_t *window) {
+    lv_obj_clear_flag(window, LV_OBJ_FLAG_FLOATING);
 }
 
 void ui_window_show(lv_obj_t *window) {

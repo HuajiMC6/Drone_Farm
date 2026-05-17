@@ -20,6 +20,7 @@
 #define DRONE_COORD_SCALNG_FACTOR (FARM_BLOCK_SIZE / 100.0)
 
 static lv_obj_t *g_screen_main = NULL;
+static lv_obj_t *g_scroll_part = NULL;
 
 static lv_obj_t *farm_grid = NULL;
 static lv_obj_t *g_drone = NULL;
@@ -132,17 +133,36 @@ lv_obj_t *ui_main_screen_create(void) {
         return g_screen_main;
     }
 
+    // ----- 这里这样处理是为了模拟出外边距 -----
+    // 其中g_scroll_part作为可滚动对象的父容器，g_screen_main（屏幕）作为固定对象的父容器，保证固定对象不受滚动影响
     g_screen_main = lv_obj_create(NULL);
     lv_obj_set_style_bg_img_src(g_screen_main, &icon_farm_bg, 0);
     lv_obj_set_style_bg_img_tiled(g_screen_main, true, 0);
 
-    ui_farm_grid_create(g_screen_main);
+    lv_obj_t *main_scr_bg_layer = ui_div_create(g_screen_main);
+    lv_obj_set_size(main_scr_bg_layer, 1024, 600);
+
+    lv_obj_set_layout(main_scr_bg_layer, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(main_scr_bg_layer, LV_FLEX_FLOW_COLUMN);
+
+    lv_obj_set_scrollbar_mode(main_scr_bg_layer, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_clear_flag(main_scr_bg_layer, LV_OBJ_FLAG_SCROLL_ELASTIC);
+    lv_obj_clear_flag(main_scr_bg_layer, LV_OBJ_FLAG_SCROLL_MOMENTUM);
+
+    g_scroll_part = ui_div_create(main_scr_bg_layer);
+    lv_obj_set_size(g_scroll_part, 1024, LV_SIZE_CONTENT);
+
+    lv_obj_t *margin = ui_div_create(main_scr_bg_layer);
+    lv_obj_set_size(margin, 1024, 100);
+    // ----- 这里这样处理是为了模拟出外边距 -----
+
+    ui_farm_grid_create(g_scroll_part);
     lv_obj_add_event_cb(g_screen_main, ui_main_screen_click_cb, LV_EVENT_CLICKED, farm_grid);
 
     ui_gold_bar_create(g_screen_main);
     ui_exp_bar_create(g_screen_main);
 
-    g_drone = ui_drone_create(g_screen_main);
+    g_drone = ui_drone_create(g_scroll_part);
     ui_drone_hud_create(g_screen_main);
     ui_drone_set_pos(-40, 40, false, NULL);
     // 启动时获取一次虫害数据，确保无人机窗口初始显示正确
@@ -196,6 +216,9 @@ void ui_main_handle_event(event_t *event) {
         case EVENT_ON_FARM_SIZE_UPGRADE:
             // 农场尺寸变化时，重建整个田地网格
             ui_farm_grid_update();
+
+            // 将无人机移回初始位置，避免无人机位置不正确
+            ui_drone_set_pos(-40, 40, false, NULL);
             break;
         case EVENT_ON_PLAYER_COIN_CHANGE:
         case EVENT_ON_PLAYER_SEED_CHANGE:
@@ -265,9 +288,9 @@ static void ui_farm_grid_create(lv_obj_t *parent) {
         return;
 
     farm_grid = ui_div_create(parent);
-    lv_obj_set_size(farm_grid, FARM_GRID_N * FARM_BLOCK_SIZE, FARM_GRID_N * FARM_BLOCK_SIZE + 160);
-    lv_obj_set_align(farm_grid, LV_ALIGN_TOP_MID);
-    lv_obj_set_style_pad_ver(farm_grid, 80, 0);
+    lv_obj_set_size(farm_grid, FARM_GRID_N * FARM_BLOCK_SIZE, FARM_GRID_N * FARM_BLOCK_SIZE);
+    lv_obj_align_to(farm_grid, parent, LV_ALIGN_TOP_MID, 0, 100);
+    lv_obj_move_to_index(farm_grid, 0); // 确保田地网格在最底层
 
     for (int i = 0; i < FARM_GRID_N; i++) {
         for (int j = 0; j < FARM_GRID_N; j++) {
@@ -338,7 +361,7 @@ static void ui_farm_grid_update(void) {
     }
     farm_grid = NULL;
     memset(g_farm_blocks, 0, sizeof(g_farm_blocks));
-    ui_farm_grid_create(g_screen_main);
+    ui_farm_grid_create(g_scroll_part);
     if (g_screen_main && farm_grid) {
         lv_obj_add_event_cb(g_screen_main, ui_main_screen_click_cb, LV_EVENT_CLICKED, farm_grid);
     }
@@ -375,7 +398,8 @@ static lv_obj_t *ui_field_upgrade_window_create(void) {
     lv_obj_set_style_pad_all(body, 8, 0);
     lv_obj_set_flex_flow(body, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(body, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
-    lv_obj_t *win = ui_window_create(g_screen_main, "Field Info", body, false);
+    lv_obj_t *win = ui_window_create(g_scroll_part, "Field Info", body, false);
+    ui_window_set_display_relative(win); // 设置为相对显示，保证在田地附近显示而不是固定位置显示
     lv_obj_set_size(win, 200, 180);
 
     ui_window_hide(win); // 初始隐藏，长按田地时显示

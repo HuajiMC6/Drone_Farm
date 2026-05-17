@@ -9,5 +9,6 @@ void ui_window_hide(lv_obj_t *window);
 void ui_window_hide_current(void);
 lv_obj_t *ui_window_get_current(void);
 bool ui_window_is_visible(lv_obj_t *window);
+void ui_window_set_display_relative(lv_obj_t *window);
 
 #endif
