@@ -1,5 +1,6 @@
 #include "ui.h"
 
+#include "audio.h"
 #include "drone.h"
 #include "enum.h"
 #include "icon.h"
@@ -61,6 +62,9 @@ typedef struct {
     lv_obj_t *output_label;
     lv_obj_t *ready_time_label;
     lv_obj_t *tolerance_label;
+    lv_obj_t *output_price_label;
+    lv_obj_t *ready_time_price_label;
+    lv_obj_t *tolerance_price_label;
 
     field_t *current_field;
 } ui_field_upgrade_window_ctx_t;
@@ -83,8 +87,7 @@ static void ui_farm_grid_create(lv_obj_t *parent);
 static void ui_field_update(int x, int y);
 static void ui_field_update_bars(farm_block_t *block);
 static lv_obj_t *ui_field_upgrade_window_create(void);
-static void ui_field_upgrade_window_change_field(farm_block_t *block);
-static void ui_field_upgrade_window_refresh(void);
+static void ui_field_upgrade_window_refresh(farm_block_t *block);
 static lv_obj_t *ui_crop_growing_bar(lv_obj_t *parent);
 static lv_obj_t *ui_crop_death_bar(lv_obj_t *parent);
 static void ui_gold_bar_create(lv_obj_t *parent);
@@ -133,31 +136,30 @@ lv_obj_t *ui_main_screen_create(void) {
         return g_screen_main;
     }
 
-    // ----- 这里这样处理是为了模拟出外边距 -----
-    // 其中g_scroll_part作为可滚动对象的父容器，g_screen_main（屏幕）作为固定对象的父容器，保证固定对象不受滚动影响
     g_screen_main = lv_obj_create(NULL);
     lv_obj_set_style_bg_img_src(g_screen_main, &icon_farm_bg, 0);
     lv_obj_set_style_bg_img_tiled(g_screen_main, true, 0);
 
-    lv_obj_t *main_scr_bg_layer = ui_div_create(g_screen_main);
-    lv_obj_set_size(main_scr_bg_layer, 1024, 600);
+    lv_obj_t *main_scr_flex_layout = ui_div_create(g_screen_main);
+    lv_obj_set_size(main_scr_flex_layout, 1024, 600);
 
-    lv_obj_set_layout(main_scr_bg_layer, LV_LAYOUT_FLEX);
-    lv_obj_set_flex_flow(main_scr_bg_layer, LV_FLEX_FLOW_COLUMN);
+    // 加一个弹性盒子为了让内容部分自适应高度
+    lv_obj_set_layout(main_scr_flex_layout, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(main_scr_flex_layout, LV_FLEX_FLOW_COLUMN);
 
-    lv_obj_set_scrollbar_mode(main_scr_bg_layer, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_clear_flag(main_scr_bg_layer, LV_OBJ_FLAG_SCROLL_ELASTIC);
-    lv_obj_clear_flag(main_scr_bg_layer, LV_OBJ_FLAG_SCROLL_MOMENTUM);
+    // 关闭滑动弹性和惯性，让游戏体验更好
+    lv_obj_set_scrollbar_mode(main_scr_flex_layout, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_clear_flag(main_scr_flex_layout, LV_OBJ_FLAG_SCROLL_ELASTIC);
+    lv_obj_clear_flag(main_scr_flex_layout, LV_OBJ_FLAG_SCROLL_MOMENTUM);
 
-    g_scroll_part = ui_div_create(main_scr_bg_layer);
+    g_scroll_part = ui_div_create(main_scr_flex_layout);
     lv_obj_set_size(g_scroll_part, 1024, LV_SIZE_CONTENT);
-
-    lv_obj_t *margin = ui_div_create(main_scr_bg_layer);
-    lv_obj_set_size(margin, 1024, 100);
-    // ----- 这里这样处理是为了模拟出外边距 -----
+    lv_obj_set_style_pad_ver(g_scroll_part, 100, 0);
 
     ui_farm_grid_create(g_scroll_part);
-    lv_obj_add_event_cb(g_screen_main, ui_main_screen_click_cb, LV_EVENT_CLICKED, farm_grid);
+    lv_obj_add_flag(main_scr_flex_layout, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(g_scroll_part, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_add_event_cb(main_scr_flex_layout, ui_main_screen_click_cb, LV_EVENT_CLICKED, farm_grid);
 
     ui_gold_bar_create(g_screen_main);
     ui_exp_bar_create(g_screen_main);
@@ -180,7 +182,7 @@ lv_obj_t *ui_main_screen_create(void) {
     lv_obj_add_event_cb(shop_btn, ui_main_floating_button_click_cb, LV_EVENT_CLICKED, &g_shop_window_toggle);
     lv_obj_add_event_cb(setting_btn, ui_main_floating_button_click_cb, LV_EVENT_CLICKED, &g_setting_window_toggle);
 
-    lv_obj_add_event_cb(g_screen_main, ui_main_screen_click_cb, LV_EVENT_CLICKED, NULL);
+    // lv_obj_add_event_cb(g_screen_main, ui_main_screen_click_cb, LV_EVENT_CLICKED, NULL);
 
     return g_screen_main;
 }
@@ -209,7 +211,7 @@ void ui_main_handle_event(event_t *event) {
             }
             if (event->type == EVENT_ON_FIELD_UPGRADE && g_field_upgrade_window_ctx.current_field == data) {
                 // 田地升级时、且与当前显示的field匹配时刷新田地升级窗口
-                ui_field_upgrade_window_refresh();
+                ui_field_upgrade_window_refresh(&g_farm_blocks[data->x][data->y]);
             }
             break;
         }
@@ -289,7 +291,7 @@ static void ui_farm_grid_create(lv_obj_t *parent) {
 
     farm_grid = ui_div_create(parent);
     lv_obj_set_size(farm_grid, FARM_GRID_N * FARM_BLOCK_SIZE, FARM_GRID_N * FARM_BLOCK_SIZE);
-    lv_obj_align_to(farm_grid, parent, LV_ALIGN_TOP_MID, 0, 100);
+    lv_obj_align_to(farm_grid, parent, LV_ALIGN_TOP_MID, 0, 0);
     lv_obj_move_to_index(farm_grid, 0); // 确保田地网格在最底层
 
     for (int i = 0; i < FARM_GRID_N; i++) {
@@ -314,7 +316,7 @@ static void ui_farm_grid_create(lv_obj_t *parent) {
             lv_obj_add_event_cb(bg_layer, ui_main_field_block_click_cb, LV_EVENT_CLICKED, g_screen_main);
             lv_obj_add_event_cb(
                 bg_layer, ui_main_field_block_long_press_cb, LV_EVENT_LONG_PRESSED,
-                ui_field_upgrade_window_change_field); // 长按事件显示田地升级窗口时，根据当前field刷新窗口内容
+                ui_field_upgrade_window_refresh); // 长按事件显示田地升级窗口时，根据当前field刷新窗口内容
             lv_obj_set_user_data(bg_layer, block);
 
             block->obj = ui_div_create(bg_layer);
@@ -368,11 +370,17 @@ static void ui_farm_grid_update(void) {
 }
 
 static lv_obj_t *ui_field_upgrade_window_item_create(lv_obj_t *parent, lv_event_cb_t btn_event_cb,
-                                                     void *event_user_data) {
+                                                     void *event_user_data, lv_obj_t **price_label) {
     lv_obj_t *cont = ui_div_create(parent);
-    lv_obj_set_size(cont, lv_pct(100), 30);
+    lv_obj_set_size(cont, lv_pct(100), 32);
+    lv_obj_clear_flag(cont, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_t *label = lv_label_create(cont);
+
+    *price_label = lv_label_create(cont);
+    lv_obj_align_to(*price_label, label, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 0);
+    lv_obj_set_style_text_font(*price_label, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(*price_label, lv_color_hex(0xb66258), 0);
 
     lv_obj_t *btn = lv_btn_create(cont);
     lv_obj_set_size(btn, 28, 28);
@@ -397,6 +405,7 @@ static lv_obj_t *ui_field_upgrade_window_create(void) {
     lv_obj_set_style_border_width(body, 0, 0);
     lv_obj_set_style_pad_all(body, 8, 0);
     lv_obj_set_flex_flow(body, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(body, 8, 0);
     lv_obj_set_flex_align(body, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
     lv_obj_t *win = ui_window_create(g_scroll_part, "Field Info", body, false);
     ui_window_set_display_relative(win); // 设置为相对显示，保证在田地附近显示而不是固定位置显示
@@ -407,16 +416,20 @@ static lv_obj_t *ui_field_upgrade_window_create(void) {
     g_field_upgrade_window = win;
 
     g_field_upgrade_window_ctx.output_label = ui_field_upgrade_window_item_create(
-        body, ui_main_filed_output_upgrade_click_cb, &g_field_upgrade_window_ctx.current_field);
+        body, ui_main_filed_output_upgrade_click_cb, &g_field_upgrade_window_ctx.current_field,
+        &g_field_upgrade_window_ctx.output_price_label);
     g_field_upgrade_window_ctx.ready_time_label = ui_field_upgrade_window_item_create(
-        body, ui_main_ready_time_upgrade_click_cb, &g_field_upgrade_window_ctx.current_field);
+        body, ui_main_ready_time_upgrade_click_cb, &g_field_upgrade_window_ctx.current_field,
+        &g_field_upgrade_window_ctx.ready_time_price_label);
     g_field_upgrade_window_ctx.tolerance_label = ui_field_upgrade_window_item_create(
-        body, ui_main_tolerance_upgrade_click_cb, &g_field_upgrade_window_ctx.current_field);
+        body, ui_main_tolerance_upgrade_click_cb, &g_field_upgrade_window_ctx.current_field,
+        &g_field_upgrade_window_ctx.tolerance_price_label);
 
     return win;
 }
 
-static void ui_field_upgrade_window_change_field(farm_block_t *block) {
+// 根据传入的田地块信息刷新升级窗口内容，并显示在对应田地旁边
+static void ui_field_upgrade_window_refresh(farm_block_t *block) {
     if (!block) {
         return;
     }
@@ -441,27 +454,48 @@ static void ui_field_upgrade_window_change_field(farm_block_t *block) {
     snprintf(buf, sizeof(buf), "Tolerance: Lv.%d", field->tolerance_level);
     lv_label_set_text(g_field_upgrade_window_ctx.tolerance_label, buf);
 
+    if (field->output_level >= 3) {
+        snprintf(buf, sizeof(buf), "Achieved Max Level");
+    } else {
+        snprintf(buf, sizeof(buf), "Upgrade Cost: %d", field_output_upgrade_price[field->output_level]);
+    }
+    lv_label_set_text(g_field_upgrade_window_ctx.output_price_label, buf);
+
+    if (field->ready_time_level >= 3) {
+        sprintf(buf, sizeof(buf), "Achieved Max Level");
+    } else {
+        snprintf(buf, sizeof(buf), "Upgrade Cost: %d", field_ready_time_upgrade_price[field->ready_time_level]);
+    }
+    lv_label_set_text(g_field_upgrade_window_ctx.ready_time_price_label, buf);
+
+    if (field->tolerance_level >= 3) {
+        snprintf(buf, sizeof(buf), "Achieved Max Level");
+    } else {
+        snprintf(buf, sizeof(buf), "Upgrade Cost: %d", field_tolerance_upgrade_price[field->tolerance_level]);
+    }
+    lv_label_set_text(g_field_upgrade_window_ctx.tolerance_price_label, buf);
+
     lv_obj_align_to(g_field_upgrade_window, block->obj, LV_ALIGN_OUT_RIGHT_TOP, 5, 0);
     ui_window_show(g_field_upgrade_window);
 }
 
-static void ui_field_upgrade_window_refresh(void) {
-    field_t *field = g_field_upgrade_window_ctx.current_field;
-    if (!field || !g_field_upgrade_window || !lv_obj_is_valid(g_field_upgrade_window) ||
-        !ui_window_is_visible(g_field_upgrade_window)) {
-        return;
-    }
+// static void ui_field_upgrade_window_refresh(void) {
+//     field_t *field = g_field_upgrade_window_ctx.current_field;
+//     if (!field || !g_field_upgrade_window || !lv_obj_is_valid(g_field_upgrade_window) ||
+//         !ui_window_is_visible(g_field_upgrade_window)) {
+//         return;
+//     }
 
-    char buf[32];
-    snprintf(buf, sizeof(buf), "Output: Lv.%d", field->output_level);
-    lv_label_set_text(g_field_upgrade_window_ctx.output_label, buf);
+//     char buf[32];
+//     snprintf(buf, sizeof(buf), "Output: Lv.%d", field->output_level);
+//     lv_label_set_text(g_field_upgrade_window_ctx.output_label, buf);
 
-    snprintf(buf, sizeof(buf), "Ready Time: Lv.%d", field->ready_time_level);
-    lv_label_set_text(g_field_upgrade_window_ctx.ready_time_label, buf);
+//     snprintf(buf, sizeof(buf), "Ready Time: Lv.%d", field->ready_time_level);
+//     lv_label_set_text(g_field_upgrade_window_ctx.ready_time_label, buf);
 
-    snprintf(buf, sizeof(buf), "Tolerance: Lv.%d", field->tolerance_level);
-    lv_label_set_text(g_field_upgrade_window_ctx.tolerance_label, buf);
-}
+//     snprintf(buf, sizeof(buf), "Tolerance: Lv.%d", field->tolerance_level);
+//     lv_label_set_text(g_field_upgrade_window_ctx.tolerance_label, buf);
+// }
 
 static void ui_field_update(int x, int y) {
     farm_block_t *block = &g_farm_blocks[x][y];
@@ -678,12 +712,15 @@ static lv_obj_t *ui_icon_btn_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h
     lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_flag(btn, LV_OBJ_FLAG_FLOATING);
 
+    // 点击时的阴影效果
     lv_obj_set_style_shadow_width(btn, 8, LV_STATE_PRESSED);
     lv_obj_set_style_shadow_color(btn, lv_color_hex(0x000000), LV_STATE_PRESSED);
     lv_obj_set_style_shadow_opa(btn, LV_OPA_40, LV_STATE_PRESSED);
     lv_obj_set_style_shadow_ofs_x(btn, 1, LV_STATE_PRESSED);
     lv_obj_set_style_shadow_ofs_y(btn, 2, LV_STATE_PRESSED);
     lv_obj_set_style_shadow_spread(btn, 1, LV_STATE_PRESSED);
+
+    lv_obj_add_event_cb(btn, icon_btns_click_audio_play, LV_EVENT_RELEASED, NULL);
 
     return btn;
 }
@@ -828,6 +865,14 @@ static lv_obj_t *ui_setting_window_create(void) {
     lv_slider_set_value(slider, 50, LV_ANIM_OFF);
     lv_obj_align_to(slider_label, slider, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
     lv_obj_add_event_cb(slider, debug_timer_period_slider_event_cb, LV_EVENT_VALUE_CHANGED, slider_label);
+
+    lv_obj_t *btn3 = lv_btn_create(body);
+    lv_obj_set_size(btn3, 120, 50);
+    lv_obj_set_pos(btn3, 0, 180);
+    lv_obj_t *btn3_label = lv_label_create(btn3);
+    lv_label_set_text(btn3_label, "Screenshot");
+    lv_obj_center(btn3_label);
+    lv_obj_add_event_cb(btn3, debug_screenshot_cb, LV_EVENT_CLICKED, NULL);
 
     lv_obj_center(div);
     lv_obj_set_size(div, 300, 400);

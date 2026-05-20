@@ -559,6 +559,16 @@
               <FileType>5</FileType>
               <FilePath>.\ui\callbacks\ui_load_cb.h</FilePath>
             </File>
+            <File>
+              <FileName>audio.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\audio.c</FilePath>
+            </File>
+            <File>
+              <FileName>audio.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\ui\audio.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -794,6 +804,11 @@
               <FileType>1</FileType>
               <FilePath>.\GD32H7xx_standard_peripheral\Source\gd32h7xx_trng.c</FilePath>
             </File>
+            <File>
+              <FileName>gd32h7xx_sai.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\GD32H7xx_standard_peripheral\Source\gd32h7xx_sai.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -843,6 +858,16 @@
               <FileName>joystick.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Drivers\joystick.c</FilePath>
+            </File>
+            <File>
+              <FileName>speaker.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Drivers\speaker.c</FilePath>
+            </File>
+            <File>
+              <FileName>speaker.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Drivers\speaker.h</FilePath>
             </File>
           </Files>
         </Group>

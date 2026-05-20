@@ -1,7 +1,6 @@
 #include "drivers.h"
 #include "drone.h"
 #include "farm.h"
-#include "joystick.h"
 #include "player.h"
 #include "ui.h"
 
@@ -54,9 +53,15 @@ int main() {
     /* Joystick Init */
     joystick_init();
 
+    /* Speaker Init */
+    speaker_init();
+
     while (1) {
         delay_us(2000);
         lv_timer_handler();
+
+        // 扬声器播放状态更新 (DMA 缓冲区填充)
+        speaker_update();
 
         // UI层处理游戏逻辑事件
         ui_event_handler(event_get());

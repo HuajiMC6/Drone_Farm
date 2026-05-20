@@ -291,6 +291,10 @@ void debug_timer_period_slider_event_cb(lv_event_t *e) {
     debug_heartbear_timer_set_period(ms);
 }
 
+void debug_screenshot_cb(lv_event_t *e) {
+    ui_window_hide_current(); // 截图前隐藏当前窗口，保证截图界面干净
+}
+
 // for debug ---
 
 static bool ui_main_obj_overlap(lv_obj_t *obj1, lv_obj_t *obj2, lv_coord_t hor_offset, lv_coord_t ver_offset) {
