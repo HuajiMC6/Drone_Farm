@@ -25,6 +25,8 @@ static lv_obj_t *g_scroll_part = NULL;
 
 static lv_obj_t *farm_grid = NULL;
 static lv_obj_t *g_drone = NULL;
+static lv_obj_t *g_drone_still = NULL;
+static lv_obj_t *g_drone_flying = NULL;
 
 static lv_obj_t *shop_btn = NULL;
 static lv_obj_t *storage_btn = NULL;
@@ -83,6 +85,8 @@ static lv_obj_t *ui_seed_table_create(lv_obj_t *parent);
 static lv_obj_t *ui_plant_window_create(void);
 static lv_obj_t *ui_setting_window_create(void);
 static lv_obj_t *ui_drone_create(lv_obj_t *parent);
+static void ui_drone_switch_state(bool flying);
+static void ui_drone_reset_to_still(void);
 static void ui_farm_grid_create(lv_obj_t *parent);
 static void ui_field_update(int x, int y);
 static void ui_field_update_bars(farm_block_t *block);
@@ -164,7 +168,7 @@ lv_obj_t *ui_main_screen_create(void) {
     ui_gold_bar_create(g_screen_main);
     ui_exp_bar_create(g_screen_main);
 
-    g_drone = ui_drone_create(g_scroll_part);
+    ui_drone_create(g_scroll_part);
     ui_drone_hud_create(g_screen_main);
     ui_drone_set_pos(-40, 40, false, NULL);
     // 启动时获取一次虫害数据，确保无人机窗口初始显示正确
@@ -255,7 +259,7 @@ void ui_main_handle_event(event_t *event) {
             if (!g_drone_spray_ctx.active) {
                 ui_drone_spray_prepare();
             }
-            ui_drone_set_pos(-40, 40, true, NULL);
+            ui_drone_set_pos(-40, 40, true, ui_drone_reset_to_still);
             ui_main_icon_btns_hide(false);
             ui_drone_hud_set_visible(false);
             ui_drone_window_refresh();
@@ -273,6 +277,7 @@ void ui_main_handle_event(event_t *event) {
             }
             ui_drone_hud_set_visible(true);
             ui_drone_window_refresh();
+            ui_drone_switch_state(true);
             break;
         default:
             break;
@@ -539,17 +544,44 @@ static void ui_field_update_bars(farm_block_t *block) {
     }
 }
 
+// 创建无人机对象（静止&飞行两个状态，默认是静止状态）
 static lv_obj_t *ui_drone_create(lv_obj_t *parent) {
-    lv_obj_t *drone = lv_animimg_create(parent);
-    static const lv_img_dsc_t *drone_imgs[] = {&icon_drone_0, &icon_drone_1};
-    lv_animimg_set_src(drone, (lv_img_dsc_t **)drone_imgs, 2);
-    lv_animimg_set_duration(drone, 150);
-    lv_animimg_set_repeat_count(drone, LV_ANIM_REPEAT_INFINITE);
-    lv_obj_add_flag(drone, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(drone, ui_main_drone_click_cb, LV_EVENT_CLICKED, &g_drone_window_toggle);
-    lv_animimg_start(drone);
+    // 无人机飞行动画和静止图是分开的两个对象，放在同一个容器g_drone里（保证同步移动），切换时通过隐藏/显示来实现，避免频繁创建删除对象
+    g_drone = ui_div_create(parent);
+    lv_obj_set_size(g_drone, 40, 40);
 
-    return drone;
+    /* 静止状态（静态图片） */
+    g_drone_still = lv_img_create(g_drone);
+    lv_obj_set_pos(g_drone_still, 0, 0);
+    lv_img_set_src(g_drone_still, &icon_drone_0);
+    lv_obj_add_flag(g_drone_still, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(g_drone_still, ui_main_drone_click_cb, LV_EVENT_CLICKED, &g_drone_window_toggle);
+
+    /* 飞行状态（帧动画） */
+    g_drone_flying = lv_animimg_create(g_drone);
+    lv_obj_set_pos(g_drone_flying, 0, 0);
+    static const lv_img_dsc_t *drone_imgs[] = {&icon_drone_0, &icon_drone_1};
+    lv_animimg_set_src(g_drone_flying, (lv_img_dsc_t **)drone_imgs, 2);
+    lv_animimg_set_duration(g_drone_flying, 150);
+    lv_animimg_set_repeat_count(g_drone_flying, LV_ANIM_REPEAT_INFINITE);
+    lv_obj_add_flag(g_drone_flying, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(g_drone_flying, ui_main_drone_click_cb, LV_EVENT_CLICKED, &g_drone_window_toggle);
+    lv_animimg_start(g_drone_flying);
+
+    ui_drone_switch_state(false); // 默认显示静止状态
+
+    return g_drone;
+}
+
+// 根据无人机状态切换显示的对象（静止图或飞行动画）
+static void ui_drone_switch_state(bool flying) {
+    if (flying) {
+        lv_obj_add_flag(g_drone_still, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(g_drone_flying, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(g_drone_flying, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(g_drone_still, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 static void ui_drone_set_pos(lv_coord_t x, lv_coord_t y, bool anim, void *anim_cb) {
@@ -559,30 +591,46 @@ static void ui_drone_set_pos(lv_coord_t x, lv_coord_t y, bool anim, void *anim_c
         uint32_t speed = drone_get_instance()->speed * DRONE_COORD_SCALNG_FACTOR * 10;
         lv_coord_t x_start = lv_obj_get_x(g_drone);
         lv_coord_t y_start = lv_obj_get_y(g_drone);
-        lv_area_t coords;
-        lv_obj_get_content_coords(farm_grid, &coords);
-        lv_coord_t x_end = coords.x1 + x - 20;
-        lv_coord_t y_end = coords.y1 + y - 20;
+        /* 统一使用相对于父对象的坐标 */
+        lv_coord_t grid_x = lv_obj_get_x(farm_grid);
+        lv_coord_t grid_y = lv_obj_get_y(farm_grid);
+        lv_coord_t x_end = grid_x + x - 20;
+        lv_coord_t y_end = grid_y + y - 20;
+
+        uint32_t x_time = lv_anim_speed_to_time(speed, x_start, x_end);
+        uint32_t y_time = lv_anim_speed_to_time(speed, y_start, y_end);
 
         lv_anim_t ax;
         lv_anim_init(&ax);
         lv_anim_set_var(&ax, g_drone);
         lv_anim_set_exec_cb(&ax, lv_obj_set_x);
-        lv_anim_set_time(&ax, lv_anim_speed_to_time(speed, x_start, x_end));
+        lv_anim_set_time(&ax, x_time);
         lv_anim_set_path_cb(&ax, lv_anim_path_ease_in_out);
         lv_anim_set_values(&ax, x_start, x_end);
-        lv_anim_start(&ax);
 
         lv_anim_t ay;
         lv_anim_init(&ay);
         lv_anim_set_var(&ay, g_drone);
         lv_anim_set_exec_cb(&ay, lv_obj_set_y);
-        lv_anim_set_time(&ay, lv_anim_speed_to_time(speed, y_start, y_end));
+        lv_anim_set_time(&ay, y_time);
         lv_anim_set_path_cb(&ay, lv_anim_path_ease_in_out);
         lv_anim_set_values(&ay, y_start, y_end);
-        lv_anim_set_ready_cb(&ay, (lv_anim_ready_cb_t)anim_cb);
+
+        // 根据哪个轴的动画时间更长来设置动画结束回调，确保动画完全结束后再执行回调函数
+        if (x_time > y_time) {
+            lv_anim_set_ready_cb(&ax, (lv_anim_ready_cb_t)anim_cb);
+        } else {
+            lv_anim_set_ready_cb(&ay, (lv_anim_ready_cb_t)anim_cb);
+        }
+
+        lv_anim_start(&ax);
         lv_anim_start(&ay);
     }
+}
+
+// 将无人机切换回静止状态（在飞行结束时调用）
+static void ui_drone_reset_to_still(void) {
+    ui_drone_switch_state(false);
 }
 
 static void ui_main_icon_btns_hide(bool hide) {
