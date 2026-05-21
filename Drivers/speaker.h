@@ -1,6 +1,7 @@
 #ifndef __SPEAKER_H
 #define __SPEAKER_H
 
+#include "ff.h"
 #include "gd32h7xx.h"
 #include <stdint.h>
 
@@ -47,5 +48,19 @@ uint8_t speaker_is_playing(void);
 
 /* I2S 中断喂数据 (由 SPI1_IRQHandler 调用, 用户勿调) */
 void speaker_i2s_feed(void);
+
+/* 从 SD 卡加载 PCM 到 SDRAM 后播放 (适合短音效)
+ *
+ * path:  音频文件路径, 例如 "0:/audio/click.pcm"
+ * loop:  0 = 单次播放, 1 = 循环播放
+ */
+int speaker_play_pcm_file(const TCHAR *path, uint8_t loop);
+
+/* 从 SD 卡直接流式播放背景音乐 (适合长音频)
+ *
+ * path:  音频文件路径, 例如 "0:/audio/bgm.pcm"
+ * loop:  0 = 播放到末尾停止, 1 = 播放完自动从头循环
+ */
+int speaker_play_bgm_stream_file(const TCHAR *path, uint8_t loop);
 
 #endif /* __SPEAKER_H */

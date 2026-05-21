@@ -1,4 +1,5 @@
 #include "ui.h"
+#include "audio.h"
 
 lv_obj_t *ui_load_screen_create(void);
 lv_obj_t *ui_main_screen_create(void);
@@ -11,13 +12,17 @@ void game_pause(void);
 static lv_obj_t *g_screen_load = NULL;
 static lv_obj_t *g_screen_main = NULL;
 
+// UI入口
 void ui_init(void) {
     g_screen_load = ui_load_screen_create();
     g_screen_main = ui_main_screen_create();
 
-    ui_screen_switch(UI_SCREEN_LOAD);
+    ui_screen_switch(UI_SCREEN_LOAD); // 进入加载页面
+
+    bgm_music_play(); // 进入游戏时播放bgm
 }
 
+// 切换界面
 void ui_screen_switch(ui_screen_type_t screen) {
     switch (screen) {
         case UI_SCREEN_LOAD:
@@ -44,6 +49,7 @@ void ui_screen_switch(ui_screen_type_t screen) {
     }
 }
 
+// 事件分发入口
 void ui_event_handler(event_t *event) {
     if (!event) {
         return;
@@ -52,6 +58,7 @@ void ui_event_handler(event_t *event) {
     ui_main_handle_event(event);
 }
 
+// UI更新定时器统一初始化
 void ui_update_timer_init(void) {
     ui_main_update_timer_init();
 }

@@ -4,7 +4,11 @@
 #include "lvgl.h"
 #include <stdint.h>
 
-int speaker_play_pcm_file(const TCHAR *path, uint8_t loop);
+/* 音频文件路径定义 */
+#define AUDIO_BGM "0:/audio/bgm.pcm"
+#define AUDIO_ICON_BTN_CLICK "0:/audio/icon_btns_click.pcm"
+
+int bgm_music_play(void);
 
 void icon_btns_click_audio_play(lv_event_t *e);
 

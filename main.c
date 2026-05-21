@@ -41,6 +41,9 @@ int main() {
     player_init();
     drone_init();
 
+    /* Speaker Init (must be before ui_init; ui_init may start BGM) */
+    speaker_init();
+
     /* UI Initializaiton */
     ui_init();
     ui_update_timer_init();
@@ -52,9 +55,6 @@ int main() {
 
     /* Joystick Init */
     joystick_init();
-
-    /* Speaker Init */
-    speaker_init();
 
     while (1) {
         delay_us(2000);

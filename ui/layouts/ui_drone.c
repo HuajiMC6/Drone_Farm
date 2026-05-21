@@ -185,7 +185,9 @@ static lv_obj_t *ui_drone_card_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t
     lv_obj_t *card = lv_obj_create(parent);
     lv_obj_set_size(card, w, h);
     lv_obj_set_style_bg_color(card, lv_color_hex(0xf9efcf), 0);
-    lv_obj_set_style_border_color(card, lv_color_hex(0x86653a), 0);
+    // lv_obj_set_style_border_color(card, lv_color_hex(0x86653a), 0);
+    // lv_obj_set_style_border_width(card, 1, 0);
+    lv_obj_set_style_border_color(card, lv_color_hex(0xcccccc), 0);
     lv_obj_set_style_border_width(card, 1, 0);
     lv_obj_set_style_radius(card, 10, 0);
     lv_obj_set_style_pad_all(card, pad, 0);
@@ -516,17 +518,23 @@ void ui_drone_hud_create(lv_obj_t *parent) {
     lv_obj_add_flag(root, LV_OBJ_FLAG_HIDDEN);
 
     // 左侧 HUD：基础信息 + 双统计信息。
-    lv_obj_t *left_panel = ui_drone_transparent_container_create(root, 248, 320);
+    lv_obj_t *left_panel = ui_drone_transparent_container_create(root, 259, 316);
+    lv_obj_set_style_pad_all(left_panel, 4, 0);
     lv_obj_set_style_bg_color(left_panel, lv_color_hex(0xf6dc8f), 0);
     lv_obj_set_style_bg_opa(left_panel, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(left_panel, lv_color_hex(0x86653a), 0);
+    lv_obj_set_style_border_width(left_panel, 1, 0);
     lv_obj_set_layout(left_panel, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(left_panel, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(left_panel, 4, 0);
 
     // 右侧 HUD：模式控制。
-    lv_obj_t *right_panel = ui_drone_transparent_container_create(root, 214, 178);
+    lv_obj_t *right_panel = ui_drone_transparent_container_create(root, 225, 158);
+    lv_obj_set_style_pad_all(right_panel, 4, 0);
     lv_obj_set_style_bg_color(right_panel, lv_color_hex(0xf6dc8f), 0);
     lv_obj_set_style_bg_opa(right_panel, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(right_panel, lv_color_hex(0x86653a), 0);
+    lv_obj_set_style_border_width(right_panel, 1, 0);
     lv_obj_set_layout(right_panel, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(right_panel, LV_FLEX_FLOW_COLUMN);
 
@@ -556,7 +564,7 @@ void ui_drone_hud_create(lv_obj_t *parent) {
     ui_drone_info_item_create(base_values, "Capacity", &g_drone_hud_ctx.storage_label, 100);
 
     // HUD 虫害统计卡片。
-    lv_obj_t *pest_card = ui_drone_card_create(left_panel, 248, 106, 8);
+    lv_obj_t *pest_card = ui_drone_card_create(left_panel, 248, 86, 8);
     lv_obj_set_layout(pest_card, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(pest_card, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(pest_card, 4, 0);
@@ -584,7 +592,7 @@ void ui_drone_hud_create(lv_obj_t *parent) {
     }
 
     // HUD 装药统计卡片，始终展示无人机当前装药量。
-    lv_obj_t *loaded_card = ui_drone_card_create(left_panel, 248, 106, 8);
+    lv_obj_t *loaded_card = ui_drone_card_create(left_panel, 248, 116, 8);
     lv_obj_set_layout(loaded_card, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(loaded_card, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(loaded_card, 4, 0);
@@ -614,7 +622,7 @@ void ui_drone_hud_create(lv_obj_t *parent) {
     }
 
     // HUD 模式卡片：复用统一模式行构建函数。
-    lv_obj_t *mode_card = ui_drone_card_create(right_panel, 214, 178, 8);
+    lv_obj_t *mode_card = ui_drone_card_create(right_panel, 214, 148, 8);
     lv_obj_set_layout(mode_card, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(mode_card, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(mode_card, 16, 0);
@@ -623,8 +631,8 @@ void ui_drone_hud_create(lv_obj_t *parent) {
     lv_label_set_text(mode_title, "Mode Control");
     lv_obj_set_style_text_color(mode_title, lv_color_hex(0x5b421f), 0);
 
-    ui_drone_mode_row_create(mode_card, "Detect / Recall", 126, &g_drone_hud_ctx.detect_btn, &g_drone_detect_btn_desc);
-    ui_drone_mode_row_create(mode_card, "Auto Spray", 126, &g_drone_hud_ctx.spray_btn, &g_drone_spray_btn_desc);
+    ui_drone_mode_row_create(mode_card, "Detect", 126, &g_drone_hud_ctx.detect_btn, &g_drone_detect_btn_desc);
+    ui_drone_mode_row_create(mode_card, "Spray", 126, &g_drone_hud_ctx.spray_btn, &g_drone_spray_btn_desc);
 
     g_drone_hud_ctx.obj = root;
     ui_drone_panel_refresh(&g_drone_hud_ctx);

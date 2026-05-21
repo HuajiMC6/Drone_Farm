@@ -21,6 +21,8 @@
 
 #include "speaker.h"
 #include "drivers.h"
+#include "ff.h"
+#include "sdram_malloc.h"
 #include <stddef.h>
 #include <string.h>
 
@@ -52,6 +54,14 @@
 #define SPK_BUF_SAMPLES 512U
 #define SPK_BUF_TOTAL (SPK_BUF_SAMPLES * 2U)
 
+/* 源切换去爆音: 在 BGM/SFX 切换时做短淡入 */
+#define SPK_DECLICK_SAMPLES 32U
+
+/* BGM 流式播放缓存 */
+#define SPK_STREAM_RING_SAMPLES 4096U
+#define SPK_STREAM_READ_CHUNK 512U
+#define SPK_STREAM_RING_MASK (SPK_STREAM_RING_SAMPLES - 1U)
+
 /* ============================================================
  *  播放状态枚举 & PCM 上下文 (保持不变)
  * ============================================================ */
@@ -69,6 +79,14 @@ typedef struct {
     uint32_t position;      /* 当前播放位置 (采样索引) */
     uint8_t loop;           /* 0=单次, 1=循环 */
 } speaker_pcm_ctx_t;
+
+typedef struct {
+    FIL fil;
+    uint8_t active;
+    uint8_t loop;
+    uint8_t eof;
+    FSIZE_t file_size;
+} speaker_stream_file_ctx_t;
 
 /* ============================================================
  *  静态变量
@@ -97,6 +115,15 @@ static uint8_t s_sfx_active = 0U;
 /* BGM 暂停标志 (SFX 播放期间) */
 static uint8_t s_bgm_paused = 0U;
 
+/* 流式 BGM 播放状态 */
+static speaker_stream_file_ctx_t s_stream_ctx;
+static uint16_t s_stream_ring[SPK_STREAM_RING_SAMPLES];
+static uint16_t s_stream_chunk[SPK_STREAM_READ_CHUNK];
+static volatile uint32_t s_stream_head = 0U;
+static volatile uint32_t s_stream_tail = 0U;
+static volatile uint32_t s_stream_count = 0U;
+static uint8_t s_stream_active = 0U;
+
 /* ============================================================
  *  内部函数声明
  * ============================================================ */
@@ -107,6 +134,17 @@ static void speaker_dma_init(void);
 static void speaker_start_dma(void);
 static void speaker_dma_poll(void);
 static uint32_t speaker_fill_pcm(speaker_pcm_ctx_t *ctx, uint32_t *buf, uint32_t count);
+static uint32_t speaker_irq_save(void);
+static void speaker_irq_restore(uint32_t primask);
+static void speaker_stream_reset(void);
+static void speaker_stream_close(void);
+static uint32_t speaker_stream_space_locked(void);
+static uint32_t speaker_stream_count_locked(void);
+static uint32_t speaker_stream_push_locked(const uint16_t *data, uint32_t samples);
+static uint8_t speaker_stream_pop_locked(uint16_t *sample);
+static void speaker_stream_refill(void);
+static uint8_t speaker_pcm_next_sample(speaker_pcm_ctx_t *ctx, uint16_t *sample);
+static uint8_t speaker_active_source_id(void);
 
 /* ============================================================
  *  GPIO 初始化
@@ -246,6 +284,258 @@ static uint32_t speaker_fill_pcm(speaker_pcm_ctx_t *ctx, uint32_t *buf, uint32_t
 }
 
 /* ============================================================
+ *  进入/退出临界区 (保护流式环形缓冲)
+ * ============================================================ */
+static uint32_t speaker_irq_save(void) {
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    return primask;
+}
+
+static void speaker_irq_restore(uint32_t primask) {
+    if (primask == 0U) {
+        __enable_irq();
+    }
+}
+
+/* ============================================================
+ *  流式 BGM 环形缓冲管理
+ * ============================================================ */
+static void speaker_stream_reset(void) {
+    uint32_t primask = speaker_irq_save();
+    s_stream_head = 0U;
+    s_stream_tail = 0U;
+    s_stream_count = 0U;
+    speaker_irq_restore(primask);
+}
+
+static void speaker_stream_close(void) {
+    if (s_stream_ctx.active) {
+        f_close(&s_stream_ctx.fil);
+    }
+
+    s_stream_ctx.active = 0U;
+    s_stream_ctx.loop = 0U;
+    s_stream_ctx.eof = 0U;
+    s_stream_ctx.file_size = 0U;
+    s_stream_active = 0U;
+    speaker_stream_reset();
+}
+
+static uint32_t speaker_stream_space_locked(void) {
+    return SPK_STREAM_RING_SAMPLES - s_stream_count;
+}
+
+static uint32_t speaker_stream_count_locked(void) {
+    return s_stream_count;
+}
+
+static uint32_t speaker_stream_push_locked(const uint16_t *data, uint32_t samples) {
+    uint32_t pushed = 0U;
+
+    while (pushed < samples && s_stream_count < SPK_STREAM_RING_SAMPLES) {
+        s_stream_ring[s_stream_head] = data[pushed];
+        s_stream_head = (s_stream_head + 1U) & SPK_STREAM_RING_MASK;
+        s_stream_count++;
+        pushed++;
+    }
+
+    return pushed;
+}
+
+static uint8_t speaker_stream_pop_locked(uint16_t *sample) {
+    if (s_stream_count == 0U) {
+        return 0U;
+    }
+
+    *sample = s_stream_ring[s_stream_tail];
+    s_stream_tail = (s_stream_tail + 1U) & SPK_STREAM_RING_MASK;
+    s_stream_count--;
+    return 1U;
+}
+
+static void speaker_stream_refill(void) {
+    if (!s_stream_active || s_bgm_paused || !s_stream_ctx.active) {
+        return;
+    }
+
+    while (1) {
+        uint32_t space;
+        uint32_t to_read_samples;
+        UINT bytes_read = 0U;
+        FRESULT res;
+
+        {
+            uint32_t primask = speaker_irq_save();
+            space = speaker_stream_space_locked();
+            speaker_irq_restore(primask);
+        }
+
+        if (space == 0U) {
+            break;
+        }
+
+        if (space > SPK_STREAM_READ_CHUNK) {
+            to_read_samples = SPK_STREAM_READ_CHUNK;
+        } else {
+            to_read_samples = space;
+        }
+
+        res = f_read(&s_stream_ctx.fil, s_stream_chunk, (UINT)(to_read_samples * sizeof(uint16_t)), &bytes_read);
+        if (res != FR_OK) {
+            speaker_stream_close();
+            return;
+        }
+
+        if (bytes_read == 0U) {
+            if (s_stream_ctx.loop) {
+                if (f_lseek(&s_stream_ctx.fil, 0U) != FR_OK) {
+                    speaker_stream_close();
+                    return;
+                }
+                continue;
+            }
+
+            s_stream_ctx.eof = 1U;
+            break;
+        }
+
+        uint32_t read_samples = (uint32_t)(bytes_read / sizeof(uint16_t));
+        if (read_samples > 0U) {
+            uint32_t primask = speaker_irq_save();
+            (void)speaker_stream_push_locked(s_stream_chunk, read_samples);
+            speaker_irq_restore(primask);
+        }
+
+        if (bytes_read < (UINT)(to_read_samples * sizeof(uint16_t))) {
+            if (s_stream_ctx.loop) {
+                if (f_lseek(&s_stream_ctx.fil, 0U) != FR_OK) {
+                    speaker_stream_close();
+                    return;
+                }
+                continue;
+            }
+
+            s_stream_ctx.eof = 1U;
+            break;
+        }
+    }
+
+    if (s_stream_ctx.eof) {
+        uint32_t primask = speaker_irq_save();
+        uint32_t remaining = speaker_stream_count_locked();
+        speaker_irq_restore(primask);
+
+        if (remaining == 0U) {
+            speaker_stream_close();
+            if (!s_sfx_active && !s_bgm_active) {
+                s_state = SPK_STATE_IDLE;
+            }
+        }
+    }
+}
+
+static uint8_t speaker_pcm_next_sample(speaker_pcm_ctx_t *ctx, uint16_t *sample) {
+    int32_t value;
+
+    if (ctx == NULL || sample == NULL || ctx->data == NULL || ctx->total_samples == 0U) {
+        return 0U;
+    }
+
+    if (ctx->position >= ctx->total_samples) {
+        if (ctx->loop) {
+            ctx->position = 0U;
+        } else {
+            return 0U;
+        }
+    }
+
+    value = (int32_t)((int16_t)ctx->data[ctx->position]);
+    value = (value * (int32_t)s_volume) >> 16;
+    if (value > 32767) {
+        value = 32767;
+    } else if (value < -32768) {
+        value = -32768;
+    }
+
+    *sample = (uint16_t)(int16_t)value;
+    ctx->position++;
+    return 1U;
+}
+
+static uint8_t speaker_stream_next_sample(uint16_t *sample) {
+    uint32_t primask;
+    uint8_t ok;
+
+    if (!s_stream_active || s_bgm_paused || sample == NULL) {
+        return 0U;
+    }
+
+    primask = speaker_irq_save();
+    ok = speaker_stream_pop_locked(sample);
+    speaker_irq_restore(primask);
+
+    return ok;
+}
+
+static uint8_t speaker_next_sample(uint16_t *sample) {
+    if (sample == NULL) {
+        return 0U;
+    }
+
+    if (s_sfx_active) {
+        if (speaker_pcm_next_sample(&s_sfx_ctx, sample)) {
+            return 1U;
+        }
+
+        s_sfx_active = 0U;
+        s_sfx_ctx.data = NULL;
+        if (s_bgm_active || s_stream_active) {
+            s_bgm_paused = 0U;
+        }
+        if (!s_bgm_active && !s_stream_active) {
+            s_state = SPK_STATE_IDLE;
+        }
+        return 0U;
+    }
+
+    if (s_bgm_active && !s_bgm_paused) {
+        if (speaker_pcm_next_sample(&s_bgm_ctx, sample)) {
+            return 1U;
+        }
+
+        s_bgm_active = 0U;
+        s_bgm_ctx.data = NULL;
+        if (!s_sfx_active && !s_stream_active) {
+            s_state = SPK_STATE_IDLE;
+        }
+        return 0U;
+    }
+
+    if (s_stream_active && !s_bgm_paused) {
+        return speaker_stream_next_sample(sample);
+    }
+
+    return 0U;
+}
+
+static uint8_t speaker_active_source_id(void) {
+    if (s_sfx_active) {
+        return 1U;
+    }
+
+    if (s_bgm_active && !s_bgm_paused) {
+        return 2U;
+    }
+
+    if (s_stream_active && !s_bgm_paused) {
+        return 3U;
+    }
+
+    return 0U;
+}
+
+/* ============================================================
  *  检查 DMA 半区切换, 从 PCM 源填充空闲半区
  * ============================================================ */
 static void speaker_dma_poll(void) {
@@ -340,7 +630,8 @@ void speaker_init(void) {
  *  API: 每帧更新 (主循环中调用)
  * ============================================================ */
 void speaker_update(void) {
-    /* 中断驱动, 无需轮询 */
+    /* 流式 BGM 需要主循环补充环形缓冲 */
+    speaker_stream_refill();
 }
 
 /* ============================================================
@@ -352,6 +643,9 @@ void speaker_play_pcm(const uint16_t *pcm_data, uint32_t sample_count, uint8_t l
     }
 
     if (loop) {
+        /* 进入内存 BGM 前, 关闭可能存在的流式 BGM */
+        speaker_stream_close();
+
         /* 循环播放 = BGM */
         s_bgm_ctx.data = pcm_data;
         s_bgm_ctx.total_samples = sample_count;
@@ -365,7 +659,7 @@ void speaker_play_pcm(const uint16_t *pcm_data, uint32_t sample_count, uint8_t l
         }
     } else {
         /* 一次性播放 = SFX (优先于 BGM) */
-        if (s_bgm_active) {
+        if (s_bgm_active || s_stream_active) {
             s_bgm_paused = 1U;
         }
 
@@ -383,12 +677,98 @@ void speaker_play_pcm(const uint16_t *pcm_data, uint32_t sample_count, uint8_t l
  *  API: 停止所有播放
  * ============================================================ */
 void speaker_stop(void) {
+    speaker_stream_close();
     s_state = SPK_STATE_IDLE;
     s_bgm_active = 0U;
     s_sfx_active = 0U;
     s_bgm_paused = 0U;
     memset(&s_bgm_ctx, 0, sizeof(s_bgm_ctx));
     memset(&s_sfx_ctx, 0, sizeof(s_sfx_ctx));
+}
+
+/* ============================================================
+ *  API: 从 SD 卡加载 PCM 到 SDRAM 后播放
+ * ============================================================ */
+int speaker_play_pcm_file(const TCHAR *path, uint8_t loop) {
+    FIL fil;
+    FRESULT res;
+    UINT br;
+    FSIZE_t file_size;
+    uint32_t sample_count;
+    uint16_t *pcm_buf;
+
+    if (path == NULL) {
+        return -1;
+    }
+
+    res = f_open(&fil, path, FA_READ);
+    if (res != FR_OK) {
+        return -1;
+    }
+
+    file_size = f_size(&fil);
+    if (file_size < 2U || (file_size & 1U) != 0U) {
+        f_close(&fil);
+        return -1;
+    }
+    sample_count = (uint32_t)(file_size / 2U);
+
+    pcm_buf = (uint16_t *)sdram_malloc((size_t)file_size);
+    if (pcm_buf == NULL) {
+        f_close(&fil);
+        return -1;
+    }
+
+    res = f_read(&fil, pcm_buf, (UINT)file_size, &br);
+    f_close(&fil);
+
+    if (res != FR_OK || br != (UINT)file_size) {
+        sdram_free(pcm_buf);
+        return -1;
+    }
+
+    speaker_play_pcm(pcm_buf, sample_count, loop);
+    return 0;
+}
+
+/* ============================================================
+ *  API: 从 SD 卡流式播放背景音乐
+ * ============================================================ */
+int speaker_play_bgm_stream_file(const TCHAR *path, uint8_t loop) {
+    FRESULT res;
+
+    if (path == NULL) {
+        return -1;
+    }
+
+    speaker_stop();
+
+    res = f_open(&s_stream_ctx.fil, path, FA_READ);
+    if (res != FR_OK) {
+        return -1;
+    }
+
+    s_stream_ctx.active = 1U;
+    s_stream_ctx.loop = (loop != 0U) ? 1U : 0U;
+    s_stream_ctx.eof = 0U;
+    s_stream_ctx.file_size = f_size(&s_stream_ctx.fil);
+
+    if (s_stream_ctx.file_size < 2U || (s_stream_ctx.file_size & 1U) != 0U) {
+        speaker_stream_close();
+        return -1;
+    }
+
+    speaker_stream_reset();
+    s_stream_active = 1U;
+    s_state = SPK_STATE_PLAYING;
+
+    speaker_stream_refill();
+
+    if (!s_stream_active) {
+        return -1;
+    }
+
+    return 0;
 }
 
 /* ============================================================
@@ -405,7 +785,19 @@ void speaker_set_volume(uint8_t vol) {
  *  API: 查询是否正在播放
  * ============================================================ */
 uint8_t speaker_is_playing(void) {
-    return (s_state != SPK_STATE_IDLE) ? 1U : 0U;
+    uint32_t stream_pending;
+
+    {
+        uint32_t primask = speaker_irq_save();
+        stream_pending = speaker_stream_count_locked();
+        speaker_irq_restore(primask);
+    }
+
+    if (s_state != SPK_STATE_IDLE || s_stream_active || stream_pending > 0U) {
+        return 1U;
+    }
+
+    return 0U;
 }
 
 /* ============================================================
@@ -413,57 +805,40 @@ uint8_t speaker_is_playing(void) {
  *  立体声: 每两次 ISR 发送同一采样 (L + R)
  * ============================================================ */
 void speaker_i2s_feed(void) {
-    speaker_pcm_ctx_t *ctx = NULL;
     static uint8_t isr_phase = 0U; /* 0=需要新采样, 1=重复上次 */
     static uint16_t last_sample = 0U;
-    int32_t sample;
-    uint16_t out;
-
-    /* 选活跃上下文: SFX 优先 */
-    if (s_sfx_active) {
-        ctx = &s_sfx_ctx;
-    } else if (s_bgm_active && !s_bgm_paused) {
-        ctx = &s_bgm_ctx;
-    }
-
-    if (ctx == NULL || ctx->data == NULL || ctx->total_samples == 0U) {
-        spi_i2s_data_transmit(SPK_SPI, 0);
-        isr_phase = 0U;
-        return;
-    }
+    static uint8_t prev_source = 0U;
+    static uint8_t declick_left = 0U;
+    uint16_t sample = 0U;
+    uint8_t source;
+    int32_t s32;
+    uint32_t step;
 
     if (isr_phase == 0U) {
-        /* 取新采样 */
-        if (ctx->position >= ctx->total_samples) {
-            if (ctx->loop) {
-                ctx->position = 0U;
-            } else {
-                /* 播放完毕 */
-                spi_i2s_data_transmit(SPK_SPI, 0);
-                if (s_sfx_active) {
-                    s_sfx_active = 0U;
-                    s_sfx_ctx.data = NULL;
-                    if (s_bgm_active)
-                        s_bgm_paused = 0U;
-                } else {
-                    s_bgm_active = 0U;
-                    s_bgm_ctx.data = NULL;
-                }
-                if (!s_sfx_active && !s_bgm_active)
-                    s_state = SPK_STATE_IDLE;
-                isr_phase = 0U;
-                return;
-            }
+        source = speaker_active_source_id();
+
+        if (!speaker_next_sample(&sample)) {
+            spi_i2s_data_transmit(SPK_SPI, 0U);
+            isr_phase = 0U;
+            prev_source = 0U;
+            declick_left = 0U;
+            return;
         }
 
-        sample = (int32_t)((int16_t)ctx->data[ctx->position]);
-        sample = (sample * (int32_t)s_volume) >> 16;
-        if (sample > 32767)
-            sample = 32767;
-        else if (sample < -32768)
-            sample = -32768;
-        last_sample = (uint16_t)(int16_t)sample;
-        ctx->position++;
+        if (source != prev_source) {
+            prev_source = source;
+            declick_left = SPK_DECLICK_SAMPLES;
+        }
+
+        if (declick_left > 0U) {
+            step = SPK_DECLICK_SAMPLES - declick_left + 1U;
+            s32 = (int32_t)(int16_t)sample;
+            s32 = (s32 * (int32_t)step) / (int32_t)SPK_DECLICK_SAMPLES;
+            sample = (uint16_t)(int16_t)s32;
+            declick_left--;
+        }
+
+        last_sample = sample;
     }
 
     spi_i2s_data_transmit(SPK_SPI, last_sample);
