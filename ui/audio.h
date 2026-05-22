@@ -8,8 +8,9 @@
 #define AUDIO_BGM "0:/audio/bgm.pcm"
 #define AUDIO_ICON_BTN_CLICK "0:/audio/icon_btns_click.pcm"
 
-int bgm_music_play(void);
+void audio_set_volume(uint8_t vol);
 
+void bgm_music_play(void);
 void icon_btns_click_audio_play(lv_event_t *e);
 
 #endif /* AUDIO_H */

@@ -669,6 +669,21 @@
               <FileType>1</FileType>
               <FilePath>.\ui\icon\icon_exp_bar_bg.c</FilePath>
             </File>
+            <File>
+              <FileName>icon_crop_wheat_seed.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_crop_wheat_seed.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_crop_wheat_bloom.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_crop_wheat_bloom.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_crop_wheat_grow.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_crop_wheat_grow.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

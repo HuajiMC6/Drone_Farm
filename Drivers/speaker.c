@@ -57,6 +57,9 @@
 /* 源切换去爆音: 在 BGM/SFX 切换时做短淡入 */
 #define SPK_DECLICK_SAMPLES 32U
 
+/* 同时可混音的 PCM 源数量 (不含流式 BGM) */
+#define SPK_MIX_PCM_SOURCES 4U
+
 /* BGM 流式播放缓存 */
 #define SPK_STREAM_RING_SAMPLES 4096U
 #define SPK_STREAM_READ_CHUNK 512U
@@ -79,6 +82,12 @@ typedef struct {
     uint32_t position;      /* 当前播放位置 (采样索引) */
     uint8_t loop;           /* 0=单次, 1=循环 */
 } speaker_pcm_ctx_t;
+
+typedef struct {
+    speaker_pcm_ctx_t pcm;
+    uint8_t active;
+    uint8_t owned;
+} speaker_mix_pcm_src_t;
 
 typedef struct {
     FIL fil;
@@ -104,16 +113,8 @@ static speaker_state_t s_state = SPK_STATE_IDLE;
 /* 音量 0~100 -> 幅度缩放 (Q16) */
 static uint32_t s_volume = 65536U;
 
-/* BGM 播放上下文 (循环) */
-static speaker_pcm_ctx_t s_bgm_ctx;
-static uint8_t s_bgm_active = 0U;
-
-/* SFX 播放上下文 (一次性, 优先于 BGM) */
-static speaker_pcm_ctx_t s_sfx_ctx;
-static uint8_t s_sfx_active = 0U;
-
-/* BGM 暂停标志 (SFX 播放期间) */
-static uint8_t s_bgm_paused = 0U;
+/* PCM 混音源: 0 号保留给循环 BGM, 其余用于短音效叠加 */
+static speaker_mix_pcm_src_t s_pcm_src[SPK_MIX_PCM_SOURCES];
 
 /* 流式 BGM 播放状态 */
 static speaker_stream_file_ctx_t s_stream_ctx;
@@ -145,6 +146,11 @@ static uint8_t speaker_stream_pop_locked(uint16_t *sample);
 static void speaker_stream_refill(void);
 static uint8_t speaker_pcm_next_sample(speaker_pcm_ctx_t *ctx, uint16_t *sample);
 static uint8_t speaker_active_source_id(void);
+static void speaker_pcm_release_slot(uint8_t slot_index);
+static int speaker_pcm_start(const uint16_t *pcm_data, uint32_t sample_count, uint8_t loop, uint8_t is_bgm,
+                             uint8_t owned);
+static speaker_mix_pcm_src_t *speaker_pcm_alloc_slot(uint8_t prefer_slot);
+static uint8_t speaker_pcm_mixed_fetch(int32_t *mixed_sample, uint8_t *active_count);
 
 /* ============================================================
  *  GPIO 初始化
@@ -283,6 +289,64 @@ static uint32_t speaker_fill_pcm(speaker_pcm_ctx_t *ctx, uint32_t *buf, uint32_t
     return to_copy_pairs * 2U;
 }
 
+static void speaker_pcm_release_slot(uint8_t slot_index) {
+    if (slot_index >= SPK_MIX_PCM_SOURCES) {
+        return;
+    }
+
+    if (s_pcm_src[slot_index].active && s_pcm_src[slot_index].owned && s_pcm_src[slot_index].pcm.data != NULL) {
+        sdram_free((void *)s_pcm_src[slot_index].pcm.data);
+    }
+
+    memset(&s_pcm_src[slot_index], 0, sizeof(s_pcm_src[slot_index]));
+}
+
+static speaker_mix_pcm_src_t *speaker_pcm_alloc_slot(uint8_t prefer_slot) {
+    uint8_t i;
+
+    if (prefer_slot == 0U) {
+        speaker_pcm_release_slot(0U);
+        return &s_pcm_src[0];
+    }
+
+    for (i = 1U; i < SPK_MIX_PCM_SOURCES; i++) {
+        if (!s_pcm_src[i].active) {
+            return &s_pcm_src[i];
+        }
+    }
+
+    return NULL;
+}
+
+static int speaker_pcm_start(const uint16_t *pcm_data, uint32_t sample_count, uint8_t loop, uint8_t is_bgm,
+                             uint8_t owned) {
+    speaker_mix_pcm_src_t *slot;
+    uint8_t slot_index;
+
+    if (pcm_data == NULL || sample_count == 0U) {
+        return -1;
+    }
+
+    slot_index = (is_bgm != 0U) ? 0U : 1U;
+    slot = speaker_pcm_alloc_slot(slot_index);
+    if (slot == NULL) {
+        return -1;
+    }
+
+    slot->pcm.data = pcm_data;
+    slot->pcm.total_samples = sample_count;
+    slot->pcm.position = 0U;
+    slot->pcm.loop = (loop != 0U) ? 1U : 0U;
+    slot->owned = owned;
+    slot->active = 1U;
+
+    return 0;
+}
+
+static uint8_t speaker_pcm_next_sample_mixed(uint16_t *sample, speaker_pcm_ctx_t *ctx) {
+    return speaker_pcm_next_sample(ctx, sample);
+}
+
 /* ============================================================
  *  进入/退出临界区 (保护流式环形缓冲)
  * ============================================================ */
@@ -355,7 +419,7 @@ static uint8_t speaker_stream_pop_locked(uint16_t *sample) {
 }
 
 static void speaker_stream_refill(void) {
-    if (!s_stream_active || s_bgm_paused || !s_stream_ctx.active) {
+    if (!s_stream_active || !s_stream_ctx.active) {
         return;
     }
 
@@ -428,7 +492,7 @@ static void speaker_stream_refill(void) {
 
         if (remaining == 0U) {
             speaker_stream_close();
-            if (!s_sfx_active && !s_bgm_active) {
+            if (speaker_active_source_id() == 0U) {
                 s_state = SPK_STATE_IDLE;
             }
         }
@@ -467,7 +531,7 @@ static uint8_t speaker_stream_next_sample(uint16_t *sample) {
     uint32_t primask;
     uint8_t ok;
 
-    if (!s_stream_active || s_bgm_paused || sample == NULL) {
+    if (!s_stream_active || sample == NULL) {
         return 0U;
     }
 
@@ -475,61 +539,90 @@ static uint8_t speaker_stream_next_sample(uint16_t *sample) {
     ok = speaker_stream_pop_locked(sample);
     speaker_irq_restore(primask);
 
+    if (ok) {
+        int32_t value = (int32_t)(int16_t)(*sample);
+        /* Apply global volume (Q16) to stream samples as well */
+        value = (value * (int32_t)s_volume) >> 16;
+        if (value > 32767) {
+            value = 32767;
+        } else if (value < -32768) {
+            value = -32768;
+        }
+        *sample = (uint16_t)(int16_t)value;
+    }
+
     return ok;
 }
 
 static uint8_t speaker_next_sample(uint16_t *sample) {
+    uint8_t i;
+    uint8_t active_count = 0U;
+    int32_t mixed = 0;
+    int32_t one_sample = 0;
+    uint16_t tmp = 0U;
+    uint8_t source_active = 0U;
+
     if (sample == NULL) {
         return 0U;
     }
 
-    if (s_sfx_active) {
-        if (speaker_pcm_next_sample(&s_sfx_ctx, sample)) {
-            return 1U;
+    for (i = 0U; i < SPK_MIX_PCM_SOURCES; i++) {
+        if (!s_pcm_src[i].active) {
+            continue;
         }
 
-        s_sfx_active = 0U;
-        s_sfx_ctx.data = NULL;
-        if (s_bgm_active || s_stream_active) {
-            s_bgm_paused = 0U;
+        if (!speaker_pcm_next_sample_mixed(&tmp, &s_pcm_src[i].pcm)) {
+            if (!s_pcm_src[i].pcm.loop) {
+                speaker_pcm_release_slot(i);
+                continue;
+            }
         }
-        if (!s_bgm_active && !s_stream_active) {
+
+        one_sample = (int32_t)(int16_t)tmp;
+        mixed += one_sample;
+        active_count++;
+        source_active = 1U;
+    }
+
+    if (s_stream_active) {
+        if (speaker_stream_next_sample(&tmp)) {
+            mixed += (int32_t)(int16_t)tmp;
+            active_count++;
+            source_active = 1U;
+        } else if (s_stream_ctx.eof) {
+            speaker_stream_close();
+        }
+    }
+
+    if (!source_active || active_count == 0U) {
+        if (speaker_active_source_id() == 0U) {
             s_state = SPK_STATE_IDLE;
         }
         return 0U;
     }
 
-    if (s_bgm_active && !s_bgm_paused) {
-        if (speaker_pcm_next_sample(&s_bgm_ctx, sample)) {
-            return 1U;
-        }
-
-        s_bgm_active = 0U;
-        s_bgm_ctx.data = NULL;
-        if (!s_sfx_active && !s_stream_active) {
-            s_state = SPK_STATE_IDLE;
-        }
-        return 0U;
+    mixed /= (int32_t)active_count;
+    if (mixed > 32767) {
+        mixed = 32767;
+    } else if (mixed < -32768) {
+        mixed = -32768;
     }
 
-    if (s_stream_active && !s_bgm_paused) {
-        return speaker_stream_next_sample(sample);
-    }
-
-    return 0U;
+    *sample = (uint16_t)(int16_t)mixed;
+    return 1U;
 }
 
 static uint8_t speaker_active_source_id(void) {
-    if (s_sfx_active) {
+    uint8_t i;
+
+    for (i = 0U; i < SPK_MIX_PCM_SOURCES; i++) {
+        if (s_pcm_src[i].active) {
+            return 1U;
+        }
+    }
+
+    if (s_stream_active) {
         return 1U;
-    }
-
-    if (s_bgm_active && !s_bgm_paused) {
-        return 2U;
-    }
-
-    if (s_stream_active && !s_bgm_paused) {
-        return 3U;
     }
 
     return 0U;
@@ -542,15 +635,6 @@ static void speaker_dma_poll(void) {
     uint32_t cnt;
     uint8_t current_half;
     uint32_t *fill_buf;
-    speaker_pcm_ctx_t *active_ctx = NULL;
-
-    /* 确定当前活跃的 PCM 上下文 (SFX 优先) */
-    if (s_sfx_active) {
-        active_ctx = &s_sfx_ctx;
-    } else if (s_bgm_active && !s_bgm_paused) {
-        active_ctx = &s_bgm_ctx;
-    }
-
     /* 读取 DMA 剩余传输计数 */
     cnt = DMA_CHCNT(SPK_DMA, SPK_DMA_CH);
 
@@ -565,28 +649,7 @@ static void speaker_dma_poll(void) {
             fill_buf = &s_buf[SPK_BUF_SAMPLES];
         }
 
-        if (active_ctx != NULL) {
-            uint32_t written = speaker_fill_pcm(active_ctx, fill_buf, SPK_BUF_SAMPLES);
-
-            /* 非循环模式下, 返回数 < 请求数 表示 PCM 已播完 */
-            if (!active_ctx->loop && written < SPK_BUF_SAMPLES) {
-                if (s_sfx_active) {
-                    s_sfx_active = 0U;
-                    s_sfx_ctx.data = NULL;
-                    /* 恢复 BGM */
-                    if (s_bgm_active) {
-                        s_bgm_paused = 0U;
-                    }
-                }
-                if (s_bgm_active && !s_bgm_ctx.loop) {
-                    s_bgm_active = 0U;
-                    s_bgm_ctx.data = NULL;
-                }
-                if (!s_sfx_active && !s_bgm_active) {
-                    s_state = SPK_STATE_IDLE;
-                }
-            }
-        } else {
+        if (speaker_active_source_id() == 0U) {
             memset(fill_buf, 0, SPK_BUF_SAMPLES * sizeof(uint32_t));
         }
 
@@ -619,11 +682,10 @@ void speaker_init(void) {
     spi_i2s_interrupt_enable(SPK_SPI, SPI_I2S_INT_TP);
 
     s_state = SPK_STATE_IDLE;
-    s_bgm_active = 0U;
-    s_sfx_active = 0U;
-    s_bgm_paused = 0U;
-    memset(&s_bgm_ctx, 0, sizeof(s_bgm_ctx));
-    memset(&s_sfx_ctx, 0, sizeof(s_sfx_ctx));
+    memset(s_pcm_src, 0, sizeof(s_pcm_src));
+    speaker_stream_reset();
+    s_stream_active = 0U;
+    s_stream_ctx.active = 0U;
 }
 
 /* ============================================================
@@ -643,33 +705,13 @@ void speaker_play_pcm(const uint16_t *pcm_data, uint32_t sample_count, uint8_t l
     }
 
     if (loop) {
-        /* 进入内存 BGM 前, 关闭可能存在的流式 BGM */
-        speaker_stream_close();
-
-        /* 循环播放 = BGM */
-        s_bgm_ctx.data = pcm_data;
-        s_bgm_ctx.total_samples = sample_count;
-        s_bgm_ctx.position = 0U;
-        s_bgm_ctx.loop = 1U;
-        s_bgm_active = 1U;
-        s_bgm_paused = 0U;
-
-        if (!s_sfx_active) {
+        if (speaker_pcm_start(pcm_data, sample_count, 1U, 1U, 0U) == 0) {
             s_state = SPK_STATE_PLAYING;
         }
     } else {
-        /* 一次性播放 = SFX (优先于 BGM) */
-        if (s_bgm_active || s_stream_active) {
-            s_bgm_paused = 1U;
+        if (speaker_pcm_start(pcm_data, sample_count, 0U, 0U, 0U) == 0) {
+            s_state = SPK_STATE_PLAYING;
         }
-
-        s_sfx_ctx.data = pcm_data;
-        s_sfx_ctx.total_samples = sample_count;
-        s_sfx_ctx.position = 0U;
-        s_sfx_ctx.loop = 0U;
-        s_sfx_active = 1U;
-
-        s_state = SPK_STATE_PLAYING;
     }
 }
 
@@ -679,11 +721,9 @@ void speaker_play_pcm(const uint16_t *pcm_data, uint32_t sample_count, uint8_t l
 void speaker_stop(void) {
     speaker_stream_close();
     s_state = SPK_STATE_IDLE;
-    s_bgm_active = 0U;
-    s_sfx_active = 0U;
-    s_bgm_paused = 0U;
-    memset(&s_bgm_ctx, 0, sizeof(s_bgm_ctx));
-    memset(&s_sfx_ctx, 0, sizeof(s_sfx_ctx));
+    for (uint8_t i = 0U; i < SPK_MIX_PCM_SOURCES; i++) {
+        speaker_pcm_release_slot(i);
+    }
 }
 
 /* ============================================================
@@ -727,7 +767,10 @@ int speaker_play_pcm_file(const TCHAR *path, uint8_t loop) {
         return -1;
     }
 
-    speaker_play_pcm(pcm_buf, sample_count, loop);
+    if (speaker_pcm_start(pcm_buf, sample_count, loop, 0U, 1U) != 0) {
+        sdram_free(pcm_buf);
+        return -1;
+    }
     return 0;
 }
 
@@ -741,7 +784,7 @@ int speaker_play_bgm_stream_file(const TCHAR *path, uint8_t loop) {
         return -1;
     }
 
-    speaker_stop();
+    speaker_stream_close();
 
     res = f_open(&s_stream_ctx.fil, path, FA_READ);
     if (res != FR_OK) {
@@ -786,6 +829,8 @@ void speaker_set_volume(uint8_t vol) {
  * ============================================================ */
 uint8_t speaker_is_playing(void) {
     uint32_t stream_pending;
+    uint8_t i;
+    uint8_t pcm_active = 0U;
 
     {
         uint32_t primask = speaker_irq_save();
@@ -793,7 +838,14 @@ uint8_t speaker_is_playing(void) {
         speaker_irq_restore(primask);
     }
 
-    if (s_state != SPK_STATE_IDLE || s_stream_active || stream_pending > 0U) {
+    for (i = 0U; i < SPK_MIX_PCM_SOURCES; i++) {
+        if (s_pcm_src[i].active) {
+            pcm_active = 1U;
+            break;
+        }
+    }
+
+    if (s_state != SPK_STATE_IDLE || pcm_active || s_stream_active || stream_pending > 0U) {
         return 1U;
     }
 

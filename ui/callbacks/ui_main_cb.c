@@ -1,5 +1,6 @@
 #include "ui_main_cb.h"
 
+#include "audio.h"
 #include "player.h"
 #include "ui_common.h"
 #include "ui_window.h"
@@ -295,6 +296,17 @@ void debug_screenshot_cb(lv_event_t *e) {
     ui_window_hide_current(); // 截图前隐藏当前窗口，保证截图界面干净
 }
 
+void debug_volume_slider_event_cb(lv_event_t *e) {
+    lv_obj_t *slider = lv_event_get_current_target(e);
+    lv_obj_t *label = lv_event_get_user_data(e);
+
+    int value = lv_slider_get_value(slider);
+    char buf[16];
+    lv_snprintf(buf, sizeof(buf), "Volume: %d%%", value);
+    lv_label_set_text(label, buf);
+
+    audio_set_volume(value);
+}
 // for debug ---
 
 static bool ui_main_obj_overlap(lv_obj_t *obj1, lv_obj_t *obj2, lv_coord_t hor_offset, lv_coord_t ver_offset) {

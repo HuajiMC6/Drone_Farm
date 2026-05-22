@@ -34,5 +34,6 @@ void ui_setting_reset_game_cb(lv_event_t *e);
 void ui_setting_add_coins_cb(lv_event_t *e);
 void debug_timer_period_slider_event_cb(lv_event_t *e);
 void debug_screenshot_cb(lv_event_t *e);
+void debug_volume_slider_event_cb(lv_event_t *e);
 
 #endif

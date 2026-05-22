@@ -914,13 +914,24 @@ static lv_obj_t *ui_setting_window_create(void) {
     lv_obj_align_to(slider_label, slider, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
     lv_obj_add_event_cb(slider, debug_timer_period_slider_event_cb, LV_EVENT_VALUE_CHANGED, slider_label);
 
-    lv_obj_t *btn3 = lv_btn_create(body);
-    lv_obj_set_size(btn3, 120, 50);
-    lv_obj_set_pos(btn3, 0, 180);
-    lv_obj_t *btn3_label = lv_label_create(btn3);
-    lv_label_set_text(btn3_label, "Screenshot");
-    lv_obj_center(btn3_label);
-    lv_obj_add_event_cb(btn3, debug_screenshot_cb, LV_EVENT_CLICKED, NULL);
+    /* Volume Slider */
+    lv_obj_t *volume_slider = lv_slider_create(body);
+    lv_obj_center(volume_slider);
+    lv_obj_set_pos(volume_slider, 0, 100);
+    lv_slider_set_range(volume_slider, 0, 100);
+    lv_slider_set_value(volume_slider, 100, LV_ANIM_OFF);
+    lv_obj_t *volume_label = lv_label_create(body);
+    lv_label_set_text_fmt(volume_label, "Volume: %d%%", 100);
+    lv_obj_align_to(volume_label, volume_slider, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
+    lv_obj_add_event_cb(volume_slider, debug_volume_slider_event_cb, LV_EVENT_VALUE_CHANGED, volume_label);
+
+    // lv_obj_t *btn3 = lv_btn_create(body);
+    // lv_obj_set_size(btn3, 120, 50);
+    // lv_obj_set_pos(btn3, 0, 180);
+    // lv_obj_t *btn3_label = lv_label_create(btn3);
+    // lv_label_set_text(btn3_label, "Screenshot");
+    // lv_obj_center(btn3_label);
+    // lv_obj_add_event_cb(btn3, debug_screenshot_cb, LV_EVENT_CLICKED, NULL);
 
     lv_obj_center(div);
     lv_obj_set_size(div, 300, 400);
