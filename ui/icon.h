@@ -11,6 +11,7 @@ typedef enum {
 
 const void *icon_get_crop(crop_type_t type, crop_stage_t stage);
 const void *icon_get_pest(crop_damage_t pest);
+const void *icon_get_pesticide(crop_pesticide_t pesticide);
 
 LV_IMG_DECLARE(icon_field_bg);
 LV_IMG_DECLARE(icon_farm_bg);
@@ -34,5 +35,9 @@ LV_IMG_DECLARE(icon_pest_aphid);
 LV_IMG_DECLARE(icon_pest_mite);
 LV_IMG_DECLARE(icon_pest_leafroller);
 LV_IMG_DECLARE(icon_pest_locust);
+LV_IMG_DECLARE(icon_pesticide_aphid);
+LV_IMG_DECLARE(icon_pesticide_mite);
+LV_IMG_DECLARE(icon_pesticide_leafroller);
+LV_IMG_DECLARE(icon_pesticide_locust);
 
 #endif

@@ -517,8 +517,8 @@ void ui_drone_hud_create(lv_obj_t *parent) {
     lv_obj_clear_flag(root, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_flag(root, LV_OBJ_FLAG_HIDDEN);
 
-    // 左侧 HUD：基础信息 + 双统计信息。
-    lv_obj_t *left_panel = ui_drone_transparent_container_create(root, 259, 316);
+    // 左侧 HUD：统计信息
+    lv_obj_t *left_panel = ui_drone_transparent_container_create(root, 202, 267);
     lv_obj_set_style_pad_all(left_panel, 4, 0);
     lv_obj_set_style_bg_color(left_panel, lv_color_hex(0xf6dc8f), 0);
     lv_obj_set_style_bg_opa(left_panel, LV_OPA_COVER, 0);
@@ -529,7 +529,7 @@ void ui_drone_hud_create(lv_obj_t *parent) {
     lv_obj_set_style_pad_row(left_panel, 4, 0);
 
     // 右侧 HUD：模式控制。
-    lv_obj_t *right_panel = ui_drone_transparent_container_create(root, 225, 158);
+    lv_obj_t *right_panel = ui_drone_transparent_container_create(root, 210, 158);
     lv_obj_set_style_pad_all(right_panel, 4, 0);
     lv_obj_set_style_bg_color(right_panel, lv_color_hex(0xf6dc8f), 0);
     lv_obj_set_style_bg_opa(right_panel, LV_OPA_COVER, 0);
@@ -538,36 +538,11 @@ void ui_drone_hud_create(lv_obj_t *parent) {
     lv_obj_set_layout(right_panel, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(right_panel, LV_FLEX_FLOW_COLUMN);
 
-    // HUD 基础信息卡片，结构与窗口保持一致，便于统一维护。
-    lv_obj_t *base_card = ui_drone_card_create(left_panel, 248, 96, 8);
-    lv_obj_set_layout(base_card, LV_LAYOUT_FLEX);
-    lv_obj_set_flex_flow(base_card, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(base_card, 6, 0);
-
-    lv_obj_t *base_header = ui_drone_transparent_container_create(base_card, LV_PCT(100), LV_SIZE_CONTENT);
-    lv_obj_set_layout(base_header, LV_LAYOUT_FLEX);
-    lv_obj_set_flex_flow(base_header, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(base_header, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-
-    lv_obj_t *base_title = lv_label_create(base_header);
-    lv_label_set_text(base_title, "Base Info");
-    lv_obj_set_style_text_color(base_title, lv_color_hex(0x5b421f), 0);
-
-    ui_drone_state_chip_create(base_header, &g_drone_hud_ctx.state_label);
-
-    lv_obj_t *base_values = ui_drone_transparent_container_create(base_card, LV_PCT(100), LV_SIZE_CONTENT);
-    lv_obj_set_layout(base_values, LV_LAYOUT_FLEX);
-    lv_obj_set_flex_flow(base_values, LV_FLEX_FLOW_ROW);
-    lv_obj_set_style_pad_column(base_values, 8, 0);
-
-    ui_drone_info_item_create(base_values, "Speed", &g_drone_hud_ctx.speed_label, 74);
-    ui_drone_info_item_create(base_values, "Capacity", &g_drone_hud_ctx.storage_label, 100);
-
     // HUD 虫害统计卡片。
-    lv_obj_t *pest_card = ui_drone_card_create(left_panel, 248, 86, 8);
+    lv_obj_t *pest_card = ui_drone_card_create(left_panel, 192, 126, 8);
     lv_obj_set_layout(pest_card, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(pest_card, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(pest_card, 4, 0);
+    lv_obj_set_style_pad_row(pest_card, 6, 0);
 
     g_drone_hud_ctx.pest_card_title = lv_label_create(pest_card);
     lv_label_set_text(g_drone_hud_ctx.pest_card_title, "Last Scan Pest Count");
@@ -575,27 +550,20 @@ void ui_drone_hud_create(lv_obj_t *parent) {
     lv_obj_t *pest_rows = ui_drone_transparent_container_create(pest_card, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_set_layout(pest_rows, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(pest_rows, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(pest_rows, 2, 0);
+    lv_obj_set_style_pad_row(pest_rows, 6, 0);
 
-    for (crop_damage_t r = 0; r < 2; r++) {
-        lv_obj_t *row = ui_drone_transparent_container_create(pest_rows, LV_PCT(100), LV_SIZE_CONTENT);
-        lv_obj_set_layout(row, LV_LAYOUT_FLEX);
-        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-
-        for (crop_damage_t c = 0; c < 2; c++) {
-            crop_damage_t i = (crop_damage_t)(r * 2 + c);
-            const void *pest_icon = icon_get_pest(i);
-            ui_drone_stat_entry_create(row, 110, pest_icon, crop_pest_name(i), &g_drone_hud_ctx.pest_row_name_labels[i],
-                                       &g_drone_hud_ctx.pest_result_labels[i]);
-        }
+    /* 纵向排列 */
+    for (crop_damage_t i = 0; i < CROP_DAMAGE_NONE; i++) {
+        const void *pest_icon = icon_get_pest(i);
+        ui_drone_stat_entry_create(pest_rows, 166, pest_icon, crop_pest_name(i),
+                                   &g_drone_hud_ctx.pest_row_name_labels[i], &g_drone_hud_ctx.pest_result_labels[i]);
     }
 
     // HUD 装药统计卡片，始终展示无人机当前装药量。
-    lv_obj_t *loaded_card = ui_drone_card_create(left_panel, 248, 116, 8);
+    lv_obj_t *loaded_card = ui_drone_card_create(left_panel, 192, 126, 8);
     lv_obj_set_layout(loaded_card, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(loaded_card, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(loaded_card, 4, 0);
+    lv_obj_set_style_pad_row(loaded_card, 6, 0);
 
     g_drone_hud_ctx.pesticide_card_title = lv_label_create(loaded_card);
     lv_label_set_text(g_drone_hud_ctx.pesticide_card_title, "Loaded Pesticide Count");
@@ -604,25 +572,18 @@ void ui_drone_hud_create(lv_obj_t *parent) {
     lv_obj_t *loaded_rows = ui_drone_transparent_container_create(loaded_card, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_set_layout(loaded_rows, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(loaded_rows, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(loaded_rows, 2, 0);
+    lv_obj_set_style_pad_row(loaded_rows, 6, 0);
 
-    for (crop_pesticide_t r = 0; r < 2; r++) {
-        lv_obj_t *row = ui_drone_transparent_container_create(loaded_rows, LV_PCT(100), LV_SIZE_CONTENT);
-        lv_obj_set_layout(row, LV_LAYOUT_FLEX);
-        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-
-        for (crop_pesticide_t c = 0; c < 2; c++) {
-            crop_pesticide_t i = (crop_pesticide_t)(r * 2 + c);
-            const void *pest_icon = icon_get_pest((crop_damage_t)i);
-            ui_drone_stat_entry_create(row, 110, pest_icon, crop_pesticide_name(i),
-                                       &g_drone_hud_ctx.pesticide_row_name_labels[i],
-                                       &g_drone_hud_ctx.pesticide_result_labels[i]);
-        }
+    /* 纵向排列装药项，简洁紧凑 */
+    for (crop_pesticide_t i = 0; i < CROP_PESTICIDE_NONE; i++) {
+        const void *pesticide_icon = icon_get_pesticide(i);
+        ui_drone_stat_entry_create(loaded_rows, 166, pesticide_icon, crop_pesticide_name(i),
+                                   &g_drone_hud_ctx.pesticide_row_name_labels[i],
+                                   &g_drone_hud_ctx.pesticide_result_labels[i]);
     }
 
     // HUD 模式卡片：复用统一模式行构建函数。
-    lv_obj_t *mode_card = ui_drone_card_create(right_panel, 214, 148, 8);
+    lv_obj_t *mode_card = ui_drone_card_create(right_panel, 199, 148, 8);
     lv_obj_set_layout(mode_card, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(mode_card, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(mode_card, 16, 0);

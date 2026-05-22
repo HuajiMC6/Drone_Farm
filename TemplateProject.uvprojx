@@ -684,6 +684,26 @@
               <FileType>1</FileType>
               <FilePath>.\ui\icon\icon_crop_wheat_grow.c</FilePath>
             </File>
+            <File>
+              <FileName>icon_pesticide_aphid.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_pesticide_aphid.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_pesticide_leafroller.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_pesticide_leafroller.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_pesticide_locust.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_pesticide_locust.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_pesticide_mite.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_pesticide_mite.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
