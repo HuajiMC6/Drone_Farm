@@ -1,6 +1,6 @@
 #ifndef FIELD_H
 #define FIELD_H
-#include "enum.h"
+#include "data.h"
 #include <stdbool.h>
 
 // 田地
@@ -26,8 +26,6 @@ typedef struct {
 
     double tolerance; // 抗虫害
 } field_t;
-
-#define FIELD_FACTOR_THRESHOLD 0.3 // 因子低于该值植物死亡
 
 // 田地管理
 field_t *field_init(int x, int y);

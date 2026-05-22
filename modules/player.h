@@ -1,9 +1,8 @@
 #ifndef PLAYER_H
 #define PLAYER_H
 #include "drone.h"
-#include "enum.h"
+#include "data.h"
 #include "farm.h"
-#include "store.h"
 
 typedef struct {
     int experience;
@@ -14,11 +13,6 @@ typedef struct {
     crop_type_t harvest_bag[CROP_TYPE_NONE];
     crop_pesticide_t pesticide_bag[CROP_PESTICIDE_NONE];
 } player_t;
-
-extern int harvest_exp_earn[CROP_TYPE_NONE];
-extern int plant_exp_earn;
-extern int use_pesticide_exp_earn;
-extern int experience_level[40];
 
 player_t *player_get_instance();
 void player_init();

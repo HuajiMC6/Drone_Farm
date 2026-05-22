@@ -1,5 +1,5 @@
 #include "drone.h"
-#include "enum.h"
+#include "data.h"
 #include "event.h"
 #include "ff.h"
 #include "player.h"
@@ -22,14 +22,14 @@ void drone_init() {
         s_drone = &s_drone_storage;
         // 先绑定静态无人机对象，再尝试从 SD 卡恢复
         memset(s_drone, 0, sizeof(*s_drone));
-        s_drone->speed = 10;
+        s_drone->speed = drone_speed_values[0];
         s_drone->algorithm_level = 0;
         s_drone->speed_level = 0;
         s_drone->storage_level = 0;
-        s_drone->storage_capacity = 10;
-        for (int i = 0; i < 10; i++)
-            for (int j = 0; j < 10; j++) s_drone->one_zero_matrix[i][j] = CROP_DAMAGE_NONE;
-        for (int i = 0; i < 4; i++) s_drone->pesticide_storage[i] = 0;
+        s_drone->storage_capacity = drone_storage_capacity_values[0];
+        for (int i = 0; i < GAME_GRID_SIZE; i++)
+            for (int j = 0; j < GAME_GRID_SIZE; j++) s_drone->one_zero_matrix[i][j] = CROP_DAMAGE_NONE;
+        for (int i = 0; i < CROP_PESTICIDE_NONE; i++) s_drone->pesticide_storage[i] = 0;
         s_drone->current_pos.x = 0, s_drone->current_pos.y = 0;
         s_drone->drone_state = DRONE_STATE_FREE;
         if (drone_load()) {
@@ -51,7 +51,7 @@ void drone_state_switch(drone_state_t drone_state) {
 
 crop_damage_t drone_detect_damage() {
     farm_t *farm = farm_get_instance();
-    pos_t matrix_pos = {s_drone->current_pos.x / 100, s_drone->current_pos.y / 100};
+    pos_t matrix_pos = {s_drone->current_pos.x / GAME_CELL_SIZE, s_drone->current_pos.y / GAME_CELL_SIZE};
     field_t *field = farm->fields[matrix_pos.x][matrix_pos.y];
     if (field->is_detected)
         return CROP_DAMAGE_NONE;
@@ -64,8 +64,8 @@ crop_damage_t drone_detect_damage() {
 
 void drone_get_detected_pest_counts(uint8_t counts[CROP_DAMAGE_NONE]) {
     for (int i = 0; i < CROP_DAMAGE_NONE; i++) counts[i] = 0;
-    for (int i = 0; i < 10; i++)
-        for (int j = 0; j < 10; j++) {
+    for (int i = 0; i < GAME_GRID_SIZE; i++)
+        for (int j = 0; j < GAME_GRID_SIZE; j++) {
             crop_damage_t damage = s_drone->one_zero_matrix[i][j];
             if (damage != CROP_DAMAGE_NONE) {
                 counts[damage]++;
@@ -74,39 +74,25 @@ void drone_get_detected_pest_counts(uint8_t counts[CROP_DAMAGE_NONE]) {
 }
 
 bool drone_algorithm_update() { // player接口
-    if (s_drone->algorithm_level >= 2)
+    if (s_drone->algorithm_level >= DRONE_ALGORITHM_LEVEL_MAX)
         return false;
     s_drone->algorithm_level++;
     return true;
 }
 
 bool drone_speed_update() { // player接口
-    if (s_drone->speed_level >= 3)
+    if (s_drone->speed_level >= DRONE_SPEED_LEVEL_MAX)
         return false;
     s_drone->speed_level++;
-    if (s_drone->speed_level == 0)
-        s_drone->speed = 10;
-    else if (s_drone->speed_level == 1)
-        s_drone->speed = 20;
-    else if (s_drone->speed_level == 2)
-        s_drone->speed = 30;
-    else if (s_drone->speed_level == 3)
-        s_drone->speed = 50;
+    s_drone->speed = drone_speed_values[s_drone->speed_level];
     return true;
 }
 
 bool drone_storage_update() { // player接口
-    if (s_drone->storage_level >= 3)
+    if (s_drone->storage_level >= DRONE_STORAGE_LEVEL_MAX)
         return false;
     s_drone->storage_level++;
-    if (s_drone->storage_level == 0)
-        s_drone->storage_capacity = 10;
-    else if (s_drone->storage_level == 1)
-        s_drone->storage_capacity = 20;
-    else if (s_drone->storage_level == 2)
-        s_drone->storage_capacity = 30;
-    else if (s_drone->storage_level == 3)
-        s_drone->storage_capacity = 50;
+    s_drone->storage_capacity = drone_storage_capacity_values[s_drone->storage_level];
     return true;
 }
 
@@ -246,16 +232,16 @@ bool drone_remove_pesticide(crop_pesticide_t pesticide, int n) {
 }
 
 void drone_move(pos_t vector) {
-    pos_t new_pos = {s_drone->current_pos.x + (vector.x * s_drone->speed) / 100,
-                     s_drone->current_pos.y + (vector.y * s_drone->speed) / 100};
+    pos_t new_pos = {s_drone->current_pos.x + (vector.x * s_drone->speed) / GAME_CELL_SIZE,
+                     s_drone->current_pos.y + (vector.y * s_drone->speed) / GAME_CELL_SIZE};
     s_drone->current_pos = new_pos;
     farm_t *farm = farm_get_instance();
-    if (new_pos.x >= farm->current_size * 100)
-        s_drone->current_pos.x = farm->current_size * 100 - 1;
+    if (new_pos.x >= farm->current_size * GAME_CELL_SIZE)
+        s_drone->current_pos.x = farm->current_size * GAME_CELL_SIZE - 1;
     if (new_pos.x < 0)
         s_drone->current_pos.x = 0;
-    if (new_pos.y >= farm->current_size * 100)
-        s_drone->current_pos.y = farm->current_size * 100 - 1;
+    if (new_pos.y >= farm->current_size * GAME_CELL_SIZE)
+        s_drone->current_pos.y = farm->current_size * GAME_CELL_SIZE - 1;
     if (new_pos.y < 0)
         s_drone->current_pos.y = 0;
 }

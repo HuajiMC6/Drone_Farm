@@ -1,7 +1,7 @@
 #ifndef __UI_COMMON_H
 #define __UI_COMMON_H
 
-#include "enum.h"
+#include "data.h"
 #include "farm.h"
 #include "lvgl.h"
 

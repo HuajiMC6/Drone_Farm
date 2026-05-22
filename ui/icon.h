@@ -1,7 +1,7 @@
 #ifndef __ICON_H__
 #define __ICON_H__
 
-#include "enum.h"
+#include "data.h"
 #include "lvgl.h"
 
 // 虫害图标类型

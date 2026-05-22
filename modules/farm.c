@@ -1,5 +1,5 @@
 #include "farm.h"
-#include "enum.h"
+#include "data.h"
 #include "event.h"
 #include "ff.h"
 #include <stdbool.h>
@@ -14,9 +14,9 @@ void farm_init() {
         s_farm = &s_farm_storage;
         // 先建立静态农场对象，再尝试从 SD 卡恢复
         memset(s_farm, 0, sizeof(*s_farm));
-        for (int i = 0; i < 10; i++)
-            for (int j = 0; j < 10; j++) s_farm->fields[i][j] = field_init(i, j);
-        s_farm->current_size = 5;
+        for (int i = 0; i < GAME_GRID_SIZE; i++)
+            for (int j = 0; j < GAME_GRID_SIZE; j++) s_farm->fields[i][j] = field_init(i, j);
+        s_farm->current_size = farm_size_by_level[0];
         s_farm->size_level = 0;
         if (farm_load()) {
             return;
@@ -32,17 +32,10 @@ farm_t *farm_get_instance() {
 }
 
 bool farm_size_update() {
-    if (s_farm->size_level >= 3)
+    if (s_farm->size_level >= FARM_SIZE_LEVEL_MAX)
         return false;
     s_farm->size_level++;
-    if (s_farm->size_level == 0)
-        s_farm->current_size = 5;
-    else if (s_farm->size_level == 1)
-        s_farm->current_size = 7;
-    else if (s_farm->size_level == 2)
-        s_farm->current_size = 9;
-    else if (s_farm->size_level == 3)
-        s_farm->current_size = 10;
+    s_farm->current_size = farm_size_by_level[s_farm->size_level];
     // 农场大小变化后通知 UI 重新构建田地网格
     event_send(EVENT_ON_FARM_SIZE_UPGRADE, s_farm);
     return true;

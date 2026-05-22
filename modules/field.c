@@ -1,5 +1,5 @@
 #include "field.h"
-#include "enum.h"
+#include "data.h"
 #include "event.h"
 #include <stdbool.h>
 #include <stdlib.h>
@@ -19,9 +19,9 @@ field_t *field_init(int x, int y) {
     field->x = x;
     field->y = y;
     // 不该置0的
-    field->crop_type = CROP_TYPE_NONE; // 无作物
-    field->damage = CROP_DAMAGE_NONE;  // 无虫害
-    field->factor = 1.0;               // 默认因子为1
+    field->crop_type = CROP_TYPE_NONE;    // 无作物
+    field->damage = CROP_DAMAGE_NONE;     // 无虫害
+    field->factor = field_default_factor; // 默认因子为1
     return field;
 }
 
@@ -34,8 +34,8 @@ bool field_remove(field_t *field) {
     field->damage = CROP_DAMAGE_NONE;
     field->is_detected = false;
     field->base_output = 0;
-    field->factor = 1;
-    field->tolerance = 0.0;
+    field->factor = field_default_factor;
+    field->tolerance = field_default_tolerance;
 
     event_send(EVENT_ON_FIELD_CLEARED, field);
 
@@ -53,9 +53,9 @@ bool field_plant(field_t *field, crop_type_t type) {
     field->stage = CROP_STAGE_SEED;
     field->damage = CROP_DAMAGE_NONE; // 种植时无虫害
     field->is_detected = false;
-    field->base_output = 100;
-    field->factor = 1;
-    field->tolerance = 0;
+    field->base_output = field_base_output;
+    field->factor = field_default_factor;
+    field->tolerance = field_default_tolerance;
     load_output_upgrade(field);
     load_ready_time_upgrade(field);
     load_tolerance_upgrade(field);
@@ -72,7 +72,7 @@ void field_grow(field_t *field) {
         return;
     }
 
-    if (field->factor < FIELD_FACTOR_THRESHOLD) {
+    if (field->factor < field_factor_threshold) {
         field_remove(field); // 植物死亡
         return;
     }
@@ -83,9 +83,9 @@ void field_grow(field_t *field) {
 
     // 产量因子变化
     if (field_is_damaged(field))
-        field->factor -= 0.01;
+        field->factor -= field_damage_decline_rate;
     else
-        field->factor += 0.005;
+        field->factor += field_damage_recovery_rate;
 
     // 生长阶段变化
     crop_stage_t pre = field->stage;
@@ -98,9 +98,10 @@ void field_grow(field_t *field) {
     if (!field_is_damaged(field)) {
         // 计算当前生长阶段最可能的虫害类型
         crop_damage_t potential = max_possibility(field);
-        int random = rand() % 100;
-        int prob = 100 * get_damage_possibility(potential, field->growing_percent, field->tolerance);
-        if (prob > random * 15) {
+        int random = rand() % field_damage_probability_scale;
+        int prob = field_damage_probability_scale *
+                   get_damage_possibility(potential, field->growing_percent, field->tolerance);
+        if (prob > random * field_damage_probability_multiplier) {
             field->damage = potential; // 感染该虫害
             field->is_detected = false;
 
@@ -176,41 +177,29 @@ bool field_is_damaged(const field_t *field) {
 int field_get_death_percentage(field_t *field) {
     if (field->crop_type == CROP_TYPE_NONE)
         return 0;
-    if (field->factor < FIELD_FACTOR_THRESHOLD)
-        return 100;
+    if (field->factor < field_factor_threshold)
+        return field_damage_probability_scale;
     // 线性映射，因子从1降到阈值时死亡率从0升到100
-    return (int)((1.0 - field->factor) / (1.0 - FIELD_FACTOR_THRESHOLD) * 100);
+    return (int)((1.0 - field->factor) / (1.0 - field_factor_threshold) * field_damage_probability_scale);
 }
 
 // 阶段判断与更新
 static void stage_upgrade(field_t *field) { // 也就1刻的事儿，不管1e-6了
     double percent = field->growing_percent;
-    if (percent < 0.1)
-        field->stage = CROP_STAGE_SEED;
-    else if (percent < 0.3)
-        field->stage = CROP_STAGE_YOUNG;
-    else if (percent < 0.7)
-        field->stage = CROP_STAGE_GROW;
-    else if (percent < 0.9)
-        field->stage = CROP_STAGE_BLOOM;
-    else if (percent < 1.0)
-        field->stage = CROP_STAGE_RIPE;
-    else
-        field->stage = CROP_STAGE_READY;
+    for (crop_stage_t stage = CROP_STAGE_SEED; stage < CROP_STAGE_READY; stage++) {
+        if (percent < crop_stage_thresholds[stage]) {
+            field->stage = stage;
+            return;
+        }
+    }
+    field->stage = CROP_STAGE_READY;
 }
 
 // 打表
 static int ready_time(crop_type_t type) {
-    switch (type) {
-        case CROP_TYPE_WHEAT:
-            return 250; // 小麦 250 天成熟
-        case CROP_TYPE_RICE:
-            return 300; // 水稻 300 天
-        case CROP_TYPE_CORN:
-            return 225; // 玉米 225 天
-        default:
-            return 0; // NONE类型，返回0
-    }
+    if (type >= CROP_TYPE_NONE)
+        return 0;
+    return crop_ready_time[type];
 }
 
 // 二次函数
@@ -226,22 +215,10 @@ static double calculate_possibility(double a, double b, double c, double t, doub
 
 // 计算概率
 static double get_damage_possibility(crop_damage_t damage, double growing_percent, double tolerance) {
-    switch (damage) {
-        case CROP_DAMAGE_APHID:
-            // 蚜虫：早期高发，峰值20%，最大概率0.95
-            return calculate_possibility(-6, 0.2, 0.95, growing_percent, tolerance);
-        case CROP_DAMAGE_MITE:
-            // 螨虫：中期高发，峰值50%，最大概率0.98
-            return calculate_possibility(-5, 0.5, 0.98, growing_percent, tolerance);
-        case CROP_DAMAGE_LEAFROLLER:
-            // 卷叶虫：中晚期高发，峰值70%，最大概率0.96
-            return calculate_possibility(-4, 0.7, 0.96, growing_percent, tolerance);
-        case CROP_DAMAGE_LOCUST:
-            // 蝗虫：晚期高发，峰值85%，最大概率0.90
-            return calculate_possibility(-3, 0.85, 0.90, growing_percent, tolerance);
-        default:
-            return 0.0;
-    }
+    if (damage >= CROP_DAMAGE_NONE)
+        return 0.0;
+    crop_damage_profile_t profile = crop_damage_profiles[damage];
+    return calculate_possibility(profile.a, profile.b, profile.c, growing_percent, tolerance);
 }
 
 // 找最大可能病
@@ -261,22 +238,9 @@ static crop_damage_t max_possibility(field_t *field) {
 // 产量等级数据获取
 static void load_output_upgrade(field_t *field) {
     int level = field->output_level;
-    double new_extra = 0.0;
-    if (level == 1)
-        new_extra = 0.2;
-    else if (level == 2)
-        new_extra = 0.4;
-    else if (level == 3)
-        new_extra = 0.5;
-
+    double new_extra = field_output_upgrade_bonus[level];
     int prev_level = (level > 0) ? (level - 1) : 0;
-    double old_extra = 0.0;
-    if (prev_level == 1)
-        old_extra = 0.2;
-    else if (prev_level == 2)
-        old_extra = 0.4;
-    else if (prev_level == 3)
-        old_extra = 0.5;
+    double old_extra = field_output_upgrade_bonus[prev_level];
 
     // 将等级带来的额外加成合并到 factor（增加或减少差值）
     field->factor += (new_extra - old_extra);
@@ -285,25 +249,11 @@ static void load_output_upgrade(field_t *field) {
 // 产速等级数据获取
 static void load_ready_time_upgrade(field_t *field) {
     int level = field->ready_time_level;
-    if (level == 0)
-        field->ready_time = ready_time(field->crop_type);
-    else if (level == 1)
-        field->ready_time = 0.9 * ready_time(field->crop_type);
-    else if (level == 2)
-        field->ready_time = 0.8 * ready_time(field->crop_type);
-    else if (level == 3)
-        field->ready_time = 0.7 * ready_time(field->crop_type);
+    field->ready_time = field_ready_time_upgrade_ratio[level] * ready_time(field->crop_type);
 }
 
 // 耐虫性等级数据获取
 static void load_tolerance_upgrade(field_t *field) {
     int level = field->tolerance_level;
-    if (level == 0)
-        field->tolerance = 0;
-    else if (level == 1)
-        field->tolerance = 0.05;
-    else if (level == 2)
-        field->tolerance = 0.1;
-    else if (level == 3)
-        field->tolerance = 0.15;
+    field->tolerance = field_tolerance_upgrade_value[level];
 }

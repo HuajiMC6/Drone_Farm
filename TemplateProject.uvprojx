@@ -700,11 +700,6 @@
               <FilePath>.\modules\drone.h</FilePath>
             </File>
             <File>
-              <FileName>enum.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\modules\enum.h</FilePath>
-            </File>
-            <File>
               <FileName>farm.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\modules\farm.c</FilePath>
@@ -735,16 +730,6 @@
               <FilePath>.\modules\player.h</FilePath>
             </File>
             <File>
-              <FileName>store.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\modules\store.c</FilePath>
-            </File>
-            <File>
-              <FileName>store.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\modules\store.h</FilePath>
-            </File>
-            <File>
               <FileName>event.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\modules\event.c</FilePath>
@@ -755,9 +740,14 @@
               <FilePath>.\modules\event.h</FilePath>
             </File>
             <File>
-              <FileName>enum.c</FileName>
+              <FileName>data.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\modules\enum.c</FilePath>
+              <FilePath>.\modules\data.c</FilePath>
+            </File>
+            <File>
+              <FileName>data.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\modules\data.h</FilePath>
             </File>
           </Files>
         </Group>

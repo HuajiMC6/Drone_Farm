@@ -1,10 +1,10 @@
 #ifndef FARM_H
 #define FARM_H
-#include "enum.h"
+#include "data.h"
 #include "field.h"
 
 typedef struct { // 农场结构体
-    field_t *fields[10][10];
+    field_t *fields[GAME_GRID_SIZE][GAME_GRID_SIZE];
     int current_size; // 当前n数
     int size_level;   // 0 1 2 3
 } farm_t;

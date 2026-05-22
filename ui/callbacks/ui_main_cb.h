@@ -1,7 +1,7 @@
 #ifndef __UI_MAIN_CB_H
 #define __UI_MAIN_CB_H
 
-#include "enum.h"
+#include "data.h"
 #include "lvgl.h"
 
 typedef struct {
