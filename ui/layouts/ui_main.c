@@ -108,7 +108,7 @@ static lv_obj_t *ui_icon_btn_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h
                                     lv_coord_t y);
 static const void *ui_crop_drag_img(crop_type_t type);
 static void ui_drone_set_pos(lv_coord_t x, lv_coord_t y, bool anim, void *anim_cb);
-static void ui_drone_update_100ms(lv_timer_t *timer);
+static void ui_update_100ms(lv_timer_t *timer);
 static void ui_update_1s(lv_timer_t *timer);
 static void ui_drone_timer_resume(void);
 static void ui_main_icon_btns_hide(bool hide);
@@ -289,7 +289,7 @@ void ui_main_handle_event(event_t *event) {
 }
 
 void ui_main_update_timer_init(void) {
-    ui_timer_update_100ms = lv_timer_create(ui_drone_update_100ms, 100, NULL);
+    ui_timer_update_100ms = lv_timer_create(ui_update_100ms, 100, NULL);
     ui_timer_update_1s = lv_timer_create(ui_update_1s, 1000, NULL);
     // lv_timer_pause(ui_timer_update_100ms);
 }
@@ -984,7 +984,7 @@ static void ui_decorations_create(void) {
     lv_obj_set_pos(g_prop_scarecrow, 70, 120);
 }
 
-static void ui_drone_update_100ms(lv_timer_t *timer) {
+static void ui_update_100ms(lv_timer_t *timer) {
     (void)timer;
 
     /* 无人机 */
