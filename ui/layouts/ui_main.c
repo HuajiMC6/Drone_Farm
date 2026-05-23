@@ -106,7 +106,6 @@ static void ui_exp_bar_create(lv_obj_t *parent);
 static void ui_exp_bar_refresh(void);
 static lv_obj_t *ui_icon_btn_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h, const void *img, lv_coord_t x,
                                     lv_coord_t y);
-static const void *ui_crop_drag_img(crop_type_t type);
 static void ui_drone_set_pos(lv_coord_t x, lv_coord_t y, bool anim, void *anim_cb);
 static void ui_update_100ms(lv_timer_t *timer);
 static void ui_update_1s(lv_timer_t *timer);
@@ -487,7 +486,7 @@ static void ui_field_upgrade_window_refresh(farm_block_t *block) {
     lv_label_set_text(g_field_upgrade_window_ctx.output_price_label, buf);
 
     if (field->ready_time_level >= 3) {
-        sprintf(buf, sizeof(buf), "Achieved Max Level");
+        snprintf(buf, sizeof(buf), "Achieved Max Level");
     } else {
         snprintf(buf, sizeof(buf), "Upgrade Cost: %d", field_ready_time_upgrade_price[field->ready_time_level]);
     }
@@ -834,7 +833,7 @@ static lv_obj_t *ui_seed_table_create(lv_obj_t *parent) {
         }
         g_seed_items[i] = obj;
 
-        const void *drag_img = ui_crop_drag_img(i);
+        const void *drag_img = icon_get_crop_item(i);
 
         lv_obj_t *item_img = lv_img_create(obj);
         if (drag_img) {
@@ -881,29 +880,6 @@ static void ui_seed_table_refresh(void) {
                 lv_obj_clear_state(g_seed_items[i], LV_STATE_DISABLED);
             }
         }
-    }
-}
-
-static const void *ui_crop_drag_img(crop_type_t type) {
-    const void *img = icon_get_crop(type, CROP_STAGE_READY);
-    if (img) {
-        return img;
-    }
-
-    img = icon_get_crop(type, CROP_STAGE_SEED);
-    if (img) {
-        return img;
-    }
-
-    switch (type) {
-        case CROP_TYPE_CORN:
-            return &icon_crop_corn_ripe;
-        case CROP_TYPE_WHEAT:
-            return &icon_crop_wheat_ripe;
-        case CROP_TYPE_RICE:
-            return &icon_crop_wheat_ripe;
-        default:
-            return &icon_crop_wheat_ripe;
     }
 }
 

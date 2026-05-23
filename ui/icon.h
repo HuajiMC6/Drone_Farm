@@ -4,12 +4,8 @@
 #include "data.h"
 #include "lvgl.h"
 
-// 虫害图标类型
-typedef enum {
-    ICON_PEST_UNKNOWN // 未知（未勘察）
-} icon_pest_type_t;
-
 const void *icon_get_crop(crop_type_t type, crop_stage_t stage);
+const void *icon_get_crop_item(crop_type_t type);
 const void *icon_get_pest(crop_damage_t pest);
 const void *icon_get_pesticide(crop_pesticide_t pesticide);
 
@@ -20,24 +16,43 @@ LV_IMG_DECLARE(icon_field_bg);
 LV_IMG_DECLARE(icon_farm_bg);
 LV_IMG_DECLARE(icon_gold_bar_bg);
 LV_IMG_DECLARE(icon_exp_bar_bg);
+
 LV_IMG_DECLARE(icon_plant_btn);
 LV_IMG_DECLARE(icon_shop_btn);
 LV_IMG_DECLARE(icon_storage_btn);
 LV_IMG_DECLARE(icon_setting_btn);
+
 LV_IMG_DECLARE(icon_crop_corn);
+LV_IMG_DECLARE(icon_crop_corn_seed);
+LV_IMG_DECLARE(icon_crop_corn_young);
+LV_IMG_DECLARE(icon_crop_corn_grow);
+LV_IMG_DECLARE(icon_crop_corn_bloom);
+LV_IMG_DECLARE(icon_crop_corn_ripe);
+
+LV_IMG_DECLARE(icon_crop_wheat);
 LV_IMG_DECLARE(icon_crop_wheat_seed);
 LV_IMG_DECLARE(icon_crop_wheat_young);
 LV_IMG_DECLARE(icon_crop_wheat_grow);
 LV_IMG_DECLARE(icon_crop_wheat_bloom);
 LV_IMG_DECLARE(icon_crop_wheat_ripe);
 LV_IMG_DECLARE(icon_crop_corn_ripe);
+
+LV_IMG_DECLARE(icon_crop_rice);
+LV_IMG_DECLARE(icon_crop_rice_seed);
+LV_IMG_DECLARE(icon_crop_rice_young);
+LV_IMG_DECLARE(icon_crop_rice_grow);
+LV_IMG_DECLARE(icon_crop_rice_bloom);
+LV_IMG_DECLARE(icon_crop_rice_ripe);
+
 LV_IMG_DECLARE(icon_drone_0);
 LV_IMG_DECLARE(icon_drone_1);
+
 LV_IMG_DECLARE(icon_pest_unknown);
 LV_IMG_DECLARE(icon_pest_aphid);
 LV_IMG_DECLARE(icon_pest_mite);
 LV_IMG_DECLARE(icon_pest_leafroller);
 LV_IMG_DECLARE(icon_pest_locust);
+
 LV_IMG_DECLARE(icon_pesticide_aphid);
 LV_IMG_DECLARE(icon_pesticide_mite);
 LV_IMG_DECLARE(icon_pesticide_leafroller);

@@ -92,9 +92,34 @@ const void *icon_get_crop(crop_type_t type, crop_stage_t stage) {
         [CROP_TYPE_WHEAT][CROP_STAGE_BLOOM] = &icon_crop_wheat_bloom,
         [CROP_TYPE_WHEAT][CROP_STAGE_RIPE] = &icon_crop_wheat_ripe,
         [CROP_TYPE_WHEAT][CROP_STAGE_READY] = &icon_crop_wheat_ripe,
+
+        [CROP_TYPE_RICE][CROP_STAGE_SEED] = &icon_crop_rice_seed,
+        [CROP_TYPE_RICE][CROP_STAGE_YOUNG] = &icon_crop_rice_young,
+        [CROP_TYPE_RICE][CROP_STAGE_GROW] = &icon_crop_rice_grow,
+        [CROP_TYPE_RICE][CROP_STAGE_BLOOM] = &icon_crop_rice_bloom,
+        [CROP_TYPE_RICE][CROP_STAGE_RIPE] = &icon_crop_rice_ripe,
+        [CROP_TYPE_RICE][CROP_STAGE_READY] = &icon_crop_rice_ripe,
+
+        [CROP_TYPE_CORN][CROP_STAGE_SEED] = &icon_crop_corn_seed,
+        [CROP_TYPE_CORN][CROP_STAGE_YOUNG] = &icon_crop_corn_young,
+        [CROP_TYPE_CORN][CROP_STAGE_GROW] = &icon_crop_corn_grow,
+        [CROP_TYPE_CORN][CROP_STAGE_BLOOM] = &icon_crop_corn_bloom,
+        [CROP_TYPE_CORN][CROP_STAGE_RIPE] = &icon_crop_corn_ripe,
+        [CROP_TYPE_CORN][CROP_STAGE_READY] = &icon_crop_corn_ripe,
     };
 
     return map[type][stage];
+}
+
+// 获取作物物品栏贴图
+const void *icon_get_crop_item(crop_type_t type) {
+    static const void *const map[CROP_TYPE_NONE] = {
+        [CROP_TYPE_WHEAT] = &icon_crop_wheat,
+        [CROP_TYPE_RICE] = &icon_crop_rice,
+        [CROP_TYPE_CORN] = &icon_crop_corn,
+    };
+
+    return map[type];
 }
 
 // 根据虫害类型返回对应图标

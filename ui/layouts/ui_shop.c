@@ -406,7 +406,7 @@ lv_obj_t *ui_shop_window_create(void) {
             lv_obj_clear_flag(item, LV_OBJ_FLAG_SCROLLABLE);
 
             lv_obj_t *icon = lv_img_create(item);
-            lv_img_set_src(icon, &icon_crop_wheat_ripe);
+            lv_img_set_src(icon, icon_get_crop_item(i));
             lv_obj_center(icon);
             ui_grid_list_bind_item_event(item, ui_shop_item_click_cb, LV_EVENT_CLICKED, &g_shop_seed_desc[i]);
         }
@@ -455,7 +455,7 @@ lv_obj_t *ui_shop_window_create(void) {
             lv_obj_clear_flag(item, LV_OBJ_FLAG_SCROLLABLE);
 
             lv_obj_t *icon = lv_img_create(item);
-            lv_img_set_src(icon, &icon_crop_wheat_ripe);
+            lv_img_set_src(icon, icon_get_pesticide(i));
             lv_obj_center(icon);
             ui_grid_list_bind_item_event(item, ui_shop_item_click_cb, LV_EVENT_CLICKED, &g_shop_pesticide_desc[i]);
         }

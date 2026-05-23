@@ -124,8 +124,7 @@ static void ui_drone_panel_refresh(drone_panel_ctx_t *ctx) {
             }
 
             if (ctx->pesticide_bag_labels[i]) {
-                lv_label_set_text_fmt(ctx->pesticide_bag_labels[i], "%s: %d", crop_pesticide_name(i),
-                                      player->pesticide_bag[i]);
+                lv_label_set_text_fmt(ctx->pesticide_bag_labels[i], "%d", player->pesticide_bag[i]);
             }
         }
     }
@@ -452,6 +451,9 @@ lv_obj_t *ui_drone_window_create(void) {
         ui_drone_pesticide_row_create(bag_card, i, &g_drone_window_ctx.pesticide_load_labels[i]);
     }
 
+    lv_obj_t *spacer = ui_div_create(bag_card);
+    lv_obj_set_height(spacer, 20);
+
     lv_obj_t *bag_subtitle = lv_label_create(bag_card);
     lv_label_set_text(bag_subtitle, "Backpack");
     lv_obj_set_style_text_color(bag_subtitle, lv_color_hex(0x5b421f), 0);
@@ -478,14 +480,24 @@ lv_obj_t *ui_drone_window_create(void) {
             if (!item) {
                 break;
             }
-
-            lv_obj_set_style_pad_all(item, 0, 0);
+            lv_obj_set_flex_flow(item, LV_FLEX_FLOW_ROW);
+            lv_obj_set_flex_align(item, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+            lv_obj_set_style_pad_column(item, 8, 0);
+            lv_obj_set_style_pad_hor(item, 10, 0);
             lv_obj_clear_flag(item, LV_OBJ_FLAG_SCROLLABLE);
 
-            lv_obj_t *label = lv_label_create(item);
-            lv_label_set_text_fmt(label, "%s: 0", crop_pesticide_name(i));
-            lv_obj_align(label, LV_ALIGN_LEFT_MID, 8, 0);
-            g_drone_window_ctx.pesticide_bag_labels[i] = label;
+            lv_obj_t *icon = lv_img_create(item);
+            lv_img_set_src(icon, icon_get_pesticide(i));
+
+            lv_obj_t *name_label = lv_label_create(item);
+            lv_label_set_text_fmt(name_label, "%s", crop_pesticide_name(i));
+
+            lv_obj_t *spacer = ui_div_create(item);
+            lv_obj_set_flex_grow(spacer, 1);
+
+            lv_obj_t *count_label = lv_label_create(item);
+            lv_label_set_text(count_label, "0");
+            g_drone_window_ctx.pesticide_bag_labels[i] = count_label;
         }
     }
 

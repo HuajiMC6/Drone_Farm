@@ -225,13 +225,7 @@ static void ui_storage_window_rebuild_list(player_t *player) {
         lv_obj_clear_flag(item, LV_OBJ_FLAG_SCROLLABLE);
 
         lv_obj_t *icon = lv_img_create(item);
-        const void *img = icon_get_crop(i, CROP_STAGE_READY);
-        if (!img) {
-            img = icon_get_crop(i, CROP_STAGE_SEED);
-        }
-        if (img) {
-            lv_img_set_src(icon, img);
-        }
+        lv_img_set_src(icon, icon_get_crop_item(i));
         lv_obj_align(icon, LV_ALIGN_TOP_MID, 0, 0);
 
         lv_obj_t *name_label = lv_label_create(item);
