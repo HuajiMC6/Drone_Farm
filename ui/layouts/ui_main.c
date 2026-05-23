@@ -21,6 +21,7 @@
 #define DRONE_COORD_SCALNG_FACTOR (FARM_BLOCK_SIZE / 100.0)
 
 static lv_obj_t *g_screen_main = NULL;
+static lv_obj_t *g_main_layer = NULL;
 static lv_obj_t *g_scroll_part = NULL;
 
 static lv_obj_t *farm_grid = NULL;
@@ -140,37 +141,34 @@ lv_obj_t *ui_main_screen_create(void) {
         return g_screen_main;
     }
 
+    /* 这个地方的布局优化了1mol次，走了十年弯路，特此记录，原来大道至简...我悟了...吗?... */
+
     g_screen_main = lv_obj_create(NULL);
     lv_obj_set_style_bg_img_src(g_screen_main, &icon_farm_bg, 0);
     lv_obj_set_style_bg_img_tiled(g_screen_main, true, 0);
-
-    lv_obj_t *main_scr_flex_layout = ui_div_create(g_screen_main);
-    lv_obj_set_size(main_scr_flex_layout, 1024, 600);
-
-    // 加一个弹性盒子为了让内容部分自适应高度
-    lv_obj_set_layout(main_scr_flex_layout, LV_LAYOUT_FLEX);
-    lv_obj_set_flex_flow(main_scr_flex_layout, LV_FLEX_FLOW_COLUMN);
+    lv_obj_add_flag(g_screen_main, LV_OBJ_FLAG_SCROLLABLE);
 
     // 关闭滑动弹性和惯性，让游戏体验更好
-    lv_obj_set_scrollbar_mode(main_scr_flex_layout, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_clear_flag(main_scr_flex_layout, LV_OBJ_FLAG_SCROLL_ELASTIC);
-    lv_obj_clear_flag(main_scr_flex_layout, LV_OBJ_FLAG_SCROLL_MOMENTUM);
+    lv_obj_set_scrollbar_mode(g_screen_main, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_clear_flag(g_screen_main, LV_OBJ_FLAG_SCROLL_ELASTIC);
+    lv_obj_clear_flag(g_screen_main, LV_OBJ_FLAG_SCROLL_MOMENTUM);
 
-    g_scroll_part = ui_div_create(main_scr_flex_layout);
-    lv_obj_set_size(g_scroll_part, 1024, LV_SIZE_CONTENT);
-    lv_obj_set_style_pad_ver(g_scroll_part, 100, 0);
+    g_main_layer = ui_div_create(g_screen_main);
+    lv_obj_set_size(g_main_layer, 1024, 600);
+    lv_obj_set_style_pad_ver(g_main_layer, 100, 0);
+    lv_obj_clear_flag(g_main_layer, LV_OBJ_FLAG_SCROLLABLE);
 
-    ui_farm_grid_create(g_scroll_part);
-    lv_obj_add_flag(main_scr_flex_layout, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(g_scroll_part, LV_OBJ_FLAG_EVENT_BUBBLE);
-    lv_obj_add_event_cb(main_scr_flex_layout, ui_main_screen_click_cb, LV_EVENT_CLICKED, farm_grid);
+    ui_farm_grid_create(g_main_layer);
+    lv_obj_add_flag(g_main_layer, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(g_main_layer, ui_main_screen_click_cb, LV_EVENT_CLICKED, farm_grid);
 
     ui_gold_bar_create(g_screen_main);
     ui_exp_bar_create(g_screen_main);
 
-    ui_drone_create(g_scroll_part);
+    ui_drone_create(g_main_layer);
     ui_drone_hud_create(g_screen_main);
     ui_drone_set_pos(-40, 40, false, NULL);
+
     // 启动时获取一次虫害数据，确保无人机窗口初始显示正确
     drone_get_detected_pest_counts(ui_drone_pest_count);
 
@@ -290,14 +288,29 @@ void ui_main_update_timer_init(void) {
     lv_timer_pause(ui_timer_drone_update_100ms);
 }
 
+static void ui_main_flex_cont_height_refresh(void) {
+    if (FARM_GRID_N * FARM_BLOCK_SIZE + 200 > 600) {
+        lv_obj_set_height(g_main_layer, FARM_GRID_N * FARM_BLOCK_SIZE + 200);
+    } else {
+        lv_obj_set_height(g_main_layer, 600);
+    }
+
+    // // 更新无人机位置，防止修改容器高度时无人机定位偏移
+    // if (g_drone)
+    //     ui_drone_set_pos(0, 0, false, NULL);
+}
+
 static void ui_farm_grid_create(lv_obj_t *parent) {
     if (farm_grid != NULL)
         return;
 
     farm_grid = ui_div_create(parent);
     lv_obj_set_size(farm_grid, FARM_GRID_N * FARM_BLOCK_SIZE, FARM_GRID_N * FARM_BLOCK_SIZE);
-    lv_obj_align_to(farm_grid, parent, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_center(farm_grid);
     lv_obj_move_to_index(farm_grid, 0); // 确保田地网格在最底层
+
+    // 根据农场尺寸动态调整flex容器高度
+    ui_main_flex_cont_height_refresh();
 
     for (int i = 0; i < FARM_GRID_N; i++) {
         for (int j = 0; j < FARM_GRID_N; j++) {
@@ -368,7 +381,7 @@ static void ui_farm_grid_update(void) {
     }
     farm_grid = NULL;
     memset(g_farm_blocks, 0, sizeof(g_farm_blocks));
-    ui_farm_grid_create(g_scroll_part);
+    ui_farm_grid_create(g_main_layer);
     if (g_screen_main && farm_grid) {
         lv_obj_add_event_cb(g_screen_main, ui_main_screen_click_cb, LV_EVENT_CLICKED, farm_grid);
     }
@@ -412,11 +425,12 @@ static lv_obj_t *ui_field_upgrade_window_create(void) {
     lv_obj_set_flex_flow(body, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(body, 8, 0);
     lv_obj_set_flex_align(body, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
-    lv_obj_t *win = ui_window_create(g_scroll_part, "Field Info", body, false);
+    lv_obj_t *win = ui_window_create("Field Info", body, false);
     ui_window_set_display_relative(win); // 设置为相对显示，保证在田地附近显示而不是固定位置显示
     lv_obj_set_size(win, 200, 180);
 
-    ui_window_hide(win); // 初始隐藏，长按田地时显示
+    ui_window_hide(win);                        // 初始隐藏，长按田地时显示
+    ui_window_follow_scroll(win, g_main_layer); // 让窗口跟随田地网格滚动
 
     g_field_upgrade_window = win;
 
@@ -482,6 +496,20 @@ static void ui_field_upgrade_window_refresh(farm_block_t *block) {
 
     lv_obj_align_to(g_field_upgrade_window, block->obj, LV_ALIGN_OUT_RIGHT_TOP, 5, 0);
     ui_window_show(g_field_upgrade_window);
+}
+
+// 切换窗口对应的田地：如果当前窗口显示的田地与传入的田地不同，则刷新窗口内容到新田地，否则隐藏窗口
+void ui_field_upgrade_window_switch(farm_block_t *block) {
+    if (!block)
+        return;
+    if (!ui_window_is_visible(g_field_upgrade_window))
+        return;
+
+    if (g_field_upgrade_window_ctx.current_field != block->field) {
+        ui_field_upgrade_window_refresh(block);
+    } else {
+        ui_window_hide(g_field_upgrade_window);
+    }
 }
 
 // static void ui_field_upgrade_window_refresh(void) {
@@ -794,6 +822,7 @@ static lv_obj_t *ui_seed_table_create(lv_obj_t *parent) {
     lv_obj_t *obj;
     for (i = 0; i < CROP_TYPE_NONE; i++) {
         obj = ui_grid_list_add_item(list);
+        lv_obj_add_flag(obj, LV_OBJ_FLAG_PRESS_LOCK);
         if (!obj) {
             break;
         }
@@ -875,7 +904,7 @@ static const void *ui_crop_drag_img(crop_type_t type) {
 static lv_obj_t *ui_plant_window_create(void) {
     lv_obj_t *grid = ui_seed_table_create(g_screen_main);
 
-    lv_obj_t *div = ui_window_create(g_screen_main, "PLANT", grid, false);
+    lv_obj_t *div = ui_window_create("PLANT", grid, false);
     lv_obj_set_align(div, LV_ALIGN_RIGHT_MID);
     lv_obj_set_pos(div, -20, -20);
     lv_obj_set_size(div, 206, 290);
@@ -887,7 +916,7 @@ static lv_obj_t *ui_plant_window_create(void) {
 
 static lv_obj_t *ui_setting_window_create(void) {
     lv_obj_t *body = ui_div_create(g_screen_main);
-    lv_obj_t *div = ui_window_create(g_screen_main, "SETTING", body, true);
+    lv_obj_t *div = ui_window_create("SETTING", body, true);
 
     lv_obj_t *btn = lv_btn_create(body);
     lv_obj_set_size(btn, 120, 50);

@@ -58,7 +58,7 @@ lv_obj_t *ui_storage_window_create(void) {
     lv_obj_set_flex_align(body, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
     lv_obj_clear_flag(body, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *div = ui_window_create(screen, "STORAGE", body, true);
+    lv_obj_t *div = ui_window_create("STORAGE", body, true);
     lv_obj_center(div);
     lv_obj_set_size(div, 328, 420);
 

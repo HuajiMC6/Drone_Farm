@@ -334,7 +334,7 @@ lv_obj_t *ui_shop_window_create(void) {
     lv_obj_set_style_pad_all(body, 8, 0);
     lv_obj_clear_flag(body, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *div = ui_window_create(lv_scr_act(), "SHOP", body, true);
+    lv_obj_t *div = ui_window_create("SHOP", body, true);
     lv_obj_center(div);
     lv_obj_set_size(div, 524, 420);
 

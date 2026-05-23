@@ -30,5 +30,6 @@ void ui_drone_window_refresh(void);
 void ui_drone_hud_create(lv_obj_t *parent);
 void ui_drone_hud_set_visible(bool visible);
 void ui_shop_refresh(void);
+void ui_field_upgrade_window_switch(farm_block_t *block);
 
 #endif

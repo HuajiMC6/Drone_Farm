@@ -353,7 +353,7 @@ lv_obj_t *ui_drone_window_create(void) {
     lv_obj_set_style_pad_column(body, 10, 0);
     lv_obj_clear_flag(body, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *div = ui_window_create(lv_scr_act(), "DRONE OPERATION", body, true);
+    lv_obj_t *div = ui_window_create("DRONE OPERATION", body, true);
     lv_obj_center(div);
     lv_obj_set_size(div, 714, 432);
 
