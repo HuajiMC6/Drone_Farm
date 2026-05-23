@@ -13,12 +13,15 @@
 #include "ui_storage_cb.h"
 #include "ui_window.h"
 
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define FARM_GRID_N farm_get_instance()->current_size
 #define FARM_BLOCK_SIZE 80
 #define DRONE_COORD_SCALNG_FACTOR (FARM_BLOCK_SIZE / 100.0)
+
+static bool drone_timer_active = false;
 
 static lv_obj_t *g_screen_main = NULL;
 static lv_obj_t *g_main_layer = NULL;
@@ -39,7 +42,7 @@ static lv_obj_t *g_seed_count_labels[CROP_TYPE_NONE];
 static farm_block_t g_farm_blocks[10][10];
 uint8_t ui_drone_pest_count[CROP_DAMAGE_NONE];
 
-static lv_timer_t *ui_timer_drone_update_100ms = NULL;
+static lv_timer_t *ui_timer_update_100ms = NULL;
 static lv_timer_t *ui_timer_update_1s = NULL;
 
 static lv_obj_t *g_plant_window = NULL;
@@ -50,6 +53,8 @@ static lv_obj_t *g_drone_window = NULL;
 static lv_obj_t *g_field_upgrade_window = NULL;
 
 static lv_obj_t *g_gold_bar_label = NULL;
+
+static lv_obj_t *g_prop_scarecrow = NULL;
 
 typedef struct {
     pos_t *path;
@@ -113,6 +118,7 @@ static bool ui_drone_spray_prepare(void);
 static bool ui_drone_move_towards_target(pos_t cell);
 static pos_t ui_drone_grid_center(pos_t cell);
 static void ui_farm_grid_update(void);
+static void ui_decorations_create(void);
 
 lv_obj_t *ui_shop_window_create(void);
 lv_obj_t *ui_drone_window_create(void);
@@ -178,6 +184,8 @@ lv_obj_t *ui_main_screen_create(void) {
     setting_btn = ui_icon_btn_create(g_screen_main, 47, 47, &icon_setting_btn, 920, 40);
 
     g_storage_window_toggle.window_ref = &g_storage_window;
+
+    ui_decorations_create();
 
     lv_obj_add_event_cb(plant_btn, ui_main_floating_button_click_cb, LV_EVENT_CLICKED, &g_plant_window_toggle);
     lv_obj_add_event_cb(storage_btn, ui_main_floating_button_click_cb, LV_EVENT_CLICKED, &g_storage_window_toggle);
@@ -251,9 +259,7 @@ void ui_main_handle_event(event_t *event) {
             }
             break;
         case EVENT_ON_DRONE_TO_FREE:
-            if (ui_timer_drone_update_100ms) {
-                lv_timer_pause(ui_timer_drone_update_100ms);
-            }
+            drone_timer_active = false; // 无人机切换到空闲状态时暂停无人机更新计时器，节省资源
             if (!g_drone_spray_ctx.active) {
                 ui_drone_spray_prepare();
             }
@@ -283,9 +289,9 @@ void ui_main_handle_event(event_t *event) {
 }
 
 void ui_main_update_timer_init(void) {
-    ui_timer_drone_update_100ms = lv_timer_create(ui_drone_update_100ms, 100, NULL);
+    ui_timer_update_100ms = lv_timer_create(ui_drone_update_100ms, 100, NULL);
     ui_timer_update_1s = lv_timer_create(ui_update_1s, 1000, NULL);
-    lv_timer_pause(ui_timer_drone_update_100ms);
+    // lv_timer_pause(ui_timer_update_100ms);
 }
 
 static void ui_main_flex_cont_height_refresh(void) {
@@ -970,53 +976,70 @@ static lv_obj_t *ui_setting_window_create(void) {
     return div;
 }
 
+// 装饰物生成
+static void ui_decorations_create(void) {
+    // 稻草人
+    g_prop_scarecrow = lv_img_create(g_main_layer);
+    lv_img_set_src(g_prop_scarecrow, img_prop_scarecrow);
+    lv_obj_set_pos(g_prop_scarecrow, 70, 120);
+}
+
 static void ui_drone_update_100ms(lv_timer_t *timer) {
     (void)timer;
 
-    drone_t *drone = drone_get_instance();
-    if (drone->drone_state == DRONE_STATE_DETECTING) {
-        pos_t vector = {.x = joystick_get_dir_x(), .y = joystick_get_dir_y()};
-        drone_move(vector);
-        pos_t pos = drone->current_pos;
-        ui_drone_set_pos(pos.x * DRONE_COORD_SCALNG_FACTOR, pos.y * DRONE_COORD_SCALNG_FACTOR, false, NULL);
+    /* 无人机 */
+    if (drone_timer_active) {
+        drone_t *drone = drone_get_instance();
+        if (drone->drone_state == DRONE_STATE_DETECTING) {
+            pos_t vector = {.x = joystick_get_dir_x(), .y = joystick_get_dir_y()};
+            drone_move(vector);
+            pos_t pos = drone->current_pos;
+            ui_drone_set_pos(pos.x * DRONE_COORD_SCALNG_FACTOR, pos.y * DRONE_COORD_SCALNG_FACTOR, false, NULL);
 
-        if (!g_farm_blocks[pos.x / 100][pos.y / 100].is_detected) {
-            crop_damage_t pest = drone_detect_damage();
-            if (pest != CROP_DAMAGE_NONE) {
-                ui_drone_pest_count[pest]++;
-            }
-        }
-    } else if (drone->drone_state == DRONE_STATE_AUTO) {
-        if (!g_drone_spray_ctx.active && !ui_drone_spray_prepare()) {
-            drone_state_switch(DRONE_STATE_FREE);
-            return;
-        }
-
-        if (g_drone_spray_ctx.path_index >= g_drone_spray_ctx.path_len) {
-            ui_drone_spray_reset();
-            drone_state_switch(DRONE_STATE_FREE);
-            return;
-        }
-
-        pos_t cell = g_drone_spray_ctx.path[g_drone_spray_ctx.path_index];
-
-        if (g_drone_spray_ctx.dwell_ticks > 0) {
-            g_drone_spray_ctx.dwell_ticks--;
-            if (g_drone_spray_ctx.dwell_ticks == 0) {
-                crop_damage_t pest = field_get_damage(g_farm_blocks[cell.x][cell.y].field);
-                if (drone_ensure_pesticide(cell)) {
+            if (!g_farm_blocks[pos.x / 100][pos.y / 100].is_detected) {
+                crop_damage_t pest = drone_detect_damage();
+                if (pest != CROP_DAMAGE_NONE) {
                     ui_drone_pest_count[pest]++;
                 }
-                g_drone_spray_ctx.path_index++;
-                if (g_drone_spray_ctx.path_index >= g_drone_spray_ctx.path_len) {
-                    ui_drone_spray_reset();
-                    drone_state_switch(DRONE_STATE_FREE);
-                    return;
-                }
             }
-        } else if (ui_drone_move_towards_target(cell)) {
-            g_drone_spray_ctx.dwell_ticks = 10;
+        } else if (drone->drone_state == DRONE_STATE_AUTO) {
+            if (!g_drone_spray_ctx.active && !ui_drone_spray_prepare()) {
+                drone_state_switch(DRONE_STATE_FREE);
+                return;
+            }
+
+            if (g_drone_spray_ctx.path_index >= g_drone_spray_ctx.path_len) {
+                ui_drone_spray_reset();
+                drone_state_switch(DRONE_STATE_FREE);
+                return;
+            }
+
+            pos_t cell = g_drone_spray_ctx.path[g_drone_spray_ctx.path_index];
+
+            if (g_drone_spray_ctx.dwell_ticks > 0) {
+                g_drone_spray_ctx.dwell_ticks--;
+                if (g_drone_spray_ctx.dwell_ticks == 0) {
+                    crop_damage_t pest = field_get_damage(g_farm_blocks[cell.x][cell.y].field);
+                    if (drone_ensure_pesticide(cell)) {
+                        ui_drone_pest_count[pest]++;
+                    }
+                    g_drone_spray_ctx.path_index++;
+                    if (g_drone_spray_ctx.path_index >= g_drone_spray_ctx.path_len) {
+                        ui_drone_spray_reset();
+                        drone_state_switch(DRONE_STATE_FREE);
+                        return;
+                    }
+                }
+            } else if (ui_drone_move_towards_target(cell)) {
+                g_drone_spray_ctx.dwell_ticks = 10;
+            }
         }
+    }
+
+    /* 装饰物 */
+    if (g_prop_scarecrow) {
+        float angle = sinf(lv_tick_get() * 0.002f) * 30;
+        lv_img_set_angle(g_prop_scarecrow, angle);
     }
 }
 
@@ -1035,9 +1058,7 @@ static void ui_update_1s(lv_timer_t *timer) {
 }
 
 static void ui_drone_timer_resume(void) {
-    if (ui_timer_drone_update_100ms) {
-        lv_timer_resume(ui_timer_drone_update_100ms);
-    }
+    drone_timer_active = true;
 }
 
 static void ui_drone_spray_reset(void) {

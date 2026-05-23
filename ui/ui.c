@@ -14,6 +14,8 @@ static lv_obj_t *g_screen_main = NULL;
 
 // UI入口
 void ui_init(void) {
+    icon_init(); // 初始化图标资源
+
     g_screen_load = ui_load_screen_create();
     g_screen_main = ui_main_screen_create();
 

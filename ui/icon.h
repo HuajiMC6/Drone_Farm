@@ -13,6 +13,9 @@ const void *icon_get_crop(crop_type_t type, crop_stage_t stage);
 const void *icon_get_pest(crop_damage_t pest);
 const void *icon_get_pesticide(crop_pesticide_t pesticide);
 
+lv_img_dsc_t *icon_sd_load(const char *path, lv_img_cf_t cf, uint16_t w, uint16_t h);
+void icon_sd_free(lv_img_dsc_t *dsc);
+
 LV_IMG_DECLARE(icon_field_bg);
 LV_IMG_DECLARE(icon_farm_bg);
 LV_IMG_DECLARE(icon_gold_bar_bg);
@@ -39,5 +42,7 @@ LV_IMG_DECLARE(icon_pesticide_aphid);
 LV_IMG_DECLARE(icon_pesticide_mite);
 LV_IMG_DECLARE(icon_pesticide_leafroller);
 LV_IMG_DECLARE(icon_pesticide_locust);
+
+extern lv_img_dsc_t *img_prop_scarecrow;
 
 #endif
