@@ -1004,7 +1004,7 @@ void ui_farm_size_upgrade_btn_refresh(void) {
                                   farm_size_update_price[farm_get_instance()->size_level]);
         }
     }
-    lv_obj_align_to(g_farm_size_upgrade_ctx.btn, farm_grid, LV_ALIGN_OUT_BOTTOM_MID, 0, 15);
+    lv_obj_align_to(g_farm_size_upgrade_ctx.btn, farm_grid, LV_ALIGN_OUT_BOTTOM_MID, 0, 25);
     lv_obj_align_to(g_farm_size_upgrade_ctx.price_label, g_farm_size_upgrade_ctx.btn, LV_ALIGN_BOTTOM_MID, 0, 0);
 }
 
@@ -1012,12 +1012,11 @@ void ui_farm_size_upgrade_btn_refresh(void) {
 static void ui_farm_size_upgrade_btn_create(void) {
     lv_obj_t *btn = lv_btn_create(g_main_layer);
     lv_obj_set_size(btn, 170, 40);
-    lv_obj_set_style_bg_color(btn, lv_color_hex(0xefcd76), 0);
+    lv_obj_set_style_bg_color(btn, lv_color_hex(0xfac757), 0);
     lv_obj_set_style_border_color(btn, lv_color_hex(0x8a6333), 0);
     lv_obj_set_style_border_width(btn, 1, 0);
     lv_obj_set_style_radius(btn, 8, 0);
     lv_obj_set_style_pad_all(btn, 3, 0);
-    lv_obj_align_to(btn, farm_grid, LV_ALIGN_OUT_BOTTOM_MID, 0, 15);
 
     lv_obj_t *btn_label = lv_label_create(btn);
     lv_label_set_text(btn_label, "Upgrade Farm Size");
