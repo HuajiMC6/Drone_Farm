@@ -1,6 +1,7 @@
 #include "ui_drone_cb.h"
 
 #include "drone.h"
+#include "player.h"
 #include "ui_common.h"
 #include "ui_message.h"
 
@@ -62,5 +63,29 @@ void ui_drone_pesticide_button_click_cb(lv_event_t *e) {
         }
     }
 
+    ui_drone_window_refresh();
+}
+
+void ui_drone_speed_upgrade_click_cb(lv_event_t *e) {
+    lv_event_stop_bubbling(e);
+
+    if (!player_buy_drone_speed_update()) {
+        ui_message_show("Not enough gold!", UI_MESSAGE_TYPE_ERROR, UI_MESSAGE_TOAST);
+        return;
+    }
+
+    ui_message_show("Upgrade successful!", UI_MESSAGE_TYPE_SUCCESS, UI_MESSAGE_TOAST);
+    ui_drone_window_refresh();
+}
+
+void ui_drone_storage_upgrade_click_cb(lv_event_t *e) {
+    lv_event_stop_bubbling(e);
+
+    if (!player_buy_drone_storage_update()) {
+        ui_message_show("Not enough gold!", UI_MESSAGE_TYPE_ERROR, UI_MESSAGE_TOAST);
+        return;
+    }
+
+    ui_message_show("Upgrade successful!", UI_MESSAGE_TYPE_SUCCESS, UI_MESSAGE_TOAST);
     ui_drone_window_refresh();
 }

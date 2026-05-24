@@ -12,7 +12,11 @@ static lv_obj_t *g_drone_window = NULL;
 typedef struct {
     lv_obj_t *obj;
     lv_obj_t *speed_label;
+    lv_obj_t *speed_price_label;
+    lv_obj_t *speed_upgrade_btn;
     lv_obj_t *storage_label;
+    lv_obj_t *storage_price_label;
+    lv_obj_t *storage_upgrade_btn;
     lv_obj_t *pest_card_title;
     lv_obj_t *pest_row_name_labels[CROP_PESTICIDE_NONE];
     lv_obj_t *pest_result_labels[CROP_DAMAGE_NONE];
@@ -61,8 +65,28 @@ static void ui_drone_panel_refresh(drone_panel_ctx_t *ctx) {
     if (ctx->speed_label) {
         lv_label_set_text_fmt(ctx->speed_label, "%d m/s", drone->speed);
     }
+    if (ctx->speed_price_label && ctx->speed_upgrade_btn) {
+        if (drone->speed_level >= DRONE_SPEED_LEVEL_MAX) {
+            lv_label_set_text(ctx->speed_price_label, "Achieved Max Level");
+            lv_obj_add_state(ctx->speed_upgrade_btn, LV_STATE_DISABLED);
+        } else {
+            lv_label_set_text_fmt(ctx->speed_price_label, "Upgrade Cost: %d",
+                                  drone_speed_update_price[drone->speed_level]);
+            lv_obj_clear_state(ctx->speed_upgrade_btn, LV_STATE_DISABLED);
+        }
+    }
     if (ctx->storage_label) {
         lv_label_set_text_fmt(ctx->storage_label, "%d / pesticide", drone->storage_capacity);
+    }
+    if (ctx->storage_price_label && ctx->storage_upgrade_btn) {
+        if (drone->storage_level >= DRONE_STORAGE_LEVEL_MAX) {
+            lv_label_set_text(ctx->storage_price_label, "Achieved Max Level");
+            lv_obj_add_state(ctx->storage_upgrade_btn, LV_STATE_DISABLED);
+        } else {
+            lv_label_set_text_fmt(ctx->storage_price_label, "Upgrade Cost: %d",
+                                  drone_storage_update_price[drone->storage_level]);
+            lv_obj_clear_state(ctx->storage_upgrade_btn, LV_STATE_DISABLED);
+        }
     }
 
     bool detecting = drone->drone_state == DRONE_STATE_DETECTING;
@@ -191,19 +215,44 @@ static lv_obj_t *ui_drone_state_chip_create(lv_obj_t *parent, lv_obj_t **state_l
     return state_chip;
 }
 
-// 创建基础信息项用于展示标题和值例如 Speed 与 Capacity
-static void ui_drone_info_item_create(lv_obj_t *parent, const char *title, lv_obj_t **value_label, lv_coord_t w) {
-    lv_obj_t *item = ui_drone_transparent_container_create(parent, w, LV_SIZE_CONTENT);
-    lv_obj_set_layout(item, LV_LAYOUT_FLEX);
-    lv_obj_set_flex_flow(item, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(item, 2, 0);
+// 创建基础信息项用于展示标题、数值、升级价格和按钮
+static void ui_drone_info_item_create(lv_obj_t *parent, const char *title, lv_obj_t **value_label,
+                                      lv_obj_t **price_label, lv_obj_t **btn, lv_event_cb_t btn_event_cb,
+                                      lv_coord_t w) {
+    lv_obj_t *item = ui_drone_transparent_container_create(parent, w, 52);
+    lv_obj_set_style_pad_all(item, 0, 0);
+    lv_obj_set_style_pad_right(item, 34, 0);
 
     lv_obj_t *key = lv_label_create(item);
     lv_label_set_text(key, title);
     lv_obj_set_style_text_color(key, lv_color_hex(0x6f5c41), 0);
+    lv_obj_set_style_text_font(key, &lv_font_montserrat_14, 0);
+    lv_obj_align(key, LV_ALIGN_TOP_LEFT, 0, 0);
 
     *value_label = lv_label_create(item);
     lv_label_set_text(*value_label, "--");
+    lv_obj_set_style_text_font(*value_label, &lv_font_montserrat_14, 0);
+    lv_obj_align_to(*value_label, key, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 0);
+
+    *price_label = lv_label_create(item);
+    lv_label_set_text(*price_label, "Upgrade Cost: --");
+    lv_obj_set_style_text_font(*price_label, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(*price_label, lv_color_hex(0xb66258), 0);
+    lv_obj_align_to(*price_label, *value_label, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 0);
+
+    *btn = lv_btn_create(item);
+    lv_obj_set_size(*btn, 28, 28);
+    lv_obj_set_style_bg_color(*btn, lv_color_hex(0xf4cdca), 0);
+    lv_obj_set_style_border_color(*btn, lv_color_hex(0xb66258), 0);
+    lv_obj_set_style_border_width(*btn, 1, 0);
+    lv_obj_set_style_radius(*btn, 8, 0);
+    lv_obj_align(*btn, LV_ALIGN_TOP_RIGHT, -4, 2);
+    lv_obj_t *btn_label = lv_label_create(*btn);
+    lv_label_set_text(btn_label, "+");
+    lv_obj_center(btn_label);
+    if (btn_event_cb) {
+        lv_obj_add_event_cb(*btn, btn_event_cb, LV_EVENT_CLICKED, NULL);
+    }
 }
 
 // 创建模式按钮并绑定统一回调通过 desc 区分 Detect 或 Spray
@@ -356,8 +405,12 @@ lv_obj_t *ui_drone_window_create(void) {
     lv_obj_set_flex_flow(base_values, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_column(base_values, 10, 0);
 
-    ui_drone_info_item_create(base_values, "Speed", &g_drone_window_ctx.speed_label, 154);
-    ui_drone_info_item_create(base_values, "Capacity", &g_drone_window_ctx.storage_label, 154);
+    ui_drone_info_item_create(base_values, "Speed", &g_drone_window_ctx.speed_label,
+                              &g_drone_window_ctx.speed_price_label, &g_drone_window_ctx.speed_upgrade_btn,
+                              ui_drone_speed_upgrade_click_cb, 174);
+    ui_drone_info_item_create(base_values, "Capacity", &g_drone_window_ctx.storage_label,
+                              &g_drone_window_ctx.storage_price_label, &g_drone_window_ctx.storage_upgrade_btn,
+                              ui_drone_storage_upgrade_click_cb, 174);
 
     // 虫害/装药统计卡片：按 2x2 行列生成，避免手写坐标。
     lv_obj_t *pest_card = ui_drone_card_create(left_panel, 382, 116, 8);

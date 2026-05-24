@@ -93,6 +93,13 @@ typedef struct {
 
 ui_player_exp_ctx_t g_player_exp_ctx;
 
+typedef struct {
+    lv_obj_t *btn;
+    lv_obj_t *price_label;
+} ui_farm_size_upgrade_ctx_t;
+
+ui_farm_size_upgrade_ctx_t g_farm_size_upgrade_ctx;
+
 static lv_obj_t *ui_seed_table_create(lv_obj_t *parent);
 static lv_obj_t *ui_plant_window_create(void);
 static lv_obj_t *ui_setting_window_create(void);
@@ -124,6 +131,8 @@ static bool ui_drone_move_towards_target(pos_t cell);
 static pos_t ui_drone_grid_center(pos_t cell);
 static void ui_farm_grid_update(void);
 static void ui_decorations_create(void);
+static void ui_farm_size_upgrade_btn_create(void);
+void ui_farm_size_upgrade_btn_refresh(void);
 
 lv_obj_t *ui_shop_window_create(void);
 lv_obj_t *ui_drone_window_create(void);
@@ -192,6 +201,8 @@ lv_obj_t *ui_main_screen_create(void) {
 
     ui_decorations_create();
 
+    ui_farm_size_upgrade_btn_create();
+
     lv_obj_add_event_cb(plant_btn, ui_main_floating_button_click_cb, LV_EVENT_CLICKED, &g_plant_window_toggle);
     lv_obj_add_event_cb(storage_btn, ui_main_floating_button_click_cb, LV_EVENT_CLICKED, &g_storage_window_toggle);
     lv_obj_add_event_cb(shop_btn, ui_main_floating_button_click_cb, LV_EVENT_CLICKED, &g_shop_window_toggle);
@@ -236,6 +247,8 @@ void ui_main_handle_event(event_t *event) {
 
             // 将无人机移回初始位置，避免无人机位置不正确
             ui_drone_set_pos(-40, 40, false, NULL);
+
+            ui_farm_size_upgrade_btn_refresh();
             break;
         case EVENT_ON_PLAYER_COIN_CHANGE:
         case EVENT_ON_PLAYER_SEED_CHANGE:
@@ -978,6 +991,49 @@ static void ui_decorations_create(void) {
     lv_obj_set_pos(g_prop_scarecrow, 70, 120);
 }
 
+// 田地大小升级按钮刷新
+void ui_farm_size_upgrade_btn_refresh(void) {
+    if (farm_get_instance()->size_level >= FARM_SIZE_LEVEL_MAX) {
+        if (g_farm_size_upgrade_ctx.btn && lv_obj_is_valid(g_farm_size_upgrade_ctx.btn)) {
+            lv_obj_add_state(g_farm_size_upgrade_ctx.btn, LV_STATE_DISABLED);
+            lv_label_set_text(g_farm_size_upgrade_ctx.price_label, "Max Level");
+        }
+    } else {
+        if (g_farm_size_upgrade_ctx.price_label && lv_obj_is_valid(g_farm_size_upgrade_ctx.price_label)) {
+            lv_label_set_text_fmt(g_farm_size_upgrade_ctx.price_label, "Cost: %d",
+                                  farm_size_update_price[farm_get_instance()->size_level]);
+        }
+    }
+    lv_obj_align_to(g_farm_size_upgrade_ctx.btn, farm_grid, LV_ALIGN_OUT_BOTTOM_MID, 0, 15);
+    lv_obj_align_to(g_farm_size_upgrade_ctx.price_label, g_farm_size_upgrade_ctx.btn, LV_ALIGN_BOTTOM_MID, 0, 0);
+}
+
+// 田地大小升级按钮创建
+static void ui_farm_size_upgrade_btn_create(void) {
+    lv_obj_t *btn = lv_btn_create(g_main_layer);
+    lv_obj_set_size(btn, 170, 40);
+    lv_obj_set_style_bg_color(btn, lv_color_hex(0xefcd76), 0);
+    lv_obj_set_style_border_color(btn, lv_color_hex(0x8a6333), 0);
+    lv_obj_set_style_border_width(btn, 1, 0);
+    lv_obj_set_style_radius(btn, 8, 0);
+    lv_obj_set_style_pad_all(btn, 3, 0);
+    lv_obj_align_to(btn, farm_grid, LV_ALIGN_OUT_BOTTOM_MID, 0, 15);
+
+    lv_obj_t *btn_label = lv_label_create(btn);
+    lv_label_set_text(btn_label, "Upgrade Farm Size");
+    lv_obj_align_to(btn_label, btn, LV_ALIGN_TOP_MID, 0, 0);
+
+    lv_obj_t *price_label = lv_label_create(btn);
+    lv_obj_set_style_text_color(price_label, lv_color_hex(0xb66258), 0);
+    lv_obj_set_style_text_font(price_label, &lv_font_montserrat_12, 0);
+    lv_obj_add_event_cb(btn, ui_main_field_size_upgrade_click_cb, LV_EVENT_CLICKED, NULL);
+
+    g_farm_size_upgrade_ctx.btn = btn;
+    g_farm_size_upgrade_ctx.price_label = price_label;
+
+    ui_farm_size_upgrade_btn_refresh();
+}
+
 static void ui_update_100ms(lv_timer_t *timer) {
     (void)timer;
 
@@ -1015,11 +1071,16 @@ static void ui_update_100ms(lv_timer_t *timer) {
                 if (g_drone_spray_ctx.dwell_ticks == 0) { // 停留结束，执行喷洒效果
                     crop_damage_t pest = field_get_damage(g_farm_blocks[cell.x][cell.y].field);
                     if (drone_ensure_pesticide(cell)) {
-                        ui_message_show("Pesticide sprayed successfully!", UI_MESSAGE_TYPE_SUCCESS, UI_MESSAGE_TOAST);
+                        // 这里暂时先注释掉了，感觉消息太多了很烦
+                        // ui_message_show("Pesticide sprayed successfully!", UI_MESSAGE_TYPE_SUCCESS,
+                        //                 UI_MESSAGE_TOAST);
                     } else {
-                        char message[64];
-                        snprintf(message, sizeof(message), "Not enough pesticide against %s!", crop_pest_name(pest));
-                        ui_message_show(message, UI_MESSAGE_TYPE_ERROR, UI_MESSAGE_TOAST);
+                        if (pest != CROP_DAMAGE_NONE) {
+                            char message[64];
+                            snprintf(message, sizeof(message), "Not enough pesticide against %s!",
+                                     crop_pest_name(pest));
+                            ui_message_show(message, UI_MESSAGE_TYPE_ERROR, UI_MESSAGE_TOAST);
+                        }
                     }
                     g_drone_spray_ctx.path_index++;
                     if (g_drone_spray_ctx.path_index >= g_drone_spray_ctx.path_len) {

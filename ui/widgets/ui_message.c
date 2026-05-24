@@ -114,6 +114,8 @@ static lv_obj_t *toast_create(const char *message, ui_message_style_t style) {
     lv_obj_set_style_radius(toast, 5, 0);
     lv_obj_set_style_pad_all(toast, 10, 0);
     lv_obj_set_style_border_width(toast, 1, 0);
+    lv_obj_set_style_bg_opa(toast, LV_OPA_80, 0);
+    lv_obj_clear_flag(toast, LV_OBJ_FLAG_CLICKABLE);
 
     lv_obj_t *label = lv_label_create(toast);
     lv_label_set_text(label, message);
