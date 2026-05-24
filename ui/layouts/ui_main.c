@@ -489,6 +489,7 @@ static void ui_field_upgrade_window_refresh(farm_block_t *block) {
         lv_obj_add_state(g_field_upgrade_window_ctx.output_upgrade_btn, LV_STATE_DISABLED);
     } else {
         snprintf(buf, sizeof(buf), "Upgrade Cost: %d", field_output_upgrade_price[field->output_level]);
+        lv_obj_clear_state(g_field_upgrade_window_ctx.output_upgrade_btn, LV_STATE_DISABLED);
     }
     lv_label_set_text(g_field_upgrade_window_ctx.output_price_label, buf);
 
@@ -497,6 +498,7 @@ static void ui_field_upgrade_window_refresh(farm_block_t *block) {
         lv_obj_add_state(g_field_upgrade_window_ctx.ready_time_upgrade_btn, LV_STATE_DISABLED);
     } else {
         snprintf(buf, sizeof(buf), "Upgrade Cost: %d", field_ready_time_upgrade_price[field->ready_time_level]);
+        lv_obj_clear_state(g_field_upgrade_window_ctx.ready_time_upgrade_btn, LV_STATE_DISABLED);
     }
     lv_label_set_text(g_field_upgrade_window_ctx.ready_time_price_label, buf);
 
@@ -505,6 +507,7 @@ static void ui_field_upgrade_window_refresh(farm_block_t *block) {
         lv_obj_add_state(g_field_upgrade_window_ctx.tolerance_upgrade_btn, LV_STATE_DISABLED);
     } else {
         snprintf(buf, sizeof(buf), "Upgrade Cost: %d", field_tolerance_upgrade_price[field->tolerance_level]);
+        lv_obj_clear_state(g_field_upgrade_window_ctx.tolerance_upgrade_btn, LV_STATE_DISABLED);
     }
     lv_label_set_text(g_field_upgrade_window_ctx.tolerance_price_label, buf);
 
