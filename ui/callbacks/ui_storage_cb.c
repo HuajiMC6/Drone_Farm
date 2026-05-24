@@ -1,5 +1,7 @@
 #include "ui_storage_cb.h"
 
+#include "player.h"
+
 void ui_storage_item_click_cb(lv_event_t *e) {
     lv_event_stop_bubbling(e);
 
@@ -24,5 +26,14 @@ void ui_storage_qty_plus_click_cb(lv_event_t *e) {
 
 void ui_storage_sell_click_cb(lv_event_t *e) {
     lv_event_stop_bubbling(e);
-    ui_storage_sell_click_handle();
+
+    ui_storage_crop_desc_t desc;
+    int qty = 0;
+    if (!ui_storage_get_selected_sell(&desc, &qty)) {
+        return;
+    }
+
+    if (player_sold(desc.type, qty)) {
+        ui_storage_after_sell_success();
+    }
 }

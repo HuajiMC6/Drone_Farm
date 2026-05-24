@@ -47,6 +47,25 @@ void ui_storage_window_refresh(void) {
     ui_storage_window_update_controls(player);
 }
 
+bool ui_storage_get_selected_sell(ui_storage_crop_desc_t *desc, int *qty) {
+    if (!desc || !qty || g_storage_window_ctx.selected_type >= CROP_TYPE_NONE ||
+        g_storage_window_ctx.selected_qty <= 0) {
+        return false;
+    }
+
+    desc->type = g_storage_window_ctx.selected_type;
+    *qty = g_storage_window_ctx.selected_qty;
+    return true;
+}
+
+void ui_storage_after_sell_success(void) {
+    if (g_storage_window_ctx.selected_qty < 1) {
+        g_storage_window_ctx.selected_qty = 1;
+    } else {
+        g_storage_window_ctx.selected_qty = 1;
+    }
+}
+
 lv_obj_t *ui_storage_window_create(void) {
     lv_obj_t *screen = lv_scr_act();
     lv_obj_t *body = ui_div_create(screen);
@@ -66,9 +85,7 @@ lv_obj_t *ui_storage_window_create(void) {
     g_storage_window_ctx.obj = div;
     g_storage_window_ctx.selected_type = CROP_TYPE_NONE;
 
-    lv_obj_t *title = lv_label_create(body);
-    lv_label_set_text(title, "Harvest Bag");
-    lv_obj_set_style_text_color(title, lv_color_hex(0x5b421f), 0);
+    lv_obj_t *title = ui_label_colored(body, "Harvest Bag", lv_color_hex(0x5b421f));
 
     ui_grid_list_cfg_t cfg;
     ui_grid_list_cfg_init(&cfg);
@@ -89,40 +106,19 @@ lv_obj_t *ui_storage_window_create(void) {
         }
     }
 
-    g_storage_window_ctx.empty_label = lv_label_create(body);
-    lv_label_set_text(g_storage_window_ctx.empty_label, "No harvested crops");
-    lv_obj_set_style_text_color(g_storage_window_ctx.empty_label, lv_color_hex(0x8a6a3f), 0);
+    g_storage_window_ctx.empty_label = ui_label_colored(body, "No harvested crops", lv_color_hex(0x8a6a3f));
 
-    lv_obj_t *sell_card = lv_obj_create(body);
-    lv_obj_set_width(sell_card, LV_PCT(100));
-    lv_obj_set_height(sell_card, LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_color(sell_card, lv_color_hex(0xf9efcf), 0);
-    lv_obj_set_style_border_color(sell_card, lv_color_hex(0x86653a), 0);
-    lv_obj_set_style_border_width(sell_card, 1, 0);
-    lv_obj_set_style_radius(sell_card, 10, 0);
-    lv_obj_set_style_pad_all(sell_card, 8, 0);
+    lv_obj_t *sell_card = ui_card_create(body, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_set_style_pad_row(sell_card, 6, 0);
     lv_obj_set_flex_flow(sell_card, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(sell_card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-    lv_obj_clear_flag(sell_card, LV_OBJ_FLAG_SCROLLABLE);
 
-    g_storage_window_ctx.selected_name_label = lv_label_create(sell_card);
-    lv_label_set_text(g_storage_window_ctx.selected_name_label, "Selected: -");
-    lv_obj_set_style_text_color(g_storage_window_ctx.selected_name_label, lv_color_hex(0x5b421f), 0);
+    g_storage_window_ctx.selected_name_label = ui_label_colored(sell_card, "Selected: -", lv_color_hex(0x5b421f));
+    g_storage_window_ctx.owned_label = ui_label_colored(sell_card, "Owned: x0", lv_color_hex(0x5b421f));
 
-    g_storage_window_ctx.owned_label = lv_label_create(sell_card);
-    lv_label_set_text(g_storage_window_ctx.owned_label, "Owned: x0");
-    lv_obj_set_style_text_color(g_storage_window_ctx.owned_label, lv_color_hex(0x5b421f), 0);
-
-    lv_obj_t *qty_row = lv_obj_create(sell_card);
-    lv_obj_set_width(qty_row, LV_PCT(100));
-    lv_obj_set_height(qty_row, LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_opa(qty_row, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(qty_row, 0, 0);
-    lv_obj_set_style_pad_all(qty_row, 0, 0);
+    lv_obj_t *qty_row = ui_transparent_cont_create(sell_card, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(qty_row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(qty_row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_clear_flag(qty_row, LV_OBJ_FLAG_SCROLLABLE);
 
     g_storage_window_ctx.minus_btn = lv_btn_create(qty_row);
     lv_obj_set_size(g_storage_window_ctx.minus_btn, 34, 34);
@@ -131,9 +127,7 @@ lv_obj_t *ui_storage_window_create(void) {
     lv_obj_center(minus_label);
     lv_obj_add_event_cb(g_storage_window_ctx.minus_btn, ui_storage_qty_minus_click_cb, LV_EVENT_CLICKED, NULL);
 
-    g_storage_window_ctx.qty_label = lv_label_create(qty_row);
-    lv_label_set_text(g_storage_window_ctx.qty_label, "0");
-    lv_obj_set_style_text_color(g_storage_window_ctx.qty_label, lv_color_hex(0x5b421f), 0);
+    g_storage_window_ctx.qty_label = ui_label_colored(qty_row, "0", lv_color_hex(0x5b421f));
 
     g_storage_window_ctx.plus_btn = lv_btn_create(qty_row);
     lv_obj_set_size(g_storage_window_ctx.plus_btn, 34, 34);
@@ -142,17 +136,10 @@ lv_obj_t *ui_storage_window_create(void) {
     lv_obj_center(plus_label);
     lv_obj_add_event_cb(g_storage_window_ctx.plus_btn, ui_storage_qty_plus_click_cb, LV_EVENT_CLICKED, NULL);
 
-    g_storage_window_ctx.unit_price_label = lv_label_create(sell_card);
-    lv_label_set_text(g_storage_window_ctx.unit_price_label, "Unit Price: 0");
-    lv_obj_set_style_text_color(g_storage_window_ctx.unit_price_label, lv_color_hex(0x5b421f), 0);
-
-    g_storage_window_ctx.total_label = lv_label_create(sell_card);
-    lv_label_set_text(g_storage_window_ctx.total_label, "Expected Revenue: 0");
-    lv_obj_set_style_text_color(g_storage_window_ctx.total_label, lv_color_hex(0x5b421f), 0);
-
-    g_storage_window_ctx.hint_label = lv_label_create(sell_card);
-    lv_label_set_text(g_storage_window_ctx.hint_label, "Select a crop above to sell");
-    lv_obj_set_style_text_color(g_storage_window_ctx.hint_label, lv_color_hex(0x8a6a3f), 0);
+    g_storage_window_ctx.unit_price_label = ui_label_colored(sell_card, "Unit Price: 0", lv_color_hex(0x5b421f));
+    g_storage_window_ctx.total_label = ui_label_colored(sell_card, "Expected Revenue: 0", lv_color_hex(0x5b421f));
+    g_storage_window_ctx.hint_label =
+        ui_label_colored(sell_card, "Select a crop above to sell", lv_color_hex(0x8a6a3f));
 
     g_storage_window_ctx.sell_btn = lv_btn_create(sell_card);
     lv_obj_set_size(g_storage_window_ctx.sell_btn, LV_PCT(100), 40);
@@ -389,15 +376,4 @@ void ui_storage_qty_plus_click_handle(void) {
         ctx->selected_qty++;
     }
     ui_storage_window_update_controls(player);
-}
-
-void ui_storage_sell_click_handle(void) {
-    ui_storage_window_ctx_t *ctx = &g_storage_window_ctx;
-    if (ctx->selected_type >= CROP_TYPE_NONE || ctx->selected_qty <= 0) {
-        return;
-    }
-
-    if (player_sold(ctx->selected_type, ctx->selected_qty)) {
-        ui_storage_window_refresh();
-    }
 }

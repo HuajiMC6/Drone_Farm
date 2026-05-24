@@ -2,6 +2,7 @@
 
 #include "drone.h"
 #include "ui_common.h"
+#include "ui_message.h"
 
 static int ui_drone_pesticide_used_local(const drone_t *drone);
 
@@ -20,8 +21,19 @@ void ui_drone_mode_button_click_cb(lv_event_t *e) {
 
     if (drone->drone_state == desc->target_state) {
         drone_state_switch(DRONE_STATE_FREE);
+        ui_message_show("Recall the drone.", UI_MESSAGE_TYPE_INFO, UI_MESSAGE_TOAST);
     } else {
         drone_state_switch(desc->target_state);
+        switch (desc->target_state) {
+            case DRONE_STATE_DETECTING:
+                ui_message_show("Drone: start DETECTING.", UI_MESSAGE_TYPE_INFO, UI_MESSAGE_TOAST);
+                break;
+            case DRONE_STATE_AUTO:
+                ui_message_show("Drone: start SPRAYING.", UI_MESSAGE_TYPE_INFO, UI_MESSAGE_TOAST);
+                break;
+            default:
+                break;
+        }
     }
 
     ui_drone_window_refresh();

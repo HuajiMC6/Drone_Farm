@@ -1,7 +1,7 @@
 #ifndef PLAYER_H
 #define PLAYER_H
-#include "drone.h"
 #include "data.h"
+#include "drone.h"
 #include "farm.h"
 
 typedef struct {
@@ -19,7 +19,7 @@ void player_init();
 bool player_buy_seed(crop_type_t seed_type, int n);
 bool player_buy_pesticide(crop_pesticide_t pesticide_type, int n);
 bool player_plant(field_t *field, crop_type_t crop_type);
-bool player_harvest(field_t *field);
+bool player_harvest(field_t *field, int *output);
 bool player_sold(crop_type_t crop_type, int n);
 void player_use_pesticide_exp();
 

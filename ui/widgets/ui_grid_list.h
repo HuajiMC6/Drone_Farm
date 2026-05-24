@@ -56,4 +56,7 @@ bool ui_grid_list_bind_list_event(ui_grid_list_t *list, lv_event_cb_t cb, lv_eve
 /* Access underlying LVGL object. */
 lv_obj_t *ui_grid_list_get_obj(ui_grid_list_t *list);
 
+/* Factory: add an item with centered icon + click event in one call */
+lv_obj_t *ui_grid_list_add_icon_item(ui_grid_list_t *list, const void *icon_src, lv_event_cb_t cb, void *user_data);
+
 #endif
