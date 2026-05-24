@@ -1,6 +1,6 @@
 #ifndef FIELD_H
 #define FIELD_H
-#include "enum.h"
+#include "data.h"
 #include <stdbool.h>
 
 // 田地
@@ -19,12 +19,10 @@ typedef struct {
     crop_stage_t stage;     // 生长阶段
 
     crop_damage_t damage; // 虫害种类
-    bool is_damaged;
-    bool is_detected; // 是否检测(防止多游戏刻检测一块地)
+    bool is_detected;     // 是否检测(防止多游戏刻检测一块地)
 
-    int base_output;     // 基础作物产量
-    double factor;       // 影响因子
-    double extra_factor; // 额外影响因子
+    int base_output; // 基础作物产量
+    double factor;   // 影响因子（包含升级带来的额外加成）
 
     double tolerance; // 抗虫害
 } field_t;
@@ -37,6 +35,9 @@ void field_grow(field_t *field);
 int field_harvest(field_t *field);
 void field_use_pesticide(field_t *field);
 crop_damage_t field_get_damage(field_t *field);
+void field_detect(field_t *field);
+bool field_is_damaged(const field_t *field);
+int field_get_death_percentage(field_t *field);
 
 // 升级接口(升级下一季生效)
 bool field_output_upgrade(field_t *field);

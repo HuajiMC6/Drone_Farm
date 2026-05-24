@@ -1,11 +1,11 @@
 #include "drone.h"
-#include "enum.h"
+#include "data.h"
 #include "event.h"
+#include "ff.h"
 #include "player.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include "ff.h"
 
 static drone_t s_drone_storage;
 static drone_t *s_drone = NULL;
@@ -20,17 +20,21 @@ drone_t *drone_get_instance() {
 void drone_init() {
     if (s_drone == NULL) {
         s_drone = &s_drone_storage;
+        // 先绑定静态无人机对象，再尝试从 SD 卡恢复
         memset(s_drone, 0, sizeof(*s_drone));
-        s_drone->speed = 10;
+        s_drone->speed = drone_speed_values[0];
         s_drone->algorithm_level = 0;
         s_drone->speed_level = 0;
         s_drone->storage_level = 0;
-        s_drone->storage_capacity = 10;
-        for (int i = 0; i < 10; i++)
-            for (int j = 0; j < 10; j++) s_drone->one_zero_matrix[i][j] = 0;
+        s_drone->storage_capacity = drone_storage_capacity_values[0];
+        for (int i = 0; i < GAME_GRID_SIZE; i++)
+            for (int j = 0; j < GAME_GRID_SIZE; j++) s_drone->one_zero_matrix[i][j] = CROP_DAMAGE_NONE;
         for (int i = 0; i < CROP_PESTICIDE_NONE; i++) s_drone->pesticide_storage[i] = 0;
         s_drone->current_pos.x = 0, s_drone->current_pos.y = 0;
         s_drone->drone_state = DRONE_STATE_FREE;
+        if (drone_load()) {
+            return;
+        }
     }
 }
 
@@ -47,140 +51,53 @@ void drone_state_switch(drone_state_t drone_state) {
 
 crop_damage_t drone_detect_damage() {
     farm_t *farm = farm_get_instance();
-    pos_t matrix_pos = {s_drone->current_pos.x / 100, s_drone->current_pos.y / 100};
+    pos_t matrix_pos = {s_drone->current_pos.x / GAME_CELL_SIZE, s_drone->current_pos.y / GAME_CELL_SIZE};
     field_t *field = farm->fields[matrix_pos.x][matrix_pos.y];
     if (field->is_detected)
         return CROP_DAMAGE_NONE;
     else {
-        if (field->damage != CROP_DAMAGE_NONE)
-            s_drone->one_zero_matrix[matrix_pos.x][matrix_pos.y] = 1;
+        field_detect(field); // 标记为已检测
+        s_drone->one_zero_matrix[matrix_pos.x][matrix_pos.y] = field_get_damage(field);
         return field_get_damage(field);
     }
 }
 
+void drone_get_detected_pest_counts(uint8_t counts[CROP_DAMAGE_NONE]) {
+    for (int i = 0; i < CROP_DAMAGE_NONE; i++) counts[i] = 0;
+    for (int i = 0; i < GAME_GRID_SIZE; i++)
+        for (int j = 0; j < GAME_GRID_SIZE; j++) {
+            crop_damage_t damage = s_drone->one_zero_matrix[i][j];
+            if (damage != CROP_DAMAGE_NONE) {
+                counts[damage]++;
+            }
+        }
+}
+
 bool drone_algorithm_update() { // player接口
-    if (s_drone->algorithm_level >= 2)
+    if (s_drone->algorithm_level >= DRONE_ALGORITHM_LEVEL_MAX)
         return false;
     s_drone->algorithm_level++;
     return true;
 }
 
 bool drone_speed_update() { // player接口
-    if (s_drone->speed_level >= 3)
+    if (s_drone->speed_level >= DRONE_SPEED_LEVEL_MAX)
         return false;
     s_drone->speed_level++;
-    if (s_drone->speed_level == 0)
-        s_drone->speed = 10;
-    else if (s_drone->speed_level == 1)
-        s_drone->speed = 20;
-    else if (s_drone->speed_level == 2)
-        s_drone->speed = 30;
-    else if (s_drone->speed_level == 3)
-        s_drone->speed = 50;
+    s_drone->speed = drone_speed_values[s_drone->speed_level];
     return true;
 }
 
 bool drone_storage_update() { // player接口
-    if (s_drone->storage_level >= 3)
+    if (s_drone->storage_level >= DRONE_STORAGE_LEVEL_MAX)
         return false;
     s_drone->storage_level++;
-    if (s_drone->storage_level == 0)
-        s_drone->storage_capacity = 10;
-    else if (s_drone->storage_level == 1)
-        s_drone->storage_capacity = 20;
-    else if (s_drone->storage_level == 2)
-        s_drone->storage_capacity = 30;
-    else if (s_drone->storage_level == 3)
-        s_drone->storage_capacity = 50;
+    s_drone->storage_capacity = drone_storage_capacity_values[s_drone->storage_level];
     return true;
-}
-
-static void reset_matrix() {
-    for (int i = 0; i < 10; i++)
-        for (int j = 0; j < 10; j++) s_drone->one_zero_matrix[i][j] = 0;
 }
 
 static int manhattan_dist(pos_t a, pos_t b) { // 曼哈顿距离
     return abs(a.x - b.x) + abs(a.y - b.y);
-}
-
-static pos_t *traversal_algorithm(int *out_len) { // 全部遍历，可以不写，交给前端，节省空间，但更重要的是保持一致性
-    farm_t *farm = farm_get_instance();
-    int n = farm->current_size;
-    // 先统计病田数量，以便分配准确大小的数组
-    int count = 0;
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < n; j++)
-            if (s_drone->one_zero_matrix[i][j] == 1)
-                count++;
-    if (count == 0) {
-        *out_len = 0;
-        return NULL;
-    }
-    *out_len = n * n;
-    pos_t *arr = (pos_t *)malloc(sizeof(pos_t) * n * n);
-    int index = 0;
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            if (i % 2 == 0)
-                arr[index].x = i, arr[index].y = j, index++;
-            else
-                arr[index].x = i, arr[index].y = n - 1 - j, index++;
-        }
-    }
-    reset_matrix();
-    return arr;
-}
-
-static pos_t *greedy_algorithm(int *out_len) {
-    farm_t *farm = farm_get_instance();
-    int n = farm->current_size;
-
-    // 先统计病田数量，以便分配准确大小的数组
-    int count = 0;
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < n; j++)
-            if (s_drone->one_zero_matrix[i][j] == 1)
-                count++;
-    *out_len = count;
-    if (count == 0)
-        return NULL;
-    // 提取所有病田坐标
-    pos_t *points = (pos_t *)malloc(sizeof(pos_t) * count);
-    int idx = 0;
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < n; j++)
-            if (s_drone->one_zero_matrix[i][j] == 1) {
-                points[idx].x = i;
-                points[idx].y = j;
-                idx++;
-            }
-
-    // 最近邻贪心构造路径
-    pos_t *path = (pos_t *)malloc(sizeof(pos_t) * count);
-    bool *visited = (bool *)calloc(count, sizeof(bool));
-
-    pos_t cur_pos = {0, 0};
-    for (int step = 0; step < count; step++) {
-        int nearest = -1;
-        int min_dist = 1e9;
-        for (int i = 0; i < count; i++) {
-            if (!visited[i]) {
-                int dist = manhattan_dist(points[i], cur_pos);
-                if (dist < min_dist) {
-                    min_dist = dist;
-                    nearest = i;
-                }
-            }
-        }
-        path[step] = points[nearest];
-        visited[nearest] = true;
-        cur_pos = points[nearest];
-    }
-    free(points);
-    free(visited);
-    reset_matrix();
-    return path;
 }
 
 // 对路径执行 2-opt 优化（开放路径，起点固定）
@@ -221,7 +138,7 @@ static pos_t *optimized_greedy_algorithm(int *out_len) {
     int count = 0;
     for (int i = 0; i < n; i++)
         for (int j = 0; j < n; j++)
-            if (s_drone->one_zero_matrix[i][j] == 1)
+            if (s_drone->one_zero_matrix[i][j] != CROP_DAMAGE_NONE)
                 count++;
     *out_len = count;
     if (count == 0)
@@ -232,7 +149,7 @@ static pos_t *optimized_greedy_algorithm(int *out_len) {
     int idx = 0;
     for (int i = 0; i < n; i++)
         for (int j = 0; j < n; j++)
-            if (s_drone->one_zero_matrix[i][j] == 1) {
+            if (s_drone->one_zero_matrix[i][j] != CROP_DAMAGE_NONE) {
                 points[idx].x = i;
                 points[idx].y = j;
                 idx++;
@@ -264,30 +181,27 @@ static pos_t *optimized_greedy_algorithm(int *out_len) {
 
     // 4. 应用 2-opt 优化
     two_opt_optimize(path, count);
-    reset_matrix();
+    // reset_matrix();
 
     return path;
 }
 
 pos_t *drone_auto_path(int *out_len) { // 前端接口，用来前端写路径可视化，即飞行轨迹，并非喷药
-    if (s_drone->algorithm_level == 0)
-        return traversal_algorithm(out_len);
-    else if (s_drone->algorithm_level == 1)
-        return greedy_algorithm(out_len);
-    else if (s_drone->algorithm_level == 2)
-        return optimized_greedy_algorithm(out_len);
-    return NULL;
+    return optimized_greedy_algorithm(out_len);
 }
 
 bool drone_ensure_pesticide(pos_t pos) {
     farm_t *farm = farm_get_instance();
     field_t *field = farm->fields[pos.x][pos.y];
-    if (field->crop_type == CROP_TYPE_NONE || field->stage == CROP_STAGE_READY || field->damage == CROP_DAMAGE_NONE)
-        return false;                                    // 期间可能死了或成熟了
+    if (field->crop_type == CROP_TYPE_NONE || field->stage == CROP_STAGE_READY || !field_is_damaged(field)) {
+        s_drone->one_zero_matrix[pos.x][pos.y] = CROP_DAMAGE_NONE; // 死了或成熟了标记为无病
+        return false;                                              // 期间可能死了或成熟了
+    }
     if (s_drone->pesticide_storage[field->damage] > 0) { // 有药用药
         s_drone->pesticide_storage[field->damage]--;
         field_use_pesticide(field);
         player_use_pesticide_exp();
+        s_drone->one_zero_matrix[pos.x][pos.y] = CROP_DAMAGE_NONE; // 喷药后标记为无病
         event_send(EVENT_ON_PLAYER_PESTICIDE_CHANGE, player_get_instance());
         return true;
     }
@@ -318,22 +232,23 @@ bool drone_remove_pesticide(crop_pesticide_t pesticide, int n) {
 }
 
 void drone_move(pos_t vector) {
-    pos_t new_pos = {s_drone->current_pos.x + (vector.x * s_drone->speed) / 100,
-                     s_drone->current_pos.y + (vector.y * s_drone->speed) / 100};
+    pos_t new_pos = {s_drone->current_pos.x + (vector.x * s_drone->speed) / GAME_CELL_SIZE,
+                     s_drone->current_pos.y + (vector.y * s_drone->speed) / GAME_CELL_SIZE};
     s_drone->current_pos = new_pos;
     farm_t *farm = farm_get_instance();
-    if (new_pos.x >= farm->current_size * 100)
-        s_drone->current_pos.x = farm->current_size * 100 - 1;
+    if (new_pos.x >= farm->current_size * GAME_CELL_SIZE)
+        s_drone->current_pos.x = farm->current_size * GAME_CELL_SIZE - 1;
     if (new_pos.x < 0)
         s_drone->current_pos.x = 0;
-    if (new_pos.y >= farm->current_size * 100)
-        s_drone->current_pos.y = farm->current_size * 100 - 1;
+    if (new_pos.y >= farm->current_size * GAME_CELL_SIZE)
+        s_drone->current_pos.y = farm->current_size * GAME_CELL_SIZE - 1;
     if (new_pos.y < 0)
         s_drone->current_pos.y = 0;
 }
 
 bool drone_save() {
-    if (!s_drone) return false;
+    if (!s_drone)
+        return false;
 
     FIL fil;
     UINT bw;
@@ -355,7 +270,12 @@ bool drone_load() {
     if (f_open(&fil, "0:/drone_save.dat", FA_READ) != FR_OK)
         return false;
 
-    drone_t *drone = drone_get_instance();
+    // 直接读回静态无人机存储区，避免再次进入 drone_init()
+    if (!s_drone) {
+        s_drone = &s_drone_storage;
+    }
+
+    drone_t *drone = s_drone;
     if (f_read(&fil, drone, sizeof(drone_t), &br) != FR_OK || br != sizeof(drone_t)) {
         f_close(&fil);
         return false;
@@ -363,4 +283,10 @@ bool drone_load() {
 
     f_close(&fil);
     return true;
+}
+
+bool drone_delete() {
+    // 删除无人机存档文件；文件不存在时也视为已经删除成功
+    FRESULT res = f_unlink("0:/drone_save.dat");
+    return res == FR_OK || res == FR_NO_FILE;
 }

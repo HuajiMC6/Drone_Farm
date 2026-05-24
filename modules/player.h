@@ -1,9 +1,8 @@
 #ifndef PLAYER_H
 #define PLAYER_H
+#include "data.h"
 #include "drone.h"
-#include "enum.h"
 #include "farm.h"
-#include "store.h"
 
 typedef struct {
     int experience;
@@ -15,19 +14,19 @@ typedef struct {
     crop_pesticide_t pesticide_bag[CROP_PESTICIDE_NONE];
 } player_t;
 
-extern int harvest_exp_earn[CROP_TYPE_NONE];
-extern int plant_exp_earn;
-extern int use_pesticide_exp_earn;
-extern int experience_level[40];
-
 player_t *player_get_instance();
 void player_init();
 bool player_buy_seed(crop_type_t seed_type, int n);
 bool player_buy_pesticide(crop_pesticide_t pesticide_type, int n);
 bool player_plant(field_t *field, crop_type_t crop_type);
-bool player_harvest(field_t *field);
-bool player_sold(crop_type_t crop_type, int n);
+bool player_harvest(field_t *field, int *output);
+bool player_sold(crop_type_t crop_type, int n, int *total_earning);
 void player_use_pesticide_exp();
+
+int player_get_experience();
+int player_get_level();
+int player_get_next_level_experience();
+int player_get_this_level_experience();
 
 // drone
 bool player_buy_drone_speed_update();
@@ -38,11 +37,12 @@ bool player_buy_drone_storage_update();
 bool player_buy_farm_size_update();
 
 // field
-bool player_buy_field_output_update(pos_t pos);
-bool player_buy_field_ready_time_update(pos_t pos);
-bool player_buy_field_tolerance_update(pos_t pos);
+bool player_buy_field_output_upgrade(field_t *field);
+bool player_buy_field_ready_time_upgrade(field_t *field);
+bool player_buy_field_tolerance_upgrade(field_t *field);
 
 bool player_save();
 bool player_load();
+bool player_delete();
 
 #endif

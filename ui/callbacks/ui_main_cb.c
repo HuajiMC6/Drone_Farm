@@ -1,11 +1,21 @@
 #include "ui_main_cb.h"
 
+#include "audio.h"
 #include "player.h"
 #include "ui_common.h"
+#include "ui_message.h"
 #include "ui_window.h"
+
+/* UI层接口 */
+void ui_farm_size_upgrade_btn_refresh(void);
 
 static bool ui_main_obj_overlap(lv_obj_t *obj1, lv_obj_t *obj2, lv_coord_t hor_offset, lv_coord_t ver_offset);
 static void ui_main_toggle_window_from_desc(ui_window_toggle_desc_t *desc);
+
+void ui_reset(void);
+
+/* 长按标志位，避免长按后触发click事件 */
+static bool ui_farm_field_long_pressed = false;
 
 static void ui_main_toggle_window_from_desc(ui_window_toggle_desc_t *desc) {
     if (!desc || !desc->create) {
@@ -36,31 +46,126 @@ static void ui_main_toggle_window_from_desc(ui_window_toggle_desc_t *desc) {
     }
 }
 
-void ui_main_field_block_click_cb(lv_event_t *e) {
-    lv_obj_t *btn = lv_event_get_target(e);
-    if (!lv_obj_has_state(btn, LV_STATE_CHECKED)) {
-        return;
-    }
-
-    lv_obj_t *parent = lv_obj_get_parent(btn);
+static void ui_farm_fields_clear_checked_state(lv_obj_t *parent) {
     lv_obj_t *child;
     uint8_t idx = 0;
     while ((child = lv_obj_get_child(parent, idx++)) != NULL) {
-        if (child != btn && lv_obj_has_flag(child, LV_OBJ_FLAG_CHECKABLE)) {
+        if (lv_obj_has_flag(child, LV_OBJ_FLAG_CHECKABLE)) {
             lv_obj_clear_state(child, LV_STATE_CHECKED);
         }
     }
+}
 
+void ui_main_field_block_click_cb(lv_event_t *e) {
+    lv_obj_t *btn = lv_event_get_current_target(e);
     farm_block_t *info = lv_obj_get_user_data(btn);
-    (void)info;
+
+    // 避免长按后触发click事件
+    if (ui_farm_field_long_pressed) {
+        ui_farm_field_long_pressed = false;
+        return;
+    }
+
+    static uint32_t last_click_tick = 0;
+    static farm_block_t *last_clicked_block = NULL;
+    uint32_t current_tick = lv_tick_get();
+
+    // 检测双击or单击
+    if (current_tick - last_click_tick < 250 && info == last_clicked_block) { // 双击同一块土地，触发收获判定
+        last_click_tick = 0;
+
+        if (info->is_planted) {
+            int output;
+            bool result = player_harvest(info->field, &output);
+
+            if (result) {
+                char message[64];
+                snprintf(message, sizeof(message), "Harvest successful! You got %d units.", output);
+                ui_message_show(message, UI_MESSAGE_TYPE_SUCCESS, UI_MESSAGE_TOAST);
+            } else {
+                ui_message_show("The crop has NOT been ripe!", UI_MESSAGE_TYPE_ERROR, UI_MESSAGE_TOAST);
+            }
+
+            lv_obj_add_state(btn, LV_STATE_CHECKED); // 收获保持选中状态
+        }
+    } else { // 单击，触发选中状态切换
+        last_click_tick = current_tick;
+        last_clicked_block = info;
+
+        // 状态切换先于事件发生，故这里获取到的是切换后的状态
+        if (!lv_obj_has_state(btn, LV_STATE_CHECKED)) {
+            return; // 即当前是未被选中状态，也就是当前事件是取消选中，不需要执行后面清除其他田地选中状态的操作
+        }
+
+        // 反之如果是选中事件，先清除其他田地的选中状态，再设置当前田地为选中状态
+        lv_obj_t *parent = lv_obj_get_parent(btn);
+        ui_farm_fields_clear_checked_state(parent);
+        lv_obj_add_state(btn, LV_STATE_CHECKED);
+
+        // 当窗口显示时点击其他田地切换田地信息窗口
+        ui_field_upgrade_window_switch(info);
+    }
+}
+
+void ui_main_field_block_long_press_cb(lv_event_t *e) {
+    ui_farm_field_long_pressed = true;
+
+    lv_obj_t *btn = lv_event_get_current_target(e);
+    farm_block_t *block = lv_obj_get_user_data(btn);
+    void (*window_show)(void *) = lv_event_get_user_data(e);
+    if (block) {
+        window_show(block);
+
+        // 长按后保持当前田地选中状态，清除其他田地的选中状态
+        ui_farm_fields_clear_checked_state(lv_obj_get_parent(btn));
+    }
+}
+
+void ui_main_filed_output_upgrade_click_cb(lv_event_t *e) {
+    field_t **field = lv_event_get_user_data(e);
+    if (!field || !*field) {
+        return;
+    }
+
+    bool result = player_buy_field_output_upgrade(*field);
+    if (!result) {
+        ui_message_show("Not enough gold!", UI_MESSAGE_TYPE_ERROR, UI_MESSAGE_TOAST);
+    } else {
+        ui_message_show("Upgrade successful!", UI_MESSAGE_TYPE_SUCCESS, UI_MESSAGE_TOAST);
+    }
+}
+
+void ui_main_ready_time_upgrade_click_cb(lv_event_t *e) {
+    field_t **field = lv_event_get_user_data(e);
+    if (!field || !*field) {
+        return;
+    }
+
+    bool result = player_buy_field_ready_time_upgrade(*field);
+    if (!result) {
+        ui_message_show("Not enough gold!", UI_MESSAGE_TYPE_ERROR, UI_MESSAGE_TOAST);
+    } else {
+        ui_message_show("Upgrade successful!", UI_MESSAGE_TYPE_SUCCESS, UI_MESSAGE_TOAST);
+    }
+}
+
+void ui_main_tolerance_upgrade_click_cb(lv_event_t *e) {
+    field_t **field = lv_event_get_user_data(e);
+    if (!field || !*field) {
+        return;
+    }
+
+    bool result = player_buy_field_tolerance_upgrade(*field);
+    if (!result) {
+        ui_message_show("Not enough gold!", UI_MESSAGE_TYPE_ERROR, UI_MESSAGE_TOAST);
+    } else {
+        ui_message_show("Upgrade successful!", UI_MESSAGE_TYPE_SUCCESS, UI_MESSAGE_TOAST);
+    }
 }
 
 void ui_main_screen_click_cb(lv_event_t *e) {
     lv_obj_t *target = lv_event_get_target(e);
     lv_obj_t *obj = lv_event_get_user_data(e);
-    if (!obj) {
-        return;
-    }
 
     if (target == obj || lv_obj_get_parent(target) == obj) {
         return;
@@ -70,11 +175,7 @@ void ui_main_screen_click_cb(lv_event_t *e) {
     if (current_window) {
         ui_window_hide_current();
     } else {
-        lv_obj_t *child;
-        uint8_t idx = 0;
-        while ((child = lv_obj_get_child(obj, idx++)) != NULL) {
-            lv_obj_clear_state(child, LV_STATE_CHECKED);
-        }
+        ui_farm_fields_clear_checked_state(obj);
     }
 }
 
@@ -98,7 +199,7 @@ void ui_main_seed_drag_event_cb(lv_event_t *e) {
         case LV_EVENT_PRESSING:
             if (type != desc->type) {
                 type = desc->type;
-                img = lv_img_create(lv_scr_act());
+                img = lv_img_create(lv_layer_top()); // 以lv_layer_top()为父对象，保证拖动时定位不偏移
 
                 lv_point_t point;
                 lv_indev_get_point(lv_event_get_indev(e), &point);
@@ -144,6 +245,7 @@ void ui_main_seed_drag_event_cb(lv_event_t *e) {
                 if (block_data && !block_data->is_planted) {
                     player_plant(block_data->field, type);
                 }
+                lv_obj_clear_state(current_target, LV_STATE_CHECKED);
             }
 
             if (img && lv_obj_is_valid(img)) {
@@ -175,7 +277,7 @@ void ui_main_drone_click_cb(lv_event_t *e) {
     in_drone_click = false;
 }
 
-void ui_main_crop_growing_bar_draw_part_end_cb(lv_event_t *e) {
+void ui_main_crop_bar_draw_part_end_cb(lv_event_t *e) {
     lv_obj_draw_part_dsc_t *dsc = lv_event_get_param(e);
     if (dsc->part != LV_PART_INDICATOR) {
         return;
@@ -185,7 +287,7 @@ void ui_main_crop_growing_bar_draw_part_end_cb(lv_event_t *e) {
 
     lv_draw_label_dsc_t label_dsc;
     lv_draw_label_dsc_init(&label_dsc);
-    label_dsc.font = &lv_font_montserrat_10;
+    label_dsc.font = &lv_font_montserrat_8;
 
     char buf[8];
     lv_snprintf(buf, sizeof(buf), "%d", (int)lv_bar_get_value(obj));
@@ -210,6 +312,63 @@ void ui_main_crop_growing_bar_draw_part_end_cb(lv_event_t *e) {
 
     lv_draw_label(dsc->draw_ctx, &label_dsc, &txt_area, buf, NULL);
 }
+
+void ui_main_field_size_upgrade_click_cb(lv_event_t *e) {
+    bool result = player_buy_farm_size_update();
+    if (!result) {
+        ui_message_show("Not enough gold!", UI_MESSAGE_TYPE_ERROR, UI_MESSAGE_TOAST);
+    } else {
+        ui_message_show("Upgrade successful!", UI_MESSAGE_TYPE_SUCCESS, UI_MESSAGE_TOAST);
+        ui_farm_size_upgrade_btn_refresh();
+    }
+}
+
+// for debug ---
+
+void ui_setting_reset_game_cb(lv_event_t *e) {
+    farm_delete();
+    drone_delete();
+    player_delete();
+}
+
+void ui_setting_add_coins_cb(lv_event_t *e) {
+    player_t *player = player_get_instance();
+    if (player) {
+        player->coins += 100000;
+    }
+}
+
+void debug_heartbear_timer_set_period(uint32_t period_ms);
+
+void debug_timer_period_slider_event_cb(lv_event_t *e) {
+    lv_obj_t *slider = lv_event_get_current_target(e);
+    lv_obj_t *label = lv_event_get_user_data(e);
+
+    int value = lv_slider_get_value(slider);
+    char buf[16];
+    int ms = 19 * value + 50;
+    lv_snprintf(buf, sizeof(buf), "%dms", ms);
+    lv_label_set_text(label, buf);
+
+    debug_heartbear_timer_set_period(ms);
+}
+
+void debug_screenshot_cb(lv_event_t *e) {
+    ui_window_hide_current(); // 截图前隐藏当前窗口，保证截图界面干净
+}
+
+void debug_volume_slider_event_cb(lv_event_t *e) {
+    lv_obj_t *slider = lv_event_get_current_target(e);
+    lv_obj_t *label = lv_event_get_user_data(e);
+
+    int value = lv_slider_get_value(slider);
+    char buf[16];
+    lv_snprintf(buf, sizeof(buf), "Volume: %d%%", value);
+    lv_label_set_text(label, buf);
+
+    audio_set_volume(value);
+}
+// for debug ---
 
 static bool ui_main_obj_overlap(lv_obj_t *obj1, lv_obj_t *obj2, lv_coord_t hor_offset, lv_coord_t ver_offset) {
     lv_area_t a1, a2;

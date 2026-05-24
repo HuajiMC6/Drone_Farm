@@ -1,9 +1,10 @@
 #include "farm.h"
-#include "enum.h"
-#include <stdlib.h>
-#include <stdbool.h>
-#include <string.h>
+#include "data.h"
+#include "event.h"
 #include "ff.h"
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
 
 static farm_t s_farm_storage;
 static farm_t *s_farm = NULL;
@@ -11,11 +12,15 @@ static farm_t *s_farm = NULL;
 void farm_init() {
     if (s_farm == NULL) {
         s_farm = &s_farm_storage;
+        // 先建立静态农场对象，再尝试从 SD 卡恢复
         memset(s_farm, 0, sizeof(*s_farm));
-        for (int i = 0; i < 10; i++)
-            for (int j = 0; j < 10; j++) s_farm->fields[i][j] = field_init(i, j);
-        s_farm->current_size = 5;
+        for (int i = 0; i < GAME_GRID_SIZE; i++)
+            for (int j = 0; j < GAME_GRID_SIZE; j++) s_farm->fields[i][j] = field_init(i, j);
+        s_farm->current_size = farm_size_by_level[0];
         s_farm->size_level = 0;
+        if (farm_load()) {
+            return;
+        }
     }
 }
 
@@ -27,17 +32,12 @@ farm_t *farm_get_instance() {
 }
 
 bool farm_size_update() {
-    if (s_farm->size_level >= 3)
+    if (s_farm->size_level >= FARM_SIZE_LEVEL_MAX)
         return false;
     s_farm->size_level++;
-    if (s_farm->size_level == 0)
-        s_farm->current_size = 5;
-    else if (s_farm->size_level == 1)
-        s_farm->current_size = 7;
-    else if (s_farm->size_level == 2)
-        s_farm->current_size = 9;
-    else if (s_farm->size_level == 3)
-        s_farm->current_size = 10;
+    s_farm->current_size = farm_size_by_level[s_farm->size_level];
+    // 农场大小变化后通知 UI 重新构建田地网格
+    event_send(EVENT_ON_FARM_SIZE_UPGRADE, s_farm);
     return true;
 }
 
@@ -53,7 +53,8 @@ int get_farm_size() {
 }
 
 bool farm_save() {
-    if (!s_farm) return false;
+    if (!s_farm)
+        return false;
 
     FIL fil;
     UINT bw;
@@ -76,7 +77,8 @@ bool farm_save() {
     for (int i = 0; i < size; i++)
         for (int j = 0; j < size; j++) {
             field_t *f = s_farm->fields[i][j];
-            if (!f) continue;
+            if (!f)
+                continue;
 
             if (f_write(&fil, &f->x, sizeof(int), &bw) != FR_OK || bw != sizeof(int)) {
                 f_close(&fil);
@@ -131,12 +133,7 @@ bool farm_save() {
                 return false;
             }
 
-            int damaged  = f->is_damaged  ? 1 : 0;
             int detected = f->is_detected ? 1 : 0;
-            if (f_write(&fil, &damaged, sizeof(int), &bw) != FR_OK || bw != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
             if (f_write(&fil, &detected, sizeof(int), &bw) != FR_OK || bw != sizeof(int)) {
                 f_close(&fil);
                 return false;
@@ -147,10 +144,6 @@ bool farm_save() {
                 return false;
             }
             if (f_write(&fil, &f->factor, sizeof(double), &bw) != FR_OK || bw != sizeof(double)) {
-                f_close(&fil);
-                return false;
-            }
-            if (f_write(&fil, &f->extra_factor, sizeof(double), &bw) != FR_OK || bw != sizeof(double)) {
                 f_close(&fil);
                 return false;
             }
@@ -171,7 +164,12 @@ bool farm_load() {
     if (f_open(&fil, "0:/farm_save.dat", FA_READ) != FR_OK)
         return false;
 
-    farm_t *farm = farm_get_instance();
+    // 直接读回静态农场存储区，避免递归调用 farm_get_instance()
+    if (!s_farm) {
+        s_farm = &s_farm_storage;
+    }
+
+    farm_t *farm = s_farm;
 
     int size;
     if (f_read(&fil, &size, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
@@ -187,7 +185,8 @@ bool farm_load() {
     for (int i = 0; i < size; i++)
         for (int j = 0; j < size; j++) {
             field_t *f = farm->fields[i][j];
-            if (!f) continue;
+            if (!f)
+                continue;
 
             if (f_read(&fil, &f->x, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
                 f_close(&fil);
@@ -245,16 +244,11 @@ bool farm_load() {
             }
             f->damage = (crop_damage_t)damage;
 
-            int damaged, detected;
-            if (f_read(&fil, &damaged, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
+            int detected;
             if (f_read(&fil, &detected, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
                 f_close(&fil);
                 return false;
             }
-            f->is_damaged  = damaged  ? true : false;
             f->is_detected = detected ? true : false;
 
             if (f_read(&fil, &f->base_output, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
@@ -262,10 +256,6 @@ bool farm_load() {
                 return false;
             }
             if (f_read(&fil, &f->factor, sizeof(double), &br) != FR_OK || br != sizeof(double)) {
-                f_close(&fil);
-                return false;
-            }
-            if (f_read(&fil, &f->extra_factor, sizeof(double), &br) != FR_OK || br != sizeof(double)) {
                 f_close(&fil);
                 return false;
             }
@@ -278,4 +268,10 @@ bool farm_load() {
 
     f_close(&fil);
     return true;
+}
+
+bool farm_delete() {
+    // 删除农场存档文件；文件不存在时也视为已经删除成功
+    FRESULT res = f_unlink("0:/farm_save.dat");
+    return res == FR_OK || res == FR_NO_FILE;
 }

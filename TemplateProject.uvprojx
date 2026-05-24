@@ -475,6 +475,21 @@
               <FilePath>.\ui\callbacks\ui_shop_cb.c</FilePath>
             </File>
             <File>
+              <FileName>ui_storage.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\layouts\ui_storage.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_storage_cb.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\ui\callbacks\ui_storage_cb.h</FilePath>
+            </File>
+            <File>
+              <FileName>ui_storage_cb.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\callbacks\ui_storage_cb.c</FilePath>
+            </File>
+            <File>
               <FileName>ui_window_cb.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\ui\callbacks\ui_window_cb.h</FilePath>
@@ -534,100 +549,35 @@
               <FileType>1</FileType>
               <FilePath>.\ui\layouts\ui_shop.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>icon</GroupName>
-          <Files>
             <File>
-              <FileName>icon_field_bg.c</FileName>
+              <FileName>ui_load_cb.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\UI\icon\icon_field_bg.c</FilePath>
+              <FilePath>.\ui\callbacks\ui_load_cb.c</FilePath>
             </File>
             <File>
-              <FileName>icon_farm_bg.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\ui\icon\icon_farm_bg.c</FilePath>
+              <FileName>ui_load_cb.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\ui\callbacks\ui_load_cb.h</FilePath>
             </File>
             <File>
-              <FileName>icon_gold_bar_bg.c</FileName>
+              <FileName>audio.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\ui\icon\icon_gold_bar_bg.c</FilePath>
+              <FilePath>.\ui\audio.c</FilePath>
             </File>
             <File>
-              <FileName>icon_plant_btn.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\ui\icon\icon_plant_btn.c</FilePath>
+              <FileName>audio.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\ui\audio.h</FilePath>
             </File>
             <File>
-              <FileName>icon_setting_btn.c</FileName>
+              <FileName>ui_message.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\ui\icon\icon_setting_btn.c</FilePath>
+              <FilePath>.\ui\widgets\ui_message.c</FilePath>
             </File>
             <File>
-              <FileName>icon_shop_btn.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\ui\icon\icon_shop_btn.c</FilePath>
-            </File>
-            <File>
-              <FileName>icon_storage_btn.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\ui\icon\icon_storage_btn.c</FilePath>
-            </File>
-            <File>
-              <FileName>icon_crop_corn.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\ui\icon\icon_crop_corn.c</FilePath>
-            </File>
-            <File>
-              <FileName>icon_crop_wheat_young.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\ui\icon\icon_crop_wheat_young.c</FilePath>
-            </File>
-            <File>
-              <FileName>icon_crop_wheat_ripe.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\ui\icon\icon_crop_wheat_ripe.c</FilePath>
-            </File>
-            <File>
-              <FileName>icon_crop_corn_ripe.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\ui\icon\icon_crop_corn_ripe.c</FilePath>
-            </File>
-            <File>
-              <FileName>icon_drone_0.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\ui\icon\icon_drone_0.c</FilePath>
-            </File>
-            <File>
-              <FileName>icon_drone_1.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\ui\icon\icon_drone_1.c</FilePath>
-            </File>
-            <File>
-              <FileName>icon_pest_unknown.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\ui\icon\icon_pest_unknown.c</FilePath>
-            </File>
-            <File>
-              <FileName>icon_pest_aphid.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\ui\icon\icon_pest_aphid.c</FilePath>
-            </File>
-            <File>
-              <FileName>icon_pest_leafroller.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\ui\icon\icon_pest_leafroller.c</FilePath>
-            </File>
-            <File>
-              <FileName>icon_pest_locust.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\ui\icon\icon_pest_locust.c</FilePath>
-            </File>
-            <File>
-              <FileName>icon_pest_mite.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\ui\icon\icon_pest_mite.c</FilePath>
+              <FileName>ui_message.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\ui\widgets\ui_message.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -643,11 +593,6 @@
               <FileName>drone.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\modules\drone.h</FilePath>
-            </File>
-            <File>
-              <FileName>enum.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\modules\enum.h</FilePath>
             </File>
             <File>
               <FileName>farm.c</FileName>
@@ -680,16 +625,6 @@
               <FilePath>.\modules\player.h</FilePath>
             </File>
             <File>
-              <FileName>store.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\modules\store.c</FilePath>
-            </File>
-            <File>
-              <FileName>store.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\modules\store.h</FilePath>
-            </File>
-            <File>
               <FileName>event.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\modules\event.c</FilePath>
@@ -700,9 +635,204 @@
               <FilePath>.\modules\event.h</FilePath>
             </File>
             <File>
-              <FileName>enum.c</FileName>
+              <FileName>data.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\modules\enum.c</FilePath>
+              <FilePath>.\modules\data.c</FilePath>
+            </File>
+            <File>
+              <FileName>data.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\modules\data.h</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>icon</GroupName>
+          <Files>
+            <File>
+              <FileName>icon_crop_corn.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_crop_corn.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_crop_corn_bloom.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_crop_corn_bloom.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_crop_corn_grow.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_crop_corn_grow.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_crop_corn_ripe.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_crop_corn_ripe.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_crop_corn_seed.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_crop_corn_seed.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_crop_corn_young.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_crop_corn_young.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_crop_rice.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_crop_rice.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_crop_rice_bloom.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_crop_rice_bloom.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_crop_rice_grow.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_crop_rice_grow.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_crop_rice_ripe.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_crop_rice_ripe.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_crop_rice_seed.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_crop_rice_seed.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_crop_rice_young.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_crop_rice_young.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_crop_wheat.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_crop_wheat.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_crop_wheat_bloom.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_crop_wheat_bloom.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_crop_wheat_grow.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_crop_wheat_grow.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_crop_wheat_ripe.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_crop_wheat_ripe.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_crop_wheat_seed.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_crop_wheat_seed.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_crop_wheat_young.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_crop_wheat_young.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_drone_0.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_drone_0.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_drone_1.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_drone_1.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_exp_bar_bg.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_exp_bar_bg.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_farm_bg.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_farm_bg.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_field_bg.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_field_bg.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_gold_bar_bg.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_gold_bar_bg.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_pest_aphid.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_pest_aphid.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_pest_leafroller.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_pest_leafroller.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_pest_locust.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_pest_locust.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_pest_mite.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_pest_mite.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_pest_unknown.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_pest_unknown.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_pesticide_aphid.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_pesticide_aphid.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_pesticide_leafroller.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_pesticide_leafroller.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_pesticide_locust.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_pesticide_locust.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_pesticide_mite.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_pesticide_mite.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_plant_btn.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_plant_btn.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_setting_btn.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_setting_btn.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_shop_btn.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_shop_btn.c</FilePath>
+            </File>
+            <File>
+              <FileName>icon_storage_btn.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\icon\icon_storage_btn.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -764,6 +894,11 @@
               <FileType>1</FileType>
               <FilePath>.\GD32H7xx_standard_peripheral\Source\gd32h7xx_trng.c</FilePath>
             </File>
+            <File>
+              <FileName>gd32h7xx_sai.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\GD32H7xx_standard_peripheral\Source\gd32h7xx_sai.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -813,6 +948,16 @@
               <FileName>joystick.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Drivers\joystick.c</FilePath>
+            </File>
+            <File>
+              <FileName>speaker.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Drivers\speaker.c</FilePath>
+            </File>
+            <File>
+              <FileName>speaker.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Drivers\speaker.h</FilePath>
             </File>
           </Files>
         </Group>

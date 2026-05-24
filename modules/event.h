@@ -2,21 +2,23 @@
 #define __EVENT_H__
 
 typedef enum {
-    EVENT_ON_FIELD_PLANTED,            // 种植事件
-    EVENT_ON_FIELD_CLEARED,            // 清空事件
-    EVENT_ON_FIELD_HARVESTED,          // 收获事件
-    EVENT_ON_CROP_STAGE_CHANGE,        // 作物生长阶段改变事件
-    EVENT_ON_PEST_DETECTED,            // 虫害检测事件
-    EVENT_ON_PEST_SUFFERING,           // 虫害发生事件
-    EVENT_ON_PEST_CLEARED,             // 虫害清除事件
-    EVENT_ON_FIELD_UPGRADE,            // 田地升级事件
-    EVENT_ON_PLAYER_COIN_CHANGE,       // 玩家金币改变事件
-    EVENT_ON_PLAYER_SEED_CHANGE,       // 玩家种子背包改变事件
-    EVENT_ON_PLAYER_PESTICIDE_CHANGE,  // 玩家农药背包改变事件
-    EVENT_ON_PLAYER_EXPERIENCE_CHANGE, // 玩家经验改变事件
-    EVENT_ON_PLAYER_LEVEL_UPGRADE,     // 玩家等级提升事件
-    EVENT_ON_DRONE_TO_FREE,            // 无人机切换至空闲状态事件
-    EVENT_ON_DRONE_TO_MOVING,          // 无人机切换至工作状态事件
+    EVENT_ON_FIELD_PLANTED,             // 种植事件
+    EVENT_ON_FIELD_CLEARED,             // 清空事件
+    EVENT_ON_FIELD_HARVESTED,           // 收获事件
+    EVENT_ON_CROP_STAGE_CHANGE,         // 作物生长阶段改变事件
+    EVENT_ON_PEST_DETECTED,             // 虫害检测事件
+    EVENT_ON_PEST_SUFFERING,            // 虫害发生事件
+    EVENT_ON_PEST_CLEARED,              // 虫害清除事件
+    EVENT_ON_FIELD_UPGRADE,             // 田地升级事件
+    EVENT_ON_FARM_SIZE_UPGRADE,         // 农场大小升级事件
+    EVENT_ON_PLAYER_COIN_CHANGE,        // 玩家金币改变事件
+    EVENT_ON_PLAYER_SEED_CHANGE,        // 玩家种子背包改变事件
+    EVENT_ON_PLAYER_HARVEST_BAG_CHANGE, // 玩家收获背包改变事件
+    EVENT_ON_PLAYER_PESTICIDE_CHANGE,   // 玩家农药背包改变事件
+    EVENT_ON_PLAYER_EXPERIENCE_CHANGE,  // 玩家经验改变事件
+    EVENT_ON_PLAYER_LEVEL_UPGRADE,      // 玩家等级提升事件
+    EVENT_ON_DRONE_TO_FREE,             // 无人机切换至空闲状态事件
+    EVENT_ON_DRONE_TO_MOVING,           // 无人机切换至工作状态事件
 } event_type_t;
 
 typedef struct {

@@ -9,6 +9,7 @@ static lv_obj_t *g_window_mask = NULL;
 typedef struct {
     lv_obj_t *window;
     bool use_mask;
+    lv_obj_t *follow_target;
 } ui_window_meta_t;
 
 static ui_window_meta_t g_window_meta[UI_WINDOW_META_MAX];
@@ -22,6 +23,7 @@ static void ui_window_meta_set(lv_obj_t *window, bool use_mask) {
         if (g_window_meta[i].window == window || g_window_meta[i].window == NULL) {
             g_window_meta[i].window = window;
             g_window_meta[i].use_mask = use_mask;
+            g_window_meta[i].follow_target = NULL;
             return;
         }
     }
@@ -50,6 +52,7 @@ static void ui_window_meta_remove(lv_obj_t *window) {
         if (g_window_meta[i].window == window) {
             g_window_meta[i].window = NULL;
             g_window_meta[i].use_mask = false;
+            g_window_meta[i].follow_target = NULL;
             return;
         }
     }
@@ -74,8 +77,8 @@ static lv_obj_t *ui_window_mask_ensure(lv_obj_t *parent) {
             g_window_mask = NULL;
         }
 
-        g_window_mask = lv_obj_create(parent);
-        lv_obj_set_size(g_window_mask, LV_PCT(100), LV_PCT(100));
+        g_window_mask = lv_obj_create(lv_layer_top());
+        lv_obj_set_size(g_window_mask, 1024, 600);
         lv_obj_set_style_radius(g_window_mask, 0, 0);
         lv_obj_set_style_border_width(g_window_mask, 0, 0);
         lv_obj_set_style_bg_color(g_window_mask, lv_color_make(20, 20, 20), 0);
@@ -83,6 +86,7 @@ static lv_obj_t *ui_window_mask_ensure(lv_obj_t *parent) {
         lv_obj_set_style_pad_all(g_window_mask, 0, 0);
         lv_obj_clear_flag(g_window_mask, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_flag(g_window_mask, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_flag(g_window_mask, LV_OBJ_FLAG_FLOATING); // 不随屏幕滚动而滚动，保证显示正常
         lv_obj_add_event_cb(g_window_mask, ui_window_mask_click_cb, LV_EVENT_CLICKED, NULL);
         lv_obj_add_flag(g_window_mask, LV_OBJ_FLAG_HIDDEN);
     }
@@ -121,8 +125,11 @@ void ui_window_lifecycle_delete_handle(lv_obj_t *target) {
     }
 }
 
-lv_obj_t *ui_window_create(lv_obj_t *parent, const char *title, lv_obj_t *body, bool enable_mask) {
-    lv_obj_t *div = lv_obj_create(parent);
+lv_obj_t *ui_window_create(const char *title, lv_obj_t *body, bool enable_mask) {
+    // lv_obj_t *div = lv_obj_create(parent);
+
+    // 窗口对象置于最顶层
+    lv_obj_t *div = lv_obj_create(lv_layer_top());
     static const lv_coord_t col_dsc[] = {LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
     static const lv_coord_t row_dsc[] = {40, LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
 
@@ -136,6 +143,8 @@ lv_obj_t *ui_window_create(lv_obj_t *parent, const char *title, lv_obj_t *body, 
     lv_obj_set_layout(div, LV_LAYOUT_GRID);
     lv_obj_set_grid_dsc_array(div, col_dsc, row_dsc);
     lv_obj_set_style_pad_row(div, 0, 0);
+
+    lv_obj_move_foreground(div); // 将弹窗置于最上层
 
     lv_obj_add_event_cb(div, ui_window_lifecycle_delete_cb, LV_EVENT_DELETE, NULL);
 
@@ -169,10 +178,39 @@ lv_obj_t *ui_window_create(lv_obj_t *parent, const char *title, lv_obj_t *body, 
 
     lv_obj_clear_flag(div, LV_OBJ_FLAG_SCROLLABLE);
 
+    lv_obj_add_flag(div, LV_OBJ_FLAG_FLOATING); // 默认：不随屏幕滚动而滚动，保证显示正常
+
     ui_window_meta_set(div, enable_mask);
 
     ui_window_show(div);
     return div;
+}
+
+void ui_window_set_display_relative(lv_obj_t *window) {
+    lv_obj_clear_flag(window, LV_OBJ_FLAG_FLOATING);
+}
+
+void ui_window_follow_scroll(lv_obj_t *window, lv_obj_t *target) {
+    if (!window || !lv_obj_is_valid(window)) {
+        return;
+    }
+    if (!target || !lv_obj_is_valid(target)) {
+        return;
+    }
+
+    for (int i = 0; i < UI_WINDOW_META_MAX; i++) {
+        if (g_window_meta[i].window == window) {
+            g_window_meta[i].follow_target = target;
+            break;
+        }
+    }
+
+    lv_obj_t *target_parent = lv_obj_get_parent(target);
+    lv_obj_set_parent(window, target_parent);
+
+    lv_obj_clear_flag(window, LV_OBJ_FLAG_FLOATING);
+
+    lv_obj_move_foreground(window);
 }
 
 void ui_window_show(lv_obj_t *window) {
