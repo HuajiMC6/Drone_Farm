@@ -569,6 +569,16 @@
               <FileType>5</FileType>
               <FilePath>.\ui\audio.h</FilePath>
             </File>
+            <File>
+              <FileName>ui_message.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\widgets\ui_message.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_message.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\ui\widgets\ui_message.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

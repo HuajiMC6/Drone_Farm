@@ -20,8 +20,24 @@ typedef struct {
     bool is_detected;
 } farm_block_t;
 
-/* 工具函数 */
+/* ──────── 工具函数 ──────── */
 lv_obj_t *ui_div_create(lv_obj_t *parent);
+
+/* 透明弹性容器：无底色 + 无边框 + 零内边距 + 禁用滚动 */
+lv_obj_t *ui_transparent_cont_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h);
+
+/* 样式卡片：浅米色底 + 灰棕边框 + 圆角 10 + pad 8 + 禁用滚动 */
+lv_obj_t *ui_card_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h);
+
+/* 快速创建带颜色标签 */
+lv_obj_t *ui_label_colored(lv_obj_t *parent, const char *text, lv_color_t color);
+
+/* 带弹性布局的卡片：ui_card_create + flex COLUMN + pad_row 6 + scrollbar OFF */
+lv_obj_t *ui_card_create_with_flex(lv_obj_t *parent, lv_coord_t w, lv_coord_t h);
+
+/* 按钮工厂：尺寸 + 底色 + 边框色 + 圆角 8 + 居中文本 + 事件 */
+lv_obj_t *ui_btn_factory(lv_obj_t *parent, lv_coord_t w, lv_coord_t h, const char *text, lv_color_t bg,
+                         lv_color_t border, lv_event_cb_t cb, void *user_data);
 
 /* 仅 UI 内部模块使用 */
 extern uint8_t ui_drone_pest_count[CROP_DAMAGE_NONE];

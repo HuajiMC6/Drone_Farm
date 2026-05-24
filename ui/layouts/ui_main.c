@@ -10,6 +10,7 @@
 #include "ui_drone_cb.h"
 #include "ui_grid_list.h"
 #include "ui_main_cb.h"
+#include "ui_message.h"
 #include "ui_storage_cb.h"
 #include "ui_window.h"
 
@@ -70,9 +71,14 @@ typedef struct {
     lv_obj_t *output_label;
     lv_obj_t *ready_time_label;
     lv_obj_t *tolerance_label;
+
     lv_obj_t *output_price_label;
     lv_obj_t *ready_time_price_label;
     lv_obj_t *tolerance_price_label;
+
+    lv_obj_t *output_upgrade_btn;
+    lv_obj_t *ready_time_upgrade_btn;
+    lv_obj_t *tolerance_upgrade_btn;
 
     field_t *current_field;
 } ui_field_upgrade_window_ctx_t;
@@ -393,7 +399,7 @@ static void ui_farm_grid_update(void) {
 }
 
 static lv_obj_t *ui_field_upgrade_window_item_create(lv_obj_t *parent, lv_event_cb_t btn_event_cb,
-                                                     void *event_user_data, lv_obj_t **price_label) {
+                                                     void *event_user_data, lv_obj_t **price_label, lv_obj_t **btn) {
     lv_obj_t *cont = ui_div_create(parent);
     lv_obj_set_size(cont, lv_pct(100), 32);
     lv_obj_clear_flag(cont, LV_OBJ_FLAG_SCROLLABLE);
@@ -405,17 +411,17 @@ static lv_obj_t *ui_field_upgrade_window_item_create(lv_obj_t *parent, lv_event_
     lv_obj_set_style_text_font(*price_label, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(*price_label, lv_color_hex(0xb66258), 0);
 
-    lv_obj_t *btn = lv_btn_create(cont);
-    lv_obj_set_size(btn, 28, 28);
-    lv_obj_set_style_bg_color(btn, lv_color_hex(0xf4cdca), 0);
-    lv_obj_set_style_border_color(btn, lv_color_hex(0xb66258), 0);
-    lv_obj_set_style_border_width(btn, 1, 0);
-    lv_obj_align(btn, LV_ALIGN_RIGHT_MID, -4, 0);
-    lv_obj_t *btn_label = lv_label_create(btn);
+    *btn = lv_btn_create(cont);
+    lv_obj_set_size(*btn, 28, 28);
+    lv_obj_set_style_bg_color(*btn, lv_color_hex(0xf4cdca), 0);
+    lv_obj_set_style_border_color(*btn, lv_color_hex(0xb66258), 0);
+    lv_obj_set_style_border_width(*btn, 1, 0);
+    lv_obj_align(*btn, LV_ALIGN_RIGHT_MID, -4, 0);
+    lv_obj_t *btn_label = lv_label_create(*btn);
     lv_label_set_text(btn_label, "+");
     lv_obj_center(btn_label);
     if (btn_event_cb) {
-        lv_obj_add_event_cb(btn, btn_event_cb, LV_EVENT_CLICKED, event_user_data);
+        lv_obj_add_event_cb(*btn, btn_event_cb, LV_EVENT_CLICKED, event_user_data);
     }
 
     return label;
@@ -441,13 +447,13 @@ static lv_obj_t *ui_field_upgrade_window_create(void) {
 
     g_field_upgrade_window_ctx.output_label = ui_field_upgrade_window_item_create(
         body, ui_main_filed_output_upgrade_click_cb, &g_field_upgrade_window_ctx.current_field,
-        &g_field_upgrade_window_ctx.output_price_label);
+        &g_field_upgrade_window_ctx.output_price_label, &g_field_upgrade_window_ctx.output_upgrade_btn);
     g_field_upgrade_window_ctx.ready_time_label = ui_field_upgrade_window_item_create(
         body, ui_main_ready_time_upgrade_click_cb, &g_field_upgrade_window_ctx.current_field,
-        &g_field_upgrade_window_ctx.ready_time_price_label);
+        &g_field_upgrade_window_ctx.ready_time_price_label, &g_field_upgrade_window_ctx.ready_time_upgrade_btn);
     g_field_upgrade_window_ctx.tolerance_label = ui_field_upgrade_window_item_create(
         body, ui_main_tolerance_upgrade_click_cb, &g_field_upgrade_window_ctx.current_field,
-        &g_field_upgrade_window_ctx.tolerance_price_label);
+        &g_field_upgrade_window_ctx.tolerance_price_label, &g_field_upgrade_window_ctx.tolerance_upgrade_btn);
 
     return win;
 }
@@ -480,6 +486,7 @@ static void ui_field_upgrade_window_refresh(farm_block_t *block) {
 
     if (field->output_level >= 3) {
         snprintf(buf, sizeof(buf), "Achieved Max Level");
+        lv_obj_add_state(g_field_upgrade_window_ctx.output_upgrade_btn, LV_STATE_DISABLED);
     } else {
         snprintf(buf, sizeof(buf), "Upgrade Cost: %d", field_output_upgrade_price[field->output_level]);
     }
@@ -487,6 +494,7 @@ static void ui_field_upgrade_window_refresh(farm_block_t *block) {
 
     if (field->ready_time_level >= 3) {
         snprintf(buf, sizeof(buf), "Achieved Max Level");
+        lv_obj_add_state(g_field_upgrade_window_ctx.ready_time_upgrade_btn, LV_STATE_DISABLED);
     } else {
         snprintf(buf, sizeof(buf), "Upgrade Cost: %d", field_ready_time_upgrade_price[field->ready_time_level]);
     }
@@ -494,6 +502,7 @@ static void ui_field_upgrade_window_refresh(farm_block_t *block) {
 
     if (field->tolerance_level >= 3) {
         snprintf(buf, sizeof(buf), "Achieved Max Level");
+        lv_obj_add_state(g_field_upgrade_window_ctx.tolerance_upgrade_btn, LV_STATE_DISABLED);
     } else {
         snprintf(buf, sizeof(buf), "Upgrade Cost: %d", field_tolerance_upgrade_price[field->tolerance_level]);
     }
@@ -573,6 +582,12 @@ static void ui_field_update_bars(farm_block_t *block) {
             lv_bar_set_value(block->death_bar, death_percentage, LV_ANIM_OFF);
         } else {
             lv_obj_add_flag(block->death_bar, LV_OBJ_FLAG_HIDDEN);
+        }
+
+        if (death_percentage == 75) {
+            char message[64];
+            snprintf(message, sizeof(message), "The crop in (%d, %d) is about to die!", block->x + 1, block->y + 1);
+            ui_message_show(message, UI_MESSAGE_TYPE_WARNING, UI_MESSAGE_CONFIRM);
         }
     }
 }
@@ -992,22 +1007,28 @@ static void ui_update_100ms(lv_timer_t *timer) {
 
             pos_t cell = g_drone_spray_ctx.path[g_drone_spray_ctx.path_index];
 
-            if (g_drone_spray_ctx.dwell_ticks > 0) {
+            if (g_drone_spray_ctx.dwell_ticks > 0) { // 无人机在目标格停留，模拟喷洒农药
                 g_drone_spray_ctx.dwell_ticks--;
-                if (g_drone_spray_ctx.dwell_ticks == 0) {
+                if (g_drone_spray_ctx.dwell_ticks == 0) { // 停留结束，执行喷洒效果
                     crop_damage_t pest = field_get_damage(g_farm_blocks[cell.x][cell.y].field);
                     if (drone_ensure_pesticide(cell)) {
-                        ui_drone_pest_count[pest]++;
+                        ui_message_show("Pesticide sprayed successfully!", UI_MESSAGE_TYPE_SUCCESS, UI_MESSAGE_TOAST);
+                    } else {
+                        char message[64];
+                        snprintf(message, sizeof(message), "Not enough pesticide against %s!", crop_pest_name(pest));
+                        ui_message_show(message, UI_MESSAGE_TYPE_ERROR, UI_MESSAGE_TOAST);
                     }
                     g_drone_spray_ctx.path_index++;
                     if (g_drone_spray_ctx.path_index >= g_drone_spray_ctx.path_len) {
                         ui_drone_spray_reset();
                         drone_state_switch(DRONE_STATE_FREE);
+                        ui_message_show("Finished spraying all detected ill fields!", UI_MESSAGE_TYPE_SUCCESS,
+                                        UI_MESSAGE_TOAST);
                         return;
                     }
                 }
             } else if (ui_drone_move_towards_target(cell)) {
-                g_drone_spray_ctx.dwell_ticks = 10;
+                g_drone_spray_ctx.dwell_ticks = 5; // 在目标格停留一段时间（dwell_ticks个定时器周期），模拟喷洒农药
             }
         }
     }
@@ -1028,9 +1049,6 @@ static void ui_update_1s(lv_timer_t *timer) {
             ui_field_update_bars(block);
         }
     }
-
-    ui_seed_table_refresh();
-    // 改为事件驱动刷新无人机窗口，避免每秒无条件刷新
 }
 
 static void ui_drone_timer_resume(void) {

@@ -3,6 +3,7 @@
 #include "audio.h"
 #include "player.h"
 #include "ui_common.h"
+#include "ui_message.h"
 #include "ui_window.h"
 
 static bool ui_main_obj_overlap(lv_obj_t *obj1, lv_obj_t *obj2, lv_coord_t hor_offset, lv_coord_t ver_offset);
@@ -71,7 +72,17 @@ void ui_main_field_block_click_cb(lv_event_t *e) {
         last_click_tick = 0;
 
         if (info->is_planted) {
-            player_harvest(info->field);
+            int output;
+            bool result = player_harvest(info->field, &output);
+
+            if (result) {
+                char message[64];
+                snprintf(message, sizeof(message), "Harvest successful! You got %d units.", output);
+                ui_message_show(message, UI_MESSAGE_TYPE_SUCCESS, UI_MESSAGE_TOAST);
+            } else {
+                ui_message_show("The crop has NOT been ripe!", UI_MESSAGE_TYPE_ERROR, UI_MESSAGE_TOAST);
+            }
+
             lv_obj_add_state(btn, LV_STATE_CHECKED); // 收获保持选中状态
         }
     } else { // 单击，触发选中状态切换
@@ -113,7 +124,12 @@ void ui_main_filed_output_upgrade_click_cb(lv_event_t *e) {
         return;
     }
 
-    player_buy_field_output_upgrade(*field);
+    bool result = player_buy_field_output_upgrade(*field);
+    if (!result) {
+        ui_message_show("Not enough gold!", UI_MESSAGE_TYPE_ERROR, UI_MESSAGE_TOAST);
+    } else {
+        ui_message_show("Upgrade successful!", UI_MESSAGE_TYPE_SUCCESS, UI_MESSAGE_TOAST);
+    }
 }
 
 void ui_main_ready_time_upgrade_click_cb(lv_event_t *e) {
@@ -122,7 +138,12 @@ void ui_main_ready_time_upgrade_click_cb(lv_event_t *e) {
         return;
     }
 
-    player_buy_field_ready_time_upgrade(*field);
+    bool result = player_buy_field_ready_time_upgrade(*field);
+    if (!result) {
+        ui_message_show("Not enough gold!", UI_MESSAGE_TYPE_ERROR, UI_MESSAGE_TOAST);
+    } else {
+        ui_message_show("Upgrade successful!", UI_MESSAGE_TYPE_SUCCESS, UI_MESSAGE_TOAST);
+    }
 }
 
 void ui_main_tolerance_upgrade_click_cb(lv_event_t *e) {
@@ -131,7 +152,12 @@ void ui_main_tolerance_upgrade_click_cb(lv_event_t *e) {
         return;
     }
 
-    player_buy_field_tolerance_upgrade(*field);
+    bool result = player_buy_field_tolerance_upgrade(*field);
+    if (!result) {
+        ui_message_show("Not enough gold!", UI_MESSAGE_TYPE_ERROR, UI_MESSAGE_TOAST);
+    } else {
+        ui_message_show("Upgrade successful!", UI_MESSAGE_TYPE_SUCCESS, UI_MESSAGE_TOAST);
+    }
 }
 
 void ui_main_screen_click_cb(lv_event_t *e) {

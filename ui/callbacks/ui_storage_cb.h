@@ -16,6 +16,5 @@ void ui_storage_sell_click_cb(lv_event_t *e);
 void ui_storage_item_click_handle(const ui_storage_crop_desc_t *desc, lv_obj_t *target);
 void ui_storage_qty_minus_click_handle(void);
 void ui_storage_qty_plus_click_handle(void);
-void ui_storage_sell_click_handle(void);
 
 #endif

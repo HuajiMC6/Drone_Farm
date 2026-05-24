@@ -168,31 +168,9 @@ void ui_drone_hud_set_visible(bool visible) {
     }
 }
 
-// 创建透明容器用于承载 flex 或 grid 布局并避免默认样式干扰
-static lv_obj_t *ui_drone_transparent_container_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h) {
-    lv_obj_t *obj = lv_obj_create(parent);
-    lv_obj_set_size(obj, w, h);
-    lv_obj_set_style_bg_opa(obj, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(obj, 0, 0);
-    lv_obj_set_style_pad_all(obj, 0, 0);
-    lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
-    return obj;
-}
-
-// 创建统一卡片并集中管理背景色边框圆角和内边距
-static lv_obj_t *ui_drone_card_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h, lv_coord_t pad) {
-    lv_obj_t *card = lv_obj_create(parent);
-    lv_obj_set_size(card, w, h);
-    lv_obj_set_style_bg_color(card, lv_color_hex(0xf9efcf), 0);
-    // lv_obj_set_style_border_color(card, lv_color_hex(0x86653a), 0);
-    // lv_obj_set_style_border_width(card, 1, 0);
-    lv_obj_set_style_border_color(card, lv_color_hex(0xcccccc), 0);
-    lv_obj_set_style_border_width(card, 1, 0);
-    lv_obj_set_style_radius(card, 10, 0);
-    lv_obj_set_style_pad_all(card, pad, 0);
-    lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
-    return card;
-}
+/* 旧 factory 已迁移到 ui_common，这里用宏兼容旧调用名，保持 diff 最小 */
+#define ui_drone_transparent_container_create ui_transparent_cont_create
+#define ui_drone_card_create(p, w, h, pad) ui_card_create(p, w, h)
 
 // 创建状态胶囊和对应文本标签
 static lv_obj_t *ui_drone_state_chip_create(lv_obj_t *parent, lv_obj_t **state_label) {
@@ -229,21 +207,8 @@ static void ui_drone_info_item_create(lv_obj_t *parent, const char *title, lv_ob
 }
 
 // 创建模式按钮并绑定统一回调通过 desc 区分 Detect 或 Spray
-static lv_obj_t *ui_drone_mode_button_create(lv_obj_t *parent, lv_coord_t w, const char *text, void *desc) {
-    lv_obj_t *btn = lv_btn_create(parent);
-    lv_obj_set_size(btn, w, 34);
-    lv_obj_set_style_bg_color(btn, lv_color_hex(0xefcd76), 0);
-    lv_obj_set_style_border_color(btn, lv_color_hex(0x8a6333), 0);
-    lv_obj_set_style_border_width(btn, 1, 0);
-    lv_obj_set_style_radius(btn, 8, 0);
-
-    lv_obj_t *btn_label = lv_label_create(btn);
-    lv_label_set_text(btn_label, text);
-    lv_obj_center(btn_label);
-    lv_obj_add_event_cb(btn, ui_drone_mode_button_click_cb, LV_EVENT_CLICKED, desc);
-
-    return btn;
-}
+#define ui_drone_mode_button_create(p, w, text, desc)                                                                  \
+    ui_btn_factory(p, w, 34, text, lv_color_hex(0xefcd76), lv_color_hex(0x8a6333), ui_drone_mode_button_click_cb, desc)
 
 // 创建一条图标名称数值统计项并使用 grid 保持列对齐
 static void ui_drone_stat_entry_create(lv_obj_t *parent, lv_coord_t w, const void *icon_src, const char *name,

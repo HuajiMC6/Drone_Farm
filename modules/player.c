@@ -74,21 +74,22 @@ bool player_plant(field_t *field, crop_type_t crop_type) {
     return false;
 }
 
-bool player_harvest(field_t *field) {
+bool player_harvest(field_t *field, int *output) {
     if (field->stage == CROP_STAGE_READY) {
         crop_type_t crop_type = field->crop_type;
-        int output = field_harvest(field);
-        s_player->harvest_bag[crop_type] += output;
-        player_set_experience(s_player->experience + output * harvest_exp_earn[crop_type]);
+        *output = field_harvest(field);
+        s_player->harvest_bag[crop_type] += *output;
+        player_set_experience(s_player->experience + *output * harvest_exp_earn[crop_type]);
         event_send(EVENT_ON_PLAYER_HARVEST_BAG_CHANGE, s_player);
         return true;
     }
     return false;
 }
 
-bool player_sold(crop_type_t crop_type, int n) {
+bool player_sold(crop_type_t crop_type, int n, int *total_earning) {
     if (s_player->harvest_bag[crop_type] >= n) {
-        player_set_coins(s_player->coins + n * harvest_price[crop_type]);
+        *total_earning = n * harvest_price[crop_type];
+        player_set_coins(s_player->coins + *total_earning);
         s_player->harvest_bag[crop_type] -= n;
         event_send(EVENT_ON_PLAYER_HARVEST_BAG_CHANGE, s_player);
         return true;

@@ -56,7 +56,7 @@ typedef struct {
 enum {
     /* 全局常量：游戏网格、等级表长度与各类上限/计数 */
     GAME_GRID_SIZE = 7,                            /* 游戏格子行/列数（网格大小） */
-    GAME_CELL_SIZE = 100,                          /* 单元格像素尺寸（UI 渲染） */
+    GAME_CELL_SIZE = 100,                          /* 单元格虚拟尺寸（逻辑层） */
     PLAYER_EXPERIENCE_LEVELS = 40,                 /* 玩家经验/等级表长度 */
     PLAYER_LEVEL_STAGE_THRESHOLD_COUNT = 6,        /* 玩家等级阶段阈值数量 */
     FIELD_LEVEL_COUNT = 4,                         /* 地块可用等级数量 */
