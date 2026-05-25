@@ -20,6 +20,7 @@ bool player_buy_seed(crop_type_t seed_type, int n);
 bool player_buy_pesticide(crop_pesticide_t pesticide_type, int n);
 bool player_plant(field_t *field, crop_type_t crop_type);
 bool player_harvest(field_t *field, int *output);
+bool player_harvest_all(int output[CROP_TYPE_NONE]);
 bool player_sold(crop_type_t crop_type, int n, int *total_earning);
 void player_use_pesticide_exp();
 

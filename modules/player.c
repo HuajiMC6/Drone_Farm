@@ -86,6 +86,19 @@ bool player_harvest(field_t *field, int *output) {
     return false;
 }
 
+bool player_harvest_all(int outputs[CROP_TYPE_NONE]) {
+    farm_t *farm=farm_get_instance();
+    int count=0;
+    for (int i = 0; i < farm->current_size; i++)
+        for (int j = 0; j < farm->current_size; j++) {
+            field_t *field=farm->fields[i][j];
+            crop_type_t crop_type=field->crop_type;//if已经将croptype变成了NONE，得先读取
+            int output=0;
+            if (player_harvest(field,&output)) outputs[crop_type]+=output,count++;
+        }
+    return count != 0;//仅代表是否收获了作物不代表出不出错
+}
+
 bool player_sold(crop_type_t crop_type, int n, int *total_earning) {
     if (s_player->harvest_bag[crop_type] >= n) {
         *total_earning = n * harvest_price[crop_type];
