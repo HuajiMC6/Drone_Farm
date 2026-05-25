@@ -1,5 +1,7 @@
 #include "ui.h"
 #include "audio.h"
+#include "ui_drone.h"
+#include "ui_farm.h"
 
 lv_obj_t *ui_load_screen_create(void);
 lv_obj_t *ui_main_screen_create(void);
@@ -58,6 +60,8 @@ void ui_event_handler(event_t *event) {
     }
 
     ui_main_handle_event(event);
+    ui_farm_handle_event(event);
+    ui_drone_handle_event(event);
 }
 
 // UI更新定时器统一初始化

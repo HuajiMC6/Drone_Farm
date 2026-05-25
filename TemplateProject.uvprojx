@@ -430,11 +430,6 @@
               <FilePath>.\UI\ui.c</FilePath>
             </File>
             <File>
-              <FileName>ui.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\UI\ui.h</FilePath>
-            </File>
-            <File>
               <FileName>ui_load.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\ui\layouts\ui_load.c</FilePath>
@@ -445,29 +440,14 @@
               <FilePath>.\ui\layouts\ui_main.c</FilePath>
             </File>
             <File>
-              <FileName>ui_main_cb.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\ui\callbacks\ui_main_cb.h</FilePath>
-            </File>
-            <File>
               <FileName>ui_main_cb.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\ui\callbacks\ui_main_cb.c</FilePath>
             </File>
             <File>
-              <FileName>ui_drone_cb.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\ui\callbacks\ui_drone_cb.h</FilePath>
-            </File>
-            <File>
               <FileName>ui_drone_cb.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\ui\callbacks\ui_drone_cb.c</FilePath>
-            </File>
-            <File>
-              <FileName>ui_shop_cb.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\ui\callbacks\ui_shop_cb.h</FilePath>
             </File>
             <File>
               <FileName>ui_shop_cb.c</FileName>
@@ -480,29 +460,14 @@
               <FilePath>.\ui\layouts\ui_storage.c</FilePath>
             </File>
             <File>
-              <FileName>ui_storage_cb.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\ui\callbacks\ui_storage_cb.h</FilePath>
-            </File>
-            <File>
               <FileName>ui_storage_cb.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\ui\callbacks\ui_storage_cb.c</FilePath>
             </File>
             <File>
-              <FileName>ui_window_cb.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\ui\callbacks\ui_window_cb.h</FilePath>
-            </File>
-            <File>
               <FileName>ui_window_cb.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\ui\callbacks\ui_window_cb.c</FilePath>
-            </File>
-            <File>
-              <FileName>icon.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\UI\icon.h</FilePath>
             </File>
             <File>
               <FileName>icon.c</FileName>
@@ -515,24 +480,9 @@
               <FilePath>.\ui\widgets\ui_grid_list.c</FilePath>
             </File>
             <File>
-              <FileName>ui_grid_list.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\ui\widgets\ui_grid_list.h</FilePath>
-            </File>
-            <File>
               <FileName>ui_window.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\ui\widgets\ui_window.c</FilePath>
-            </File>
-            <File>
-              <FileName>ui_window.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\ui\widgets\ui_window.h</FilePath>
-            </File>
-            <File>
-              <FileName>ui_common.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\ui\ui_common.h</FilePath>
             </File>
             <File>
               <FileName>ui_common.c</FileName>
@@ -555,19 +505,9 @@
               <FilePath>.\ui\callbacks\ui_load_cb.c</FilePath>
             </File>
             <File>
-              <FileName>ui_load_cb.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\ui\callbacks\ui_load_cb.h</FilePath>
-            </File>
-            <File>
               <FileName>audio.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\ui\audio.c</FilePath>
-            </File>
-            <File>
-              <FileName>audio.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\ui\audio.h</FilePath>
             </File>
             <File>
               <FileName>ui_message.c</FileName>
@@ -575,9 +515,9 @@
               <FilePath>.\ui\widgets\ui_message.c</FilePath>
             </File>
             <File>
-              <FileName>ui_message.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\ui\widgets\ui_message.h</FilePath>
+              <FileName>ui_farm.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\layouts\ui_farm.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -590,19 +530,9 @@
               <FilePath>.\modules\drone.c</FilePath>
             </File>
             <File>
-              <FileName>drone.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\modules\drone.h</FilePath>
-            </File>
-            <File>
               <FileName>farm.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\modules\farm.c</FilePath>
-            </File>
-            <File>
-              <FileName>farm.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\modules\farm.h</FilePath>
             </File>
             <File>
               <FileName>field.c</FileName>
@@ -610,19 +540,9 @@
               <FilePath>.\modules\field.c</FilePath>
             </File>
             <File>
-              <FileName>field.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\modules\field.h</FilePath>
-            </File>
-            <File>
               <FileName>player.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\modules\player.c</FilePath>
-            </File>
-            <File>
-              <FileName>player.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\modules\player.h</FilePath>
             </File>
             <File>
               <FileName>event.c</FileName>
@@ -630,19 +550,9 @@
               <FilePath>.\modules\event.c</FilePath>
             </File>
             <File>
-              <FileName>event.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\modules\event.h</FilePath>
-            </File>
-            <File>
               <FileName>data.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\modules\data.c</FilePath>
-            </File>
-            <File>
-              <FileName>data.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\modules\data.h</FilePath>
             </File>
           </Files>
         </Group>

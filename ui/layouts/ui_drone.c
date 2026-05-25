@@ -1,11 +1,19 @@
+#include "ui_drone.h"
+
 #include "player.h"
 #include "ui_common.h"
 #include "ui_drone_cb.h"
+#include "ui_farm.h"
 #include "ui_grid_list.h"
+#include "ui_message.h"
 #include "ui_window.h"
 
 #include "drone.h"
 #include "icon.h"
+#include "joystick.h"
+
+#include <math.h>
+#include <stdlib.h>
 
 static lv_obj_t *g_drone_window = NULL;
 
@@ -36,6 +44,41 @@ static drone_panel_ctx_t g_drone_hud_ctx;
 static drone_pesticide_btn_desc_t g_drone_pesticide_btn_desc[CROP_PESTICIDE_NONE][2];
 static drone_mode_btn_desc_t g_drone_detect_btn_desc = {.target_state = DRONE_STATE_DETECTING};
 static drone_mode_btn_desc_t g_drone_spray_btn_desc = {.target_state = DRONE_STATE_AUTO};
+
+/* ── 无人机对象 & 飞行 / 喷洒上下文 ── */
+#define DRONE_COORD_SCALNG_FACTOR (80.0 / 100.0) /* FARM_BLOCK_SIZE / 100 */
+
+static bool drone_timer_active = false;
+
+static lv_obj_t *g_drone = NULL;
+static lv_obj_t *g_drone_still = NULL;
+static lv_obj_t *g_drone_flying = NULL;
+
+uint8_t ui_drone_pest_count[CROP_DAMAGE_NONE];
+
+typedef struct {
+    pos_t *path;
+    int path_len;
+    int path_index;
+    int dwell_ticks;
+    bool active;
+} ui_drone_spray_ctx_t;
+
+static ui_drone_spray_ctx_t g_drone_spray_ctx = {0};
+
+static lv_obj_t *g_screen = NULL;
+static lv_obj_t *g_parent = NULL;
+
+/* ── 内部前向声明 ── */
+static lv_obj_t *ui_drone_create(lv_obj_t *parent);
+static void ui_drone_switch_state(bool flying);
+static void ui_drone_reset_to_still(void);
+static void ui_drone_timer_resume(void);
+static void ui_drone_spray_reset(void);
+static bool ui_drone_spray_prepare(void);
+static bool ui_drone_move_towards_target(pos_t cell);
+static pos_t ui_drone_grid_center(pos_t cell);
+static void ui_drone_toggle_window_cb(lv_event_t *e);
 
 static void ui_drone_btn_set_text(lv_obj_t *btn, const char *text) {
     if (!btn || !lv_obj_is_valid(btn)) {
@@ -520,6 +563,7 @@ lv_obj_t *ui_drone_window_create(void) {
     }
 
     g_drone_window_ctx.obj = div;
+    g_drone_window = div;
     ui_drone_window_refresh();
 
     (void)drone;
@@ -627,4 +671,304 @@ void ui_drone_hud_create(lv_obj_t *parent) {
 
     g_drone_hud_ctx.obj = root;
     ui_drone_panel_refresh(&g_drone_hud_ctx);
+}
+
+/* ================================================================
+   无人机对象创建 & 飞行状态管理
+   ================================================================ */
+
+static void ui_drone_toggle_window_cb(lv_event_t *e) {
+    lv_event_stop_bubbling(e);
+
+    if (!g_drone_window || !lv_obj_is_valid(g_drone_window)) {
+        g_drone_window = ui_drone_window_create();
+    }
+
+    if (ui_window_is_visible(g_drone_window)) {
+        ui_window_hide(g_drone_window);
+    } else {
+        ui_window_show(g_drone_window);
+    }
+}
+
+static lv_obj_t *ui_drone_create(lv_obj_t *parent) {
+    g_drone = ui_div_create(parent);
+    lv_obj_set_size(g_drone, 40, 40);
+
+    /* 静止状态（静态图片） */
+    g_drone_still = lv_img_create(g_drone);
+    lv_obj_set_pos(g_drone_still, 0, 0);
+    lv_img_set_src(g_drone_still, &icon_drone_0);
+    lv_obj_add_flag(g_drone_still, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(g_drone_still, ui_drone_toggle_window_cb, LV_EVENT_CLICKED, NULL);
+
+    /* 飞行状态（帧动画） */
+    g_drone_flying = lv_animimg_create(g_drone);
+    lv_obj_set_pos(g_drone_flying, 0, 0);
+    static const lv_img_dsc_t *drone_imgs[] = {&icon_drone_0, &icon_drone_1};
+    lv_animimg_set_src(g_drone_flying, (lv_img_dsc_t **)drone_imgs, 2);
+    lv_animimg_set_duration(g_drone_flying, 150);
+    lv_animimg_set_repeat_count(g_drone_flying, LV_ANIM_REPEAT_INFINITE);
+    lv_obj_add_flag(g_drone_flying, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(g_drone_flying, ui_drone_toggle_window_cb, LV_EVENT_CLICKED, NULL);
+    lv_animimg_start(g_drone_flying);
+
+    ui_drone_switch_state(false);
+
+    return g_drone;
+}
+
+static void ui_drone_switch_state(bool flying) {
+    if (flying) {
+        lv_obj_add_flag(g_drone_still, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(g_drone_flying, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(g_drone_flying, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(g_drone_still, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+static void ui_drone_reset_to_still(void) {
+    ui_drone_switch_state(false);
+}
+
+void ui_drone_set_pos(lv_coord_t x, lv_coord_t y, bool anim, void *anim_cb) {
+    lv_obj_t *farm_grid = ui_farm_get_grid();
+    if (!farm_grid || !g_drone) {
+        return;
+    }
+    if (!anim) {
+        lv_obj_align_to(g_drone, farm_grid, LV_ALIGN_TOP_LEFT, x - 20, y - 20);
+    } else {
+        uint32_t speed = drone_get_instance()->speed * DRONE_COORD_SCALNG_FACTOR * 10;
+        lv_coord_t x_start = lv_obj_get_x(g_drone);
+        lv_coord_t y_start = lv_obj_get_y(g_drone);
+        lv_coord_t grid_x = lv_obj_get_x(farm_grid);
+        lv_coord_t grid_y = lv_obj_get_y(farm_grid);
+        lv_coord_t x_end = grid_x + x - 20;
+        lv_coord_t y_end = grid_y + y - 20;
+
+        uint32_t x_time = lv_anim_speed_to_time(speed, x_start, x_end);
+        uint32_t y_time = lv_anim_speed_to_time(speed, y_start, y_end);
+
+        lv_anim_t ax;
+        lv_anim_init(&ax);
+        lv_anim_set_var(&ax, g_drone);
+        lv_anim_set_exec_cb(&ax, lv_obj_set_x);
+        lv_anim_set_time(&ax, x_time);
+        lv_anim_set_path_cb(&ax, lv_anim_path_ease_in_out);
+        lv_anim_set_values(&ax, x_start, x_end);
+
+        lv_anim_t ay;
+        lv_anim_init(&ay);
+        lv_anim_set_var(&ay, g_drone);
+        lv_anim_set_exec_cb(&ay, lv_obj_set_y);
+        lv_anim_set_time(&ay, y_time);
+        lv_anim_set_path_cb(&ay, lv_anim_path_ease_in_out);
+        lv_anim_set_values(&ay, y_start, y_end);
+
+        if (x_time > y_time) {
+            lv_anim_set_ready_cb(&ax, (lv_anim_ready_cb_t)anim_cb);
+        } else {
+            lv_anim_set_ready_cb(&ay, (lv_anim_ready_cb_t)anim_cb);
+        }
+
+        lv_anim_start(&ax);
+        lv_anim_start(&ay);
+    }
+}
+
+/* ================================================================
+   喷洒逻辑
+   ================================================================ */
+
+static void ui_drone_timer_resume(void) {
+    drone_timer_active = true;
+}
+
+static void ui_drone_spray_reset(void) {
+    if (g_drone_spray_ctx.path) {
+        free(g_drone_spray_ctx.path);
+        g_drone_spray_ctx.path = NULL;
+    }
+
+    g_drone_spray_ctx.path_len = 0;
+    g_drone_spray_ctx.path_index = 0;
+    g_drone_spray_ctx.dwell_ticks = 0;
+    g_drone_spray_ctx.active = false;
+}
+
+static bool ui_drone_spray_prepare(void) {
+    if (g_drone_spray_ctx.active) {
+        return true;
+    }
+
+    int path_len = 0;
+    pos_t *path = drone_auto_path(&path_len);
+    if (!path || path_len <= 0) {
+        if (path) {
+            free(path);
+        }
+        return false;
+    }
+
+    g_drone_spray_ctx.path = path;
+    g_drone_spray_ctx.path_len = path_len;
+    g_drone_spray_ctx.path_index = 0;
+    g_drone_spray_ctx.dwell_ticks = 0;
+    g_drone_spray_ctx.active = true;
+    return true;
+}
+
+static pos_t ui_drone_grid_center(pos_t cell) {
+    return (pos_t){.x = cell.x * 100 + 50, .y = cell.y * 100 + 50};
+}
+
+static bool ui_drone_move_towards_target(pos_t cell) {
+    drone_t *drone = drone_get_instance();
+    int step = drone->speed;
+    pos_t target = ui_drone_grid_center(cell);
+
+    int dx = target.x - drone->current_pos.x;
+    int dy = target.y - drone->current_pos.y;
+
+    if (abs(dx) <= step) {
+        drone->current_pos.x = target.x;
+    } else {
+        drone->current_pos.x += dx > 0 ? step : -step;
+    }
+
+    if (abs(dy) <= step) {
+        drone->current_pos.y = target.y;
+    } else {
+        drone->current_pos.y += dy > 0 ? step : -step;
+    }
+
+    ui_drone_set_pos(drone->current_pos.x * DRONE_COORD_SCALNG_FACTOR, drone->current_pos.y * DRONE_COORD_SCALNG_FACTOR,
+                     false, NULL);
+    return drone->current_pos.x == target.x && drone->current_pos.y == target.y;
+}
+
+/* ================================================================
+   定时器更新
+   ================================================================ */
+
+void ui_drone_update_100ms(void) {
+
+    if (!drone_timer_active) {
+        return;
+    }
+
+    drone_t *drone = drone_get_instance();
+    if (drone->drone_state == DRONE_STATE_DETECTING) {
+        pos_t vector = {.x = joystick_get_dir_x(), .y = joystick_get_dir_y()};
+        drone_move(vector);
+        pos_t pos = drone->current_pos;
+        ui_drone_set_pos(pos.x * DRONE_COORD_SCALNG_FACTOR, pos.y * DRONE_COORD_SCALNG_FACTOR, false, NULL);
+
+        farm_block_t *block = ui_farm_get_block(pos.x / 100, pos.y / 100);
+        if (block && !block->is_detected) {
+            crop_damage_t pest = drone_detect_damage();
+            if (pest != CROP_DAMAGE_NONE) {
+                ui_drone_pest_count[pest]++;
+            }
+        }
+    } else if (drone->drone_state == DRONE_STATE_AUTO) {
+        if (!g_drone_spray_ctx.active && !ui_drone_spray_prepare()) {
+            drone_state_switch(DRONE_STATE_FREE);
+            return;
+        }
+
+        if (g_drone_spray_ctx.path_index >= g_drone_spray_ctx.path_len) {
+            ui_drone_spray_reset();
+            drone_state_switch(DRONE_STATE_FREE);
+            return;
+        }
+
+        pos_t cell = g_drone_spray_ctx.path[g_drone_spray_ctx.path_index];
+
+        if (g_drone_spray_ctx.dwell_ticks > 0) {
+            g_drone_spray_ctx.dwell_ticks--;
+            if (g_drone_spray_ctx.dwell_ticks == 0) {
+                farm_block_t *block = ui_farm_get_block(cell.x, cell.y);
+                crop_damage_t pest = block ? field_get_damage(block->field) : CROP_DAMAGE_NONE;
+                if (drone_ensure_pesticide(cell)) {
+                    /* sprayed successfully */
+                } else {
+                    if (pest != CROP_DAMAGE_NONE) {
+                        char message[64];
+                        snprintf(message, sizeof(message), "Not enough pesticide against %s!", crop_pest_name(pest));
+                        ui_message_show(message, UI_MESSAGE_TYPE_ERROR, UI_MESSAGE_TOAST);
+                    }
+                }
+                g_drone_spray_ctx.path_index++;
+                if (g_drone_spray_ctx.path_index >= g_drone_spray_ctx.path_len) {
+                    ui_drone_spray_reset();
+                    drone_state_switch(DRONE_STATE_FREE);
+                    ui_message_show("Finished spraying all detected ill fields!", UI_MESSAGE_TYPE_SUCCESS,
+                                    UI_MESSAGE_TOAST);
+                    return;
+                }
+            }
+        } else if (ui_drone_move_towards_target(cell)) {
+            g_drone_spray_ctx.dwell_ticks = 5;
+        }
+    }
+}
+
+/* ================================================================
+   事件处理 & 模块入口
+   ================================================================ */
+
+void ui_drone_handle_event(event_t *event) {
+    if (!event) {
+        return;
+    }
+
+    switch (event->type) {
+        case EVENT_ON_PEST_DETECTED:
+        case EVENT_ON_PEST_CLEARED:
+            drone_get_detected_pest_counts(ui_drone_pest_count);
+            ui_drone_window_refresh();
+            break;
+        case EVENT_ON_FARM_SIZE_UPGRADE:
+            ui_drone_set_pos(-40, 40, false, NULL);
+            break;
+        case EVENT_ON_DRONE_TO_FREE:
+            drone_timer_active = false;
+            if (!g_drone_spray_ctx.active) {
+                ui_drone_spray_prepare();
+            }
+            ui_drone_set_pos(-40, 40, true, ui_drone_reset_to_still);
+            ui_drone_hud_set_visible(false);
+            ui_drone_window_refresh();
+            break;
+        case EVENT_ON_DRONE_TO_MOVING:
+            if (drone_get_instance()->drone_state == DRONE_STATE_DETECTING) {
+                ui_drone_spray_reset();
+            } else if (!g_drone_spray_ctx.active) {
+                ui_drone_spray_prepare();
+            }
+            ui_drone_set_pos(0, 0, true, ui_drone_timer_resume);
+            if (g_drone_window && lv_obj_is_valid(g_drone_window) && ui_window_is_visible(g_drone_window)) {
+                ui_window_hide(g_drone_window);
+            }
+            ui_drone_hud_set_visible(true);
+            ui_drone_window_refresh();
+            ui_drone_switch_state(true);
+            break;
+        default:
+            break;
+    }
+}
+
+void ui_drone_module_create(lv_obj_t *parent, lv_obj_t *screen) {
+    g_parent = parent;
+    g_screen = screen;
+
+    ui_drone_create(g_parent);
+    ui_drone_hud_create(g_screen);
+    ui_drone_set_pos(-40, 40, false, NULL);
+
+    drone_get_detected_pest_counts(ui_drone_pest_count);
 }
