@@ -1,5 +1,7 @@
 #include "data.h"
 
+/* —————————————— 配置数据 —————————————— */
+
 /* 作物成熟时间表（按 crop_type_t 顺序），单位：游戏时间单位 */
 const int crop_ready_time[CROP_TYPE_NONE] = {250, 300, 225};
 
@@ -30,20 +32,6 @@ const double level_discount[7] = {
     0.7   // 40+
 };
 
-/* 价格表：种子、农药、收获收益（按枚举顺序） */
-const int seed_price[CROP_TYPE_NONE] = {10, 15, 20};
-const int pesticide_price[CROP_PESTICIDE_NONE] = {5, 15, 20, 15};
-const int harvest_price[CROP_TYPE_NONE] = {40, 60, 80};
-
-/* 升级价格：无人机速度/存储/算法、农场大小、地块各项升级 */
-const int drone_speed_update_price[3] = {1000, 2500, 5000};
-const int drone_storage_update_price[3] = {1000, 2500, 5000};
-const int drone_algorithm_update_price[2] = {10000, 50000};
-const int farm_size_update_price[3] = {5000, 10000, 20000};
-const int field_output_upgrade_price[3] = {2500, 5000, 10000};
-const int field_ready_time_upgrade_price[3] = {2500, 5000, 10000};
-const int field_tolerance_upgrade_price[3] = {10000, 20000, 50000};
-
 /* 经验值配置：收获、种植、使用农药获得的经验；以及升级经验表 */
 const int harvest_exp_earn[CROP_TYPE_NONE] = {2, 3, 4};
 const int plant_exp_earn = 2;         /* 每次种植奖励经验 */
@@ -52,7 +40,7 @@ const int experience_level[PLAYER_EXPERIENCE_LEVELS] = {
     10,  25,  40,  55,  75,  95,  120, 150, 180,  210,  240,  270,  300,  330,  360,  390,  420,  450,  480,  550,
     600, 650, 700, 750, 800, 850, 900, 950, 1000, 1060, 1130, 1210, 1300, 1400, 1510, 1630, 1760, 1900, 2050, 2210};
 
-/* 玩家等级段阈值（用于界面或功能解锁） */
+/* 玩家等级段阈值 */
 const int player_level_stage_thresholds[PLAYER_LEVEL_STAGE_THRESHOLD_COUNT] = {10, 15, 20, 25, 30, 40};
 
 /* 玩家/无人机/农场基础数值 */
@@ -71,12 +59,32 @@ const int field_damage_probability_multiplier = 15; /* 概率乘数 */
 const double field_default_factor = 1.0;            /* 默认产量系数 */
 const double field_default_tolerance = 0.0;         /* 默认容忍度 */
 
+/* —————————————— 价格配置 —————————————— */
+
+/* 价格表：种子、农药、收获收益（按枚举顺序） */
+const int seed_price[CROP_TYPE_NONE] = {10, 15, 20};
+const int pesticide_price[CROP_PESTICIDE_NONE] = {5, 15, 20, 15};
+const int harvest_price[CROP_TYPE_NONE] = {40, 60, 80};
+
+/* 升级价格：无人机速度/存储/算法、农场大小、地块各项升级 */
+const int drone_speed_update_price[3] = {1000, 2500, 5000};
+const int drone_storage_update_price[3] = {1000, 2500, 5000};
+const int drone_algorithm_update_price[2] = {10000, 50000};
+const int farm_size_update_price[3] = {5000, 10000, 20000};
+const int field_output_upgrade_price[3] = {2500, 5000, 10000};
+const int field_ready_time_upgrade_price[3] = {2500, 5000, 10000};
+const int field_tolerance_upgrade_price[3] = {10000, 20000, 50000};
+
+/* —————————————— 名称映射 —————————————— */
+
+/* 作物类型名称 */
 static const char *const crop_type_names[CROP_TYPE_NONE] = {
     [CROP_TYPE_WHEAT] = "Wheat",
     [CROP_TYPE_RICE] = "Rice",
     [CROP_TYPE_CORN] = "Corn",
 };
 
+/* 虫害名称 */
 static const char *const crop_pest_names[CROP_DAMAGE_NONE] = {
     [CROP_DAMAGE_APHID] = "Aphid",
     [CROP_DAMAGE_MITE] = "Mite",
@@ -84,6 +92,7 @@ static const char *const crop_pest_names[CROP_DAMAGE_NONE] = {
     [CROP_DAMAGE_LOCUST] = "Locust",
 };
 
+/* 农药名称 */
 static const char *const crop_pesticide_names[CROP_PESTICIDE_NONE] = {
     [CROP_PESTICIDE_APHICIDE] = "Aphicide",
     [CROP_PESTICIDE_ACARICIDE] = "Acaricide",
@@ -91,16 +100,20 @@ static const char *const crop_pesticide_names[CROP_PESTICIDE_NONE] = {
     [CROP_PESTICIDE_LOCUSTICIDE] = "Locusticide",
 };
 
+/* 作物生长阶段名称 */
 static const char *const crop_stage_names[CROP_STAGE_NONE] = {
     [CROP_STAGE_SEED] = "Seed",   [CROP_STAGE_YOUNG] = "Young", [CROP_STAGE_GROW] = "Grow",
     [CROP_STAGE_BLOOM] = "Bloom", [CROP_STAGE_RIPE] = "Ripe",   [CROP_STAGE_READY] = "Ready",
 };
 
+/* 无人机状态名称 */
 static const char *const drone_state_names[DRONE_STATE_NONE] = {
     [DRONE_STATE_FREE] = "Free",
     [DRONE_STATE_DETECTING] = "Detecting",
-    [DRONE_STATE_AUTO] = "Auto",
+    [DRONE_STATE_AUTO] = "Spraying",
 };
+
+/* —————————————— 名称获取函数 —————————————— */
 
 const char *crop_type_name(crop_type_t type) {
     if (type >= CROP_TYPE_NONE)
