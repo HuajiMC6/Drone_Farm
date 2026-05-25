@@ -9,9 +9,9 @@ typedef struct {
     int level;
     int level_stage;
     int coins;
-    crop_type_t seed_bag[CROP_TYPE_NONE];
-    crop_type_t harvest_bag[CROP_TYPE_NONE];
-    crop_pesticide_t pesticide_bag[CROP_PESTICIDE_NONE];
+    int seed_bag[CROP_TYPE_NONE];
+    int harvest_bag[CROP_TYPE_NONE];
+    int pesticide_bag[CROP_PESTICIDE_NONE];
 } player_t;
 
 player_t *player_get_instance();
