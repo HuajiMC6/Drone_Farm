@@ -5,7 +5,7 @@
 #include <stdlib.h>
 
 static int ready_time(crop_type_t type);
-static double calculate_possibility(double a, double b, double c, double t, double decline);
+static double calculate_possibility(double a, double b, double c, double t,double tolerance);
 static double get_damage_possibility(crop_damage_t damage, double growing_percent, double tolerance);
 static crop_damage_t max_possibility(field_t *field);
 static void stage_upgrade(field_t *field);
@@ -83,7 +83,7 @@ void field_grow(field_t *field) {
 
     // 产量因子变化
     if (field_is_damaged(field))
-        field->factor -= field_damage_decline_rate;
+        field->factor -= field_damage_decline_rate * (1.0 - field->tolerance);//慢点死
     else
         field->factor += field_damage_recovery_rate;
 
@@ -203,8 +203,8 @@ static int ready_time(crop_type_t type) {
 }
 
 // 二次函数
-static double calculate_possibility(double a, double b, double c, double t, double decline) {
-    double percent = a * (t - b) * (t - b) + c - decline;
+static double calculate_possibility(double a, double b, double c, double t,double tolerance) {
+    double percent = a * (t - b) * (t - b) + c - tolerance;
     if (percent > 1)
         return 1;
     else if (percent < 0)
@@ -218,7 +218,8 @@ static double get_damage_possibility(crop_damage_t damage, double growing_percen
     if (damage >= CROP_DAMAGE_NONE)
         return 0.0;
     crop_damage_profile_t profile = crop_damage_profiles[damage];
-    return calculate_possibility(profile.a, profile.b, profile.c, growing_percent, tolerance);
+    double base_percentage = calculate_possibility(profile.a, profile.b, profile.c, growing_percent, tolerance);
+    return base_percentage * (1.0-tolerance);
 }
 
 // 找最大可能病
