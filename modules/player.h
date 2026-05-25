@@ -9,9 +9,9 @@ typedef struct {
     int level;
     int level_stage;
     int coins;
-    crop_type_t seed_bag[CROP_TYPE_NONE];
-    crop_type_t harvest_bag[CROP_TYPE_NONE];
-    crop_pesticide_t pesticide_bag[CROP_PESTICIDE_NONE];
+    int seed_bag[CROP_TYPE_NONE];
+    int harvest_bag[CROP_TYPE_NONE];
+    int pesticide_bag[CROP_PESTICIDE_NONE];
 } player_t;
 
 player_t *player_get_instance();
@@ -20,6 +20,7 @@ bool player_buy_seed(crop_type_t seed_type, int n);
 bool player_buy_pesticide(crop_pesticide_t pesticide_type, int n);
 bool player_plant(field_t *field, crop_type_t crop_type);
 bool player_harvest(field_t *field, int *output);
+bool player_harvest_all(int output[CROP_TYPE_NONE]);
 bool player_sold(crop_type_t crop_type, int n, int *total_earning);
 void player_use_pesticide_exp();
 
