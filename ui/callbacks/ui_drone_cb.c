@@ -3,6 +3,7 @@
 #include "drone.h"
 #include "player.h"
 #include "ui_common.h"
+#include "ui_drone.h"
 #include "ui_message.h"
 
 static int ui_drone_pesticide_used_local(const drone_t *drone);

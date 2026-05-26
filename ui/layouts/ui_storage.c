@@ -28,7 +28,7 @@ typedef struct {
 } ui_storage_window_ctx_t;
 
 static ui_storage_window_ctx_t g_storage_window_ctx;
-static ui_storage_crop_desc_t g_storage_crop_desc[CROP_TYPE_NONE];
+static crop_type_t g_storage_crop_desc[CROP_TYPE_NONE];
 static lv_obj_t *g_storage_items[CROP_TYPE_NONE];
 static lv_obj_t *g_storage_count_labels[CROP_TYPE_NONE];
 
@@ -47,13 +47,13 @@ void ui_storage_window_refresh(void) {
     ui_storage_window_update_controls(player);
 }
 
-bool ui_storage_get_selected_sell(ui_storage_crop_desc_t *desc, int *qty) {
-    if (!desc || !qty || g_storage_window_ctx.selected_type >= CROP_TYPE_NONE ||
+bool ui_storage_get_selected_sell(crop_type_t *type, int *qty) {
+    if (!type || !qty || g_storage_window_ctx.selected_type >= CROP_TYPE_NONE ||
         g_storage_window_ctx.selected_qty <= 0) {
         return false;
     }
 
-    desc->type = g_storage_window_ctx.selected_type;
+    *type = g_storage_window_ctx.selected_type;
     *qty = g_storage_window_ctx.selected_qty;
     return true;
 }
@@ -202,7 +202,7 @@ static void ui_storage_window_rebuild_list(player_t *player) {
             continue;
         }
 
-        g_storage_crop_desc[i] = (ui_storage_crop_desc_t){.type = i};
+        g_storage_crop_desc[i] = i;
         g_storage_items[i] = item;
 
         lv_obj_add_flag(item, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_CHECKABLE);
@@ -346,12 +346,12 @@ static void ui_storage_window_select(crop_type_t type, lv_obj_t *target) {
     ui_storage_window_update_controls(player_get_instance());
 }
 
-void ui_storage_item_click_handle(const ui_storage_crop_desc_t *desc, lv_obj_t *target) {
-    if (!desc || !target) {
+void ui_storage_item_click_handle(crop_type_t type, lv_obj_t *target) {
+    if (!target) {
         return;
     }
 
-    ui_storage_window_select(desc->type, target);
+    ui_storage_window_select(type, target);
 }
 
 void ui_storage_qty_minus_click_handle(void) {

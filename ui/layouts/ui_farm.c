@@ -48,7 +48,6 @@ static void ui_farm_grid_update(void);
 static lv_obj_t *ui_field_upgrade_window_item_create(lv_obj_t *parent, lv_event_cb_t btn_event_cb,
                                                      void *event_user_data, lv_obj_t **price_label, lv_obj_t **btn);
 static lv_obj_t *ui_field_upgrade_window_create(void);
-static void ui_field_upgrade_window_refresh(farm_block_t *block);
 static void ui_field_update(int x, int y);
 static void ui_field_update_bars(farm_block_t *block);
 static lv_obj_t *ui_crop_growing_bar(lv_obj_t *parent);
@@ -167,8 +166,7 @@ static void ui_farm_grid_create(lv_obj_t *parent) {
             lv_obj_set_style_pad_all(bg_layer, -2, 0);
             lv_obj_set_style_border_width(bg_layer, 2, LV_STATE_CHECKED);
             lv_obj_add_event_cb(bg_layer, ui_main_field_block_click_cb, LV_EVENT_CLICKED, g_screen_main);
-            lv_obj_add_event_cb(bg_layer, ui_main_field_block_long_press_cb, LV_EVENT_LONG_PRESSED,
-                                ui_field_upgrade_window_refresh);
+            lv_obj_add_event_cb(bg_layer, ui_main_field_block_long_press_cb, LV_EVENT_LONG_PRESSED, NULL);
             lv_obj_set_user_data(bg_layer, block);
 
             block->obj = ui_div_create(bg_layer);
@@ -280,7 +278,7 @@ static lv_obj_t *ui_field_upgrade_window_create(void) {
     return win;
 }
 
-static void ui_field_upgrade_window_refresh(farm_block_t *block) {
+void ui_field_upgrade_window_refresh(farm_block_t *block) {
     if (!block || !block->field) {
         return;
     }

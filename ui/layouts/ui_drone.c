@@ -56,12 +56,23 @@ static lv_obj_t *g_drone_flying = NULL;
 
 uint8_t ui_drone_pest_count[CROP_DAMAGE_NONE];
 
+/* 每格喷洒前停留 tick 数（每个 tick = 100ms，即停留 500ms） */
+#define SPRAY_DWELL_TICKS 5
+
+/* 无人机自动喷洒状态 */
+typedef enum {
+    DRONE_AUTO_IDLE,  // 无路径，空闲状态
+    DRONE_AUTO_MOVING, // 正在飞向目标格子
+    DRONE_AUTO_DWELLING, // 已到达目标格子，正在停留等待喷洒
+} drone_auto_state_t;
+
+/* 自动喷洒上下文 */
 typedef struct {
-    pos_t *path;
-    int path_len;
-    int path_index;
-    int dwell_ticks;
-    bool active;
+    pos_t *path;              /* 喷洒路径（格子坐标数组） */
+    int path_len;             /* 路径总长度 */
+    int path_index;           /* 当前已走到第几个格子 */
+    drone_auto_state_t state; /* 当前阶段 */
+    int ticks;                /* 剩余停留 tick */
 } ui_drone_spray_ctx_t;
 
 static ui_drone_spray_ctx_t g_drone_spray_ctx = {0};
@@ -794,12 +805,12 @@ static void ui_drone_spray_reset(void) {
 
     g_drone_spray_ctx.path_len = 0;
     g_drone_spray_ctx.path_index = 0;
-    g_drone_spray_ctx.dwell_ticks = 0;
-    g_drone_spray_ctx.active = false;
+    g_drone_spray_ctx.state = DRONE_AUTO_IDLE;
+    g_drone_spray_ctx.ticks = 0;
 }
 
 static bool ui_drone_spray_prepare(void) {
-    if (g_drone_spray_ctx.active) {
+    if (g_drone_spray_ctx.state != DRONE_AUTO_IDLE) {
         return true;
     }
 
@@ -815,8 +826,8 @@ static bool ui_drone_spray_prepare(void) {
     g_drone_spray_ctx.path = path;
     g_drone_spray_ctx.path_len = path_len;
     g_drone_spray_ctx.path_index = 0;
-    g_drone_spray_ctx.dwell_ticks = 0;
-    g_drone_spray_ctx.active = true;
+    g_drone_spray_ctx.state = DRONE_AUTO_MOVING;
+    g_drone_spray_ctx.ticks = 0;
     return true;
 }
 
@@ -874,44 +885,63 @@ void ui_drone_update_100ms(void) {
             }
         }
     } else if (drone->drone_state == DRONE_STATE_AUTO) {
-        if (!g_drone_spray_ctx.active && !ui_drone_spray_prepare()) {
+        /* 自动喷洒模式 */
+        /* 三阶段循环：MOVING（飞向目标）→ DWELLING（停留等待）→ 喷洒 → 下一格 */
+
+        /* 空闲状态 → 尝试启动：生成喷洒路径，失败则回 FREE */
+        if (g_drone_spray_ctx.state == DRONE_AUTO_IDLE && !ui_drone_spray_prepare()) {
             drone_state_switch(DRONE_STATE_FREE);
+            ui_message_show("No need to spray since no ill fields detected!", UI_MESSAGE_TYPE_ERROR,
+                            UI_MESSAGE_TOAST);
             return;
         }
 
-        if (g_drone_spray_ctx.path_index >= g_drone_spray_ctx.path_len) {
-            ui_drone_spray_reset();
-            drone_state_switch(DRONE_STATE_FREE);
-            return;
-        }
-
+        /* 当前目标格子 */
         pos_t cell = g_drone_spray_ctx.path[g_drone_spray_ctx.path_index];
 
-        if (g_drone_spray_ctx.dwell_ticks > 0) {
-            g_drone_spray_ctx.dwell_ticks--;
-            if (g_drone_spray_ctx.dwell_ticks == 0) {
-                farm_block_t *block = ui_farm_get_block(cell.x, cell.y);
-                crop_damage_t pest = block ? field_get_damage(block->field) : CROP_DAMAGE_NONE;
-                if (drone_ensure_pesticide(cell)) {
-                    /* sprayed successfully */
-                } else {
-                    if (pest != CROP_DAMAGE_NONE) {
-                        char message[64];
-                        snprintf(message, sizeof(message), "Not enough pesticide against %s!", crop_pest_name(pest));
-                        ui_message_show(message, UI_MESSAGE_TYPE_ERROR, UI_MESSAGE_TOAST);
+        switch (g_drone_spray_ctx.state) {
+            case DRONE_AUTO_MOVING:
+                /* 阶段 1：目标格子中心移动，到达后进入等待（模拟喷药过程） */
+                if (ui_drone_move_towards_target(cell)) {
+                    g_drone_spray_ctx.state = DRONE_AUTO_DWELLING;
+                    g_drone_spray_ctx.ticks = SPRAY_DWELL_TICKS;
+                }
+                break;
+
+            case DRONE_AUTO_DWELLING:
+                /* 阶段 2：倒计时停留，归零时执行喷洒 */
+                g_drone_spray_ctx.ticks--;
+                if (g_drone_spray_ctx.ticks == 0) {
+                    /* 阶段 3：喷洒当前格子 */
+                    farm_block_t *block = ui_farm_get_block(cell.x, cell.y);
+                    crop_damage_t pest = block ? field_get_damage(block->field) : CROP_DAMAGE_NONE;
+                    if (drone_ensure_pesticide(cell)) {
+                        /* 喷洒成功 */
+                    } else {
+                        if (pest != CROP_DAMAGE_NONE) {
+                            char message[64];
+                            snprintf(message, sizeof(message), "Not enough pesticide against %s!",
+                                     crop_pest_name(pest));
+                            ui_message_show(message, UI_MESSAGE_TYPE_ERROR, UI_MESSAGE_TOAST);
+                        }
                     }
+                    /* 推进到路径下一格 */
+                    g_drone_spray_ctx.path_index++;
+                    if (g_drone_spray_ctx.path_index >= g_drone_spray_ctx.path_len) {
+                        /* 路径全部走完，重置上下文并召回无人机 */
+                        ui_drone_spray_reset();
+                        drone_state_switch(DRONE_STATE_FREE);
+                        ui_message_show("Finished spraying all detected ill fields!", UI_MESSAGE_TYPE_SUCCESS,
+                                        UI_MESSAGE_TOAST);
+                        return;
+                    }
+                    /* 还有下一格，回到移动阶段 */
+                    g_drone_spray_ctx.state = DRONE_AUTO_MOVING;
                 }
-                g_drone_spray_ctx.path_index++;
-                if (g_drone_spray_ctx.path_index >= g_drone_spray_ctx.path_len) {
-                    ui_drone_spray_reset();
-                    drone_state_switch(DRONE_STATE_FREE);
-                    ui_message_show("Finished spraying all detected ill fields!", UI_MESSAGE_TYPE_SUCCESS,
-                                    UI_MESSAGE_TOAST);
-                    return;
-                }
-            }
-        } else if (ui_drone_move_towards_target(cell)) {
-            g_drone_spray_ctx.dwell_ticks = 5;
+                break;
+
+            default:
+                break;
         }
     }
 }
@@ -936,9 +966,6 @@ void ui_drone_handle_event(event_t *event) {
             break;
         case EVENT_ON_DRONE_TO_FREE:
             drone_timer_active = false;
-            if (!g_drone_spray_ctx.active) {
-                ui_drone_spray_prepare();
-            }
             ui_drone_set_pos(-40, 40, true, ui_drone_reset_to_still);
             ui_drone_hud_set_visible(false);
             ui_drone_window_refresh();
@@ -946,8 +973,6 @@ void ui_drone_handle_event(event_t *event) {
         case EVENT_ON_DRONE_TO_MOVING:
             if (drone_get_instance()->drone_state == DRONE_STATE_DETECTING) {
                 ui_drone_spray_reset();
-            } else if (!g_drone_spray_ctx.active) {
-                ui_drone_spray_prepare();
             }
             ui_drone_set_pos(0, 0, true, ui_drone_timer_resume);
             if (g_drone_window && lv_obj_is_valid(g_drone_window) && ui_window_is_visible(g_drone_window)) {

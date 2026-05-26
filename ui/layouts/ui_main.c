@@ -12,6 +12,8 @@
 #include "ui_grid_list.h"
 #include "ui_main_cb.h"
 #include "ui_message.h"
+#include "ui_shop.h"
+#include "ui_storage.h"
 #include "ui_storage_cb.h"
 #include "ui_window.h"
 
@@ -68,15 +70,11 @@ static void ui_main_icon_btns_hide(bool hide);
 static void ui_seed_table_refresh(void);
 static void ui_decorations_create(void);
 
-lv_obj_t *ui_shop_window_create(void);
-lv_obj_t *ui_storage_window_create(void);
-void ui_storage_window_refresh(void);
-
 static ui_window_toggle_desc_t g_plant_window_toggle = {.create = ui_plant_window_create,
                                                         .window_ref = &g_plant_window};
 static ui_window_toggle_desc_t g_storage_window_toggle = {
     .create = ui_storage_window_create,
-    .window_ref = NULL,
+    .window_ref = &g_storage_window,
 };
 static ui_window_toggle_desc_t g_shop_window_toggle = {.create = ui_shop_window_create, .window_ref = &g_shop_window};
 static ui_window_toggle_desc_t g_setting_window_toggle = {
@@ -106,26 +104,31 @@ lv_obj_t *ui_main_screen_create(void) {
     lv_obj_set_style_pad_ver(g_main_layer, 100, 0);
     lv_obj_clear_flag(g_main_layer, LV_OBJ_FLAG_SCROLLABLE);
 
+    // 农田模块
     ui_farm_module_create(g_screen_main, g_main_layer);
 
+    // 金币条和经验条
     ui_gold_bar_create(g_screen_main);
     ui_exp_bar_create(g_screen_main);
 
+    // 无人机模块
     ui_drone_module_create(g_main_layer, g_screen_main);
 
+    // 悬浮按钮
     shop_btn = ui_icon_btn_create(g_screen_main, 56, 56, &icon_shop_btn, 40, 380);
     storage_btn = ui_icon_btn_create(g_screen_main, 56, 56, &icon_storage_btn, 40, 460);
     plant_btn = ui_icon_btn_create(g_screen_main, 56, 56, &icon_plant_btn, 920, 450);
     setting_btn = ui_icon_btn_create(g_screen_main, 47, 47, &icon_setting_btn, 920, 40);
 
-    ui_decorations_create();
-
-    g_storage_window_toggle.window_ref = &g_storage_window;
-
     lv_obj_add_event_cb(plant_btn, ui_main_floating_button_click_cb, LV_EVENT_CLICKED, &g_plant_window_toggle);
     lv_obj_add_event_cb(storage_btn, ui_main_floating_button_click_cb, LV_EVENT_CLICKED, &g_storage_window_toggle);
     lv_obj_add_event_cb(shop_btn, ui_main_floating_button_click_cb, LV_EVENT_CLICKED, &g_shop_window_toggle);
     lv_obj_add_event_cb(setting_btn, ui_main_floating_button_click_cb, LV_EVENT_CLICKED, &g_setting_window_toggle);
+
+    // 装饰物
+    ui_decorations_create();
+
+    // g_storage_window_toggle.window_ref = &g_storage_window;
 
     // lv_obj_add_event_cb(g_screen_main, ui_main_screen_click_cb, LV_EVENT_CLICKED, NULL);
 

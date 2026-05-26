@@ -9,4 +9,11 @@ void ui_drone_handle_event(event_t *event);
 void ui_drone_update_100ms(void);
 void ui_drone_set_pos(lv_coord_t x, lv_coord_t y, bool anim, void *anim_cb);
 
+/* 无人机窗口与 HUD */
+extern uint8_t ui_drone_pest_count[CROP_DAMAGE_NONE];
+lv_obj_t *ui_drone_window_create(void);
+void ui_drone_window_refresh(void);
+void ui_drone_hud_create(lv_obj_t *parent);
+void ui_drone_hud_set_visible(bool visible);
+
 #endif

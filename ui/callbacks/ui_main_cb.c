@@ -3,6 +3,7 @@
 #include "audio.h"
 #include "player.h"
 #include "ui_common.h"
+#include "ui_farm.h"
 #include "ui_message.h"
 #include "ui_window.h"
 
@@ -112,9 +113,8 @@ void ui_main_field_block_long_press_cb(lv_event_t *e) {
 
     lv_obj_t *btn = lv_event_get_current_target(e);
     farm_block_t *block = lv_obj_get_user_data(btn);
-    void (*window_show)(void *) = lv_event_get_user_data(e);
     if (block) {
-        window_show(block);
+        ui_field_upgrade_window_refresh(block);
 
         // 长按后保持当前田地选中状态，清除其他田地的选中状态
         ui_farm_fields_clear_checked_state(lv_obj_get_parent(btn));

@@ -39,13 +39,4 @@ lv_obj_t *ui_card_create_with_flex(lv_obj_t *parent, lv_coord_t w, lv_coord_t h)
 lv_obj_t *ui_btn_factory(lv_obj_t *parent, lv_coord_t w, lv_coord_t h, const char *text, lv_color_t bg,
                          lv_color_t border, lv_event_cb_t cb, void *user_data);
 
-/* 仅 UI 内部模块使用 */
-extern uint8_t ui_drone_pest_count[CROP_DAMAGE_NONE];
-lv_obj_t *ui_drone_window_create(void);
-void ui_drone_window_refresh(void);
-void ui_drone_hud_create(lv_obj_t *parent);
-void ui_drone_hud_set_visible(bool visible);
-void ui_shop_refresh(void);
-void ui_field_upgrade_window_switch(farm_block_t *block);
-
 #endif

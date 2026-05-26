@@ -11,5 +11,6 @@ farm_block_t *ui_farm_get_block(int x, int y);
 void ui_farm_refresh_field(int x, int y);
 void ui_farm_refresh_all(void);
 void ui_field_upgrade_window_switch(farm_block_t *block);
+void ui_field_upgrade_window_refresh(farm_block_t *block);
 
 #endif
