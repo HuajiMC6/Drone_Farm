@@ -61,8 +61,8 @@ uint8_t ui_drone_pest_count[CROP_DAMAGE_NONE];
 
 /* 无人机自动喷洒状态 */
 typedef enum {
-    DRONE_AUTO_IDLE,  // 无路径，空闲状态
-    DRONE_AUTO_MOVING, // 正在飞向目标格子
+    DRONE_AUTO_IDLE,     // 无路径，空闲状态
+    DRONE_AUTO_MOVING,   // 正在飞向目标格子
     DRONE_AUTO_DWELLING, // 已到达目标格子，正在停留等待喷洒
 } drone_auto_state_t;
 
@@ -765,7 +765,7 @@ void ui_drone_set_pos(lv_coord_t x, lv_coord_t y, bool anim, void *anim_cb) {
         lv_anim_t ax;
         lv_anim_init(&ax);
         lv_anim_set_var(&ax, g_drone);
-        lv_anim_set_exec_cb(&ax, lv_obj_set_x);
+        lv_anim_set_exec_cb(&ax, (lv_anim_exec_xcb_t)lv_obj_set_x);
         lv_anim_set_time(&ax, x_time);
         lv_anim_set_path_cb(&ax, lv_anim_path_ease_in_out);
         lv_anim_set_values(&ax, x_start, x_end);
@@ -773,7 +773,7 @@ void ui_drone_set_pos(lv_coord_t x, lv_coord_t y, bool anim, void *anim_cb) {
         lv_anim_t ay;
         lv_anim_init(&ay);
         lv_anim_set_var(&ay, g_drone);
-        lv_anim_set_exec_cb(&ay, lv_obj_set_y);
+        lv_anim_set_exec_cb(&ay, (lv_anim_exec_xcb_t)lv_obj_set_y);
         lv_anim_set_time(&ay, y_time);
         lv_anim_set_path_cb(&ay, lv_anim_path_ease_in_out);
         lv_anim_set_values(&ay, y_start, y_end);
@@ -891,8 +891,7 @@ void ui_drone_update_100ms(void) {
         /* 空闲状态 → 尝试启动：生成喷洒路径，失败则回 FREE */
         if (g_drone_spray_ctx.state == DRONE_AUTO_IDLE && !ui_drone_spray_prepare()) {
             drone_state_switch(DRONE_STATE_FREE);
-            ui_message_show("No need to spray since no ill fields detected!", UI_MESSAGE_TYPE_ERROR,
-                            UI_MESSAGE_TOAST);
+            ui_message_show("No need to spray since no ill fields detected!", UI_MESSAGE_TYPE_ERROR, UI_MESSAGE_TOAST);
             return;
         }
 

@@ -26,7 +26,6 @@
 
 static lv_obj_t *g_screen_main = NULL;
 static lv_obj_t *g_main_layer = NULL;
-static lv_obj_t *g_scroll_part = NULL;
 
 static lv_obj_t *shop_btn = NULL;
 static lv_obj_t *storage_btn = NULL;
@@ -34,9 +33,6 @@ static lv_obj_t *plant_btn = NULL;
 static lv_obj_t *setting_btn = NULL;
 static lv_obj_t *g_seed_items[CROP_TYPE_NONE];
 static lv_obj_t *g_seed_count_labels[CROP_TYPE_NONE];
-
-static lv_timer_t *ui_timer_update_100ms = NULL;
-static lv_timer_t *ui_timer_update_1s = NULL;
 
 static lv_obj_t *g_plant_window = NULL;
 static lv_obj_t *g_shop_window = NULL;
@@ -178,33 +174,14 @@ void ui_main_handle_event(event_t *event) {
     }
 }
 
+// 主界面更新定时器注册
 void ui_main_update_timer_init(void) {
-    ui_timer_update_100ms = lv_timer_create(ui_update_100ms, 100, NULL);
-    ui_timer_update_1s = lv_timer_create(ui_update_1s, 1000, NULL);
+    lv_timer_create(ui_update_100ms, 100, NULL);
+    lv_timer_create(ui_update_1s, 1000, NULL);
     // lv_timer_pause(ui_timer_update_100ms);
 }
 
-static void ui_main_flex_cont_height_refresh(void) {
-}
-
-// static void ui_field_upgrade_window_refresh(void) {
-//     field_t *field = g_field_upgrade_window_ctx.current_field;
-//     if (!field || !g_field_upgrade_window || !lv_obj_is_valid(g_field_upgrade_window) ||
-//         !ui_window_is_visible(g_field_upgrade_window)) {
-//         return;
-//     }
-
-//     char buf[32];
-//     snprintf(buf, sizeof(buf), "Output: Lv.%d", field->output_level);
-//     lv_label_set_text(g_field_upgrade_window_ctx.output_label, buf);
-
-//     snprintf(buf, sizeof(buf), "Ready Time: Lv.%d", field->ready_time_level);
-//     lv_label_set_text(g_field_upgrade_window_ctx.ready_time_label, buf);
-
-//     snprintf(buf, sizeof(buf), "Tolerance: Lv.%d", field->tolerance_level);
-//     lv_label_set_text(g_field_upgrade_window_ctx.tolerance_label, buf);
-// }
-
+// 根据无人机状态显示/隐藏主界面上的悬浮按钮
 static void ui_main_icon_btns_hide(bool hide) {
     if (hide) {
         lv_obj_add_flag(shop_btn, LV_OBJ_FLAG_HIDDEN);
@@ -219,31 +196,7 @@ static void ui_main_icon_btns_hide(bool hide) {
     }
 }
 
-// 生长进度条
-static lv_obj_t *ui_crop_growing_bar(lv_obj_t *parent) {
-    lv_obj_t *bar = lv_bar_create(parent);
-    lv_obj_add_event_cb(bar, ui_main_crop_bar_draw_part_end_cb, LV_EVENT_DRAW_PART_END, NULL);
-    lv_obj_set_size(bar, 75, 8);
-    lv_obj_set_align(bar, LV_ALIGN_BOTTOM_MID);
-    lv_obj_set_pos(bar, 0, -2);
-    lv_obj_set_style_bg_color(bar, lv_color_white(), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(bar, LV_OPA_50, LV_PART_MAIN);
-    return bar;
-}
-
-// 死亡倒计时进度条（仅在作物即将死亡时显示）
-static lv_obj_t *ui_crop_death_bar(lv_obj_t *parent) {
-    lv_obj_t *bar = lv_bar_create(parent);
-    lv_obj_add_event_cb(bar, ui_main_crop_bar_draw_part_end_cb, LV_EVENT_DRAW_PART_END, NULL);
-    lv_obj_set_size(bar, 75, 8);
-    lv_obj_set_align(bar, LV_ALIGN_BOTTOM_MID);
-    lv_obj_set_pos(bar, 0, -10);
-    lv_obj_set_style_bg_color(bar, lv_color_hex(0xFF0000), LV_PART_INDICATOR);
-    lv_obj_set_style_bg_color(bar, lv_color_white(), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(bar, LV_OPA_50, LV_PART_MAIN);
-    return bar;
-}
-
+// 金币条创建
 static void ui_gold_bar_create(lv_obj_t *parent) {
     lv_obj_t *bar = ui_div_create(parent);
     lv_obj_set_size(bar, 130, 40);
@@ -260,12 +213,14 @@ static void ui_gold_bar_create(lv_obj_t *parent) {
     g_gold_bar_label = coin_label;
 }
 
+// 金币条刷新
 static void ui_gold_bar_refresh(void) {
     if (g_gold_bar_label && lv_obj_is_valid(g_gold_bar_label)) {
         lv_label_set_text_fmt(g_gold_bar_label, "%d", player_get_instance()->coins);
     }
 }
 
+// 经验条创建
 static void ui_exp_bar_create(lv_obj_t *parent) {
     lv_obj_t *bar = ui_div_create(parent);
     lv_obj_set_size(bar, 206, 75);
@@ -302,6 +257,7 @@ static void ui_exp_bar_create(lv_obj_t *parent) {
     g_player_exp_ctx.exp_bar = exp_bar;
 }
 
+// 经验条刷新
 static void ui_exp_bar_refresh(void) {
     player_t *player = player_get_instance();
     if (!player) {
@@ -322,6 +278,7 @@ static void ui_exp_bar_refresh(void) {
     }
 }
 
+// 图标按钮创建
 static lv_obj_t *ui_icon_btn_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h, const void *img, lv_coord_t x,
                                     lv_coord_t y) {
     lv_obj_t *btn = ui_div_create(parent);
@@ -345,6 +302,7 @@ static lv_obj_t *ui_icon_btn_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h
     return btn;
 }
 
+// 种子表创建
 static lv_obj_t *ui_seed_table_create(lv_obj_t *parent) {
     ui_grid_list_cfg_t cfg;
     ui_grid_list_cfg_init(&cfg);
@@ -401,6 +359,7 @@ static lv_obj_t *ui_seed_table_create(lv_obj_t *parent) {
     return grid;
 }
 
+// 种子表刷新
 static void ui_seed_table_refresh(void) {
     player_t *player = player_get_instance();
     if (!player) {
@@ -422,6 +381,7 @@ static void ui_seed_table_refresh(void) {
     }
 }
 
+// 种植窗口创建
 static lv_obj_t *ui_plant_window_create(void) {
     lv_obj_t *grid = ui_seed_table_create(g_screen_main);
 
@@ -435,6 +395,7 @@ static lv_obj_t *ui_plant_window_create(void) {
     return div;
 }
 
+// 设置窗口创建
 static lv_obj_t *ui_setting_window_create(void) {
     lv_obj_t *body = ui_div_create(g_screen_main);
     lv_obj_t *div = ui_window_create("SETTING", body, true);
@@ -512,6 +473,7 @@ static void ui_update_100ms(lv_timer_t *timer) {
     }
 }
 
+// 1s定时器回调（主要用于田地状态刷新）
 static void ui_update_1s(lv_timer_t *timer) {
     (void)timer;
 

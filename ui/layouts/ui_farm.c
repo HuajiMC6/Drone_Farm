@@ -63,6 +63,7 @@ static void ui_farm_flex_cont_height_refresh(void) {
     }
 }
 
+// 生长进度条
 static lv_obj_t *ui_crop_growing_bar(lv_obj_t *parent) {
     lv_obj_t *bar = lv_bar_create(parent);
     lv_obj_add_event_cb(bar, ui_main_crop_bar_draw_part_end_cb, LV_EVENT_DRAW_PART_END, NULL);
@@ -74,6 +75,7 @@ static lv_obj_t *ui_crop_growing_bar(lv_obj_t *parent) {
     return bar;
 }
 
+// 死亡倒计时进度条（仅在作物即将死亡时显示）
 static lv_obj_t *ui_crop_death_bar(lv_obj_t *parent) {
     lv_obj_t *bar = lv_bar_create(parent);
     lv_obj_add_event_cb(bar, ui_main_crop_bar_draw_part_end_cb, LV_EVENT_DRAW_PART_END, NULL);
@@ -86,6 +88,7 @@ static lv_obj_t *ui_crop_death_bar(lv_obj_t *parent) {
     return bar;
 }
 
+// 更新指定农田格子的生长和死亡进度条状态
 static void ui_field_update_bars(farm_block_t *block) {
     if (!block) {
         return;

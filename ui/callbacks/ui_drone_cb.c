@@ -6,8 +6,6 @@
 #include "ui_drone.h"
 #include "ui_message.h"
 
-static int ui_drone_pesticide_used_local(const drone_t *drone);
-
 void ui_drone_mode_button_click_cb(lv_event_t *e) {
     lv_event_stop_bubbling(e);
 

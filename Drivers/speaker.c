@@ -1,7 +1,7 @@
 /**
  * @file    speaker.c
- * @brief   I2S 扬声器驱动 - SPI1 I2S + DMA 双缓冲
- *          支持 PCM 音频播放 (BGM 循环 / SFX 一次性)
+ * @brief   I2S 扬声器驱动 - SPI1 I2S + 软件缓冲播放
+ *          支持 PCM 音频播放、流式背景音乐和短音效
  *
  * 硬件引脚 (板载 MAX98357A, SD 已硬接 5V):
  *   PC1  - I2S_SD   (SPI1_MOSI,  AF5)
@@ -14,9 +14,9 @@
  *   格式: 16-bit signed 单声道, I2S Philips 标准
  *
  * 架构:
- *   DMA 双缓冲循环模式 (2 x 512 采样点)
- *   主循环每帧检查 DMA 半区切换 -> 从 PCM 源复制数据到空闲半区
- *   BGM 循环播放, SFX 优先 (SFX 期间暂停 BGM)
+ *   I2S 中断按采样节奏取数输出
+ *   主循环负责补充流式 BGM 的环形缓冲
+ *   PCM 文件可先读入 SDRAM，也可以直接流式播放
  */
 
 #include "speaker.h"
@@ -44,7 +44,7 @@
 #define SPK_GPIO_PIN_BCLK GPIO_PIN_13 /* PB13: SPI1_SCK / I2S_CK */
 #define SPK_GPIO_AF GPIO_AF_5         /* SPI1 使用 AF5 */
 
-/* DMA 配置 */
+/* SPI1 I2S 发送相关宏 */
 #define SPK_DMA DMA0
 #define SPK_DMA_CH DMA_CH6
 #define SPK_DMA_REQUEST DMA_REQUEST_SPI1_TX
@@ -54,13 +54,10 @@
 #define SPK_BUF_SAMPLES 512U
 #define SPK_BUF_TOTAL (SPK_BUF_SAMPLES * 2U)
 
-/* 源切换去爆音: 在 BGM/SFX 切换时做短淡入 */
+/* 源切换去爆音: 在播放源切换瞬间做短淡入 */
 #define SPK_DECLICK_SAMPLES 32U
 
-/* 同时可混音的 PCM 源数量 (不含流式 BGM) */
-#define SPK_MIX_PCM_SOURCES 4U
-
-/* BGM 流式播放缓存 */
+/* 流式 BGM 的环形缓冲 */
 #define SPK_STREAM_RING_SAMPLES 4096U
 #define SPK_STREAM_READ_CHUNK 512U
 #define SPK_STREAM_RING_MASK (SPK_STREAM_RING_SAMPLES - 1U)
@@ -84,12 +81,6 @@ typedef struct {
 } speaker_pcm_ctx_t;
 
 typedef struct {
-    speaker_pcm_ctx_t pcm;
-    uint8_t active;
-    uint8_t owned;
-} speaker_mix_pcm_src_t;
-
-typedef struct {
     FIL fil;
     uint8_t active;
     uint8_t loop;
@@ -101,10 +92,7 @@ typedef struct {
  *  静态变量
  * ============================================================ */
 
-/* 双缓冲: 连续存储, 每个元素是 32-bit (低16位=采样, 高16位=0) */
-static uint32_t s_buf[SPK_BUF_TOTAL];
-
-/* DMA 当前所在的半区 (0 或 1) */
+/* 保留的半区标记，当前实现主要依赖中断取样 */
 static volatile uint8_t s_dma_half = 0U;
 
 /* 播放状态 */
@@ -113,10 +101,18 @@ static speaker_state_t s_state = SPK_STATE_IDLE;
 /* 音量 0~100 -> 幅度缩放 (Q16) */
 static uint32_t s_volume = 65536U;
 
-/* PCM 混音源: 0 号保留给循环 BGM, 其余用于短音效叠加 */
-static speaker_mix_pcm_src_t s_pcm_src[SPK_MIX_PCM_SOURCES];
+/* 内存 PCM 播放上下文：通常作为背景音乐使用 */
+static speaker_pcm_ctx_t s_bgm_ctx;
+static uint8_t s_bgm_active = 0U;
 
-/* 流式 BGM 播放状态 */
+/* 内存 PCM 播放上下文：通常作为短音效使用 */
+static speaker_pcm_ctx_t s_sfx_ctx;
+static uint8_t s_sfx_active = 0U;
+
+/* 播放切换期间的暂停标志 */
+static uint8_t s_bgm_paused = 0U;
+
+/* 流式背景音乐状态 */
 static speaker_stream_file_ctx_t s_stream_ctx;
 static uint16_t s_stream_ring[SPK_STREAM_RING_SAMPLES];
 static uint16_t s_stream_chunk[SPK_STREAM_READ_CHUNK];
@@ -131,10 +127,6 @@ static uint8_t s_stream_active = 0U;
 
 static void speaker_gpio_init(void);
 static void speaker_i2s_init(void);
-static void speaker_dma_init(void);
-static void speaker_start_dma(void);
-static void speaker_dma_poll(void);
-static uint32_t speaker_fill_pcm(speaker_pcm_ctx_t *ctx, uint32_t *buf, uint32_t count);
 static uint32_t speaker_irq_save(void);
 static void speaker_irq_restore(uint32_t primask);
 static void speaker_stream_reset(void);
@@ -146,11 +138,6 @@ static uint8_t speaker_stream_pop_locked(uint16_t *sample);
 static void speaker_stream_refill(void);
 static uint8_t speaker_pcm_next_sample(speaker_pcm_ctx_t *ctx, uint16_t *sample);
 static uint8_t speaker_active_source_id(void);
-static void speaker_pcm_release_slot(uint8_t slot_index);
-static int speaker_pcm_start(const uint16_t *pcm_data, uint32_t sample_count, uint8_t loop, uint8_t is_bgm,
-                             uint8_t owned);
-static speaker_mix_pcm_src_t *speaker_pcm_alloc_slot(uint8_t prefer_slot);
-static uint8_t speaker_pcm_mixed_fetch(int32_t *mixed_sample, uint8_t *active_count);
 
 /* ============================================================
  *  GPIO 初始化
@@ -179,7 +166,7 @@ static void speaker_gpio_init(void) {
 }
 
 /* ============================================================
- *  SPI1 I2S 初始化 (参考老师代码)
+ *  SPI1 I2S 初始化
  * ============================================================ */
 static void speaker_i2s_init(void) {
     /* 使能 SPI1 时钟 */
@@ -199,155 +186,6 @@ static void speaker_i2s_init(void) {
 }
 
 /* ============================================================
- *  DMA 初始化 (双缓冲循环模式)
- * ============================================================ */
-static void speaker_dma_init(void) {
-    dma_single_data_parameter_struct dma_para;
-
-    /* 使能 DMA 时钟 */
-    rcu_periph_clock_enable(RCU_DMA0);
-    rcu_periph_clock_enable(RCU_DMAMUX);
-
-    /* 先禁用通道以便配置 */
-    dma_channel_disable(SPK_DMA, SPK_DMA_CH);
-
-    dma_single_data_para_struct_init(&dma_para);
-    dma_para.request = SPK_DMA_REQUEST;
-    dma_para.direction = DMA_MEMORY_TO_PERIPH;
-    dma_para.periph_addr = (uint32_t)(SPI1 + 0x00000020U); /* SPI_TDATA 寄存器 */
-    dma_para.periph_inc = DMA_PERIPH_INCREASE_DISABLE;
-    dma_para.memory0_addr = (uint32_t)s_buf;
-    dma_para.memory_inc = DMA_MEMORY_INCREASE_ENABLE;
-    dma_para.periph_memory_width = DMA_PERIPH_WIDTH_32BIT; /* SPI_TDATA 是 32 位寄存器 */
-    dma_para.number = SPK_BUF_TOTAL;                       /* 2 × 512 = 1024 个半字 */
-    dma_para.priority = DMA_PRIORITY_HIGH;
-
-    dma_single_data_mode_init(SPK_DMA, SPK_DMA_CH, &dma_para);
-
-    /* 循环模式: DMA 自动回绕 */
-    dma_circulation_enable(SPK_DMA, SPK_DMA_CH);
-}
-
-/* ============================================================
- *  从 PCM 上下文填充缓冲区 (立体声: 每个采样复制为 L+R 对)
- * ============================================================ */
-static uint32_t speaker_fill_pcm(speaker_pcm_ctx_t *ctx, uint32_t *buf, uint32_t count) {
-    uint32_t i, pair_count;
-    uint32_t remaining;
-    uint32_t to_copy_pairs;
-    int32_t sample;
-    uint32_t packed;
-
-    /* count 是 32-bit 字数, 立体声每对=2字(L+R), 源采样数=count/2 */
-    pair_count = count / 2U;
-
-    if (ctx == NULL || ctx->data == NULL || ctx->total_samples == 0U) {
-        memset(buf, 0, count * sizeof(uint32_t));
-        return 0U;
-    }
-
-    remaining = ctx->total_samples - ctx->position;
-    to_copy_pairs = (pair_count < remaining) ? pair_count : remaining;
-
-    /* 每个源采样写两次: buf[2i]=L, buf[2i+1]=R (同 L, 单声道) */
-    for (i = 0U; i < to_copy_pairs; i++) {
-        sample = (int32_t)((int16_t)ctx->data[ctx->position + i]);
-        sample = (sample * (int32_t)s_volume) >> 16;
-        if (sample > 32767)
-            sample = 32767;
-        else if (sample < -32768)
-            sample = -32768;
-        packed = (uint32_t)(uint16_t)(int16_t)sample;
-        buf[i * 2U] = packed;
-        buf[i * 2U + 1U] = packed;
-    }
-
-    ctx->position += to_copy_pairs;
-
-    if (to_copy_pairs < pair_count) {
-        if (ctx->loop) {
-            ctx->position = 0U;
-            for (i = to_copy_pairs; i < pair_count; i++) {
-                if (ctx->position >= ctx->total_samples)
-                    ctx->position = 0U;
-                sample = (int32_t)((int16_t)ctx->data[ctx->position]);
-                sample = (sample * (int32_t)s_volume) >> 16;
-                if (sample > 32767)
-                    sample = 32767;
-                else if (sample < -32768)
-                    sample = -32768;
-                packed = (uint32_t)(uint16_t)(int16_t)sample;
-                buf[i * 2U] = packed;
-                buf[i * 2U + 1U] = packed;
-                ctx->position++;
-            }
-        } else {
-            memset(&buf[to_copy_pairs * 2U], 0, (count - to_copy_pairs * 2U) * sizeof(uint32_t));
-        }
-    }
-
-    return to_copy_pairs * 2U;
-}
-
-static void speaker_pcm_release_slot(uint8_t slot_index) {
-    if (slot_index >= SPK_MIX_PCM_SOURCES) {
-        return;
-    }
-
-    if (s_pcm_src[slot_index].active && s_pcm_src[slot_index].owned && s_pcm_src[slot_index].pcm.data != NULL) {
-        sdram_free((void *)s_pcm_src[slot_index].pcm.data);
-    }
-
-    memset(&s_pcm_src[slot_index], 0, sizeof(s_pcm_src[slot_index]));
-}
-
-static speaker_mix_pcm_src_t *speaker_pcm_alloc_slot(uint8_t prefer_slot) {
-    uint8_t i;
-
-    if (prefer_slot == 0U) {
-        speaker_pcm_release_slot(0U);
-        return &s_pcm_src[0];
-    }
-
-    for (i = 1U; i < SPK_MIX_PCM_SOURCES; i++) {
-        if (!s_pcm_src[i].active) {
-            return &s_pcm_src[i];
-        }
-    }
-
-    return NULL;
-}
-
-static int speaker_pcm_start(const uint16_t *pcm_data, uint32_t sample_count, uint8_t loop, uint8_t is_bgm,
-                             uint8_t owned) {
-    speaker_mix_pcm_src_t *slot;
-    uint8_t slot_index;
-
-    if (pcm_data == NULL || sample_count == 0U) {
-        return -1;
-    }
-
-    slot_index = (is_bgm != 0U) ? 0U : 1U;
-    slot = speaker_pcm_alloc_slot(slot_index);
-    if (slot == NULL) {
-        return -1;
-    }
-
-    slot->pcm.data = pcm_data;
-    slot->pcm.total_samples = sample_count;
-    slot->pcm.position = 0U;
-    slot->pcm.loop = (loop != 0U) ? 1U : 0U;
-    slot->owned = owned;
-    slot->active = 1U;
-
-    return 0;
-}
-
-static uint8_t speaker_pcm_next_sample_mixed(uint16_t *sample, speaker_pcm_ctx_t *ctx) {
-    return speaker_pcm_next_sample(ctx, sample);
-}
-
-/* ============================================================
  *  进入/退出临界区 (保护流式环形缓冲)
  * ============================================================ */
 static uint32_t speaker_irq_save(void) {
@@ -363,7 +201,7 @@ static void speaker_irq_restore(uint32_t primask) {
 }
 
 /* ============================================================
- *  流式 BGM 环形缓冲管理
+ *  流式音频环形缓冲管理
  * ============================================================ */
 static void speaker_stream_reset(void) {
     uint32_t primask = speaker_irq_save();
@@ -419,7 +257,7 @@ static uint8_t speaker_stream_pop_locked(uint16_t *sample) {
 }
 
 static void speaker_stream_refill(void) {
-    if (!s_stream_active || !s_stream_ctx.active) {
+    if (!s_stream_active || s_bgm_paused || !s_stream_ctx.active) {
         return;
     }
 
@@ -492,7 +330,7 @@ static void speaker_stream_refill(void) {
 
         if (remaining == 0U) {
             speaker_stream_close();
-            if (speaker_active_source_id() == 0U) {
+            if (!s_sfx_active && !s_bgm_active) {
                 s_state = SPK_STATE_IDLE;
             }
         }
@@ -531,7 +369,7 @@ static uint8_t speaker_stream_next_sample(uint16_t *sample) {
     uint32_t primask;
     uint8_t ok;
 
-    if (!s_stream_active || sample == NULL) {
+    if (!s_stream_active || s_bgm_paused || sample == NULL) {
         return 0U;
     }
 
@@ -541,7 +379,6 @@ static uint8_t speaker_stream_next_sample(uint16_t *sample) {
 
     if (ok) {
         int32_t value = (int32_t)(int16_t)(*sample);
-        /* Apply global volume (Q16) to stream samples as well */
         value = (value * (int32_t)s_volume) >> 16;
         if (value > 32767) {
             value = 32767;
@@ -555,113 +392,62 @@ static uint8_t speaker_stream_next_sample(uint16_t *sample) {
 }
 
 static uint8_t speaker_next_sample(uint16_t *sample) {
-    uint8_t i;
-    uint8_t active_count = 0U;
-    int32_t mixed = 0;
-    int32_t one_sample = 0;
-    uint16_t tmp = 0U;
-    uint8_t source_active = 0U;
-
     if (sample == NULL) {
         return 0U;
     }
 
-    for (i = 0U; i < SPK_MIX_PCM_SOURCES; i++) {
-        if (!s_pcm_src[i].active) {
-            continue;
+    if (s_sfx_active) {
+        if (speaker_pcm_next_sample(&s_sfx_ctx, sample)) {
+            return 1U;
         }
 
-        if (!speaker_pcm_next_sample_mixed(&tmp, &s_pcm_src[i].pcm)) {
-            if (!s_pcm_src[i].pcm.loop) {
-                speaker_pcm_release_slot(i);
-                continue;
-            }
+        s_sfx_active = 0U;
+        s_sfx_ctx.data = NULL;
+        if (s_bgm_active || s_stream_active) {
+            s_bgm_paused = 0U;
         }
-
-        one_sample = (int32_t)(int16_t)tmp;
-        mixed += one_sample;
-        active_count++;
-        source_active = 1U;
-    }
-
-    if (s_stream_active) {
-        if (speaker_stream_next_sample(&tmp)) {
-            mixed += (int32_t)(int16_t)tmp;
-            active_count++;
-            source_active = 1U;
-        } else if (s_stream_ctx.eof) {
-            speaker_stream_close();
-        }
-    }
-
-    if (!source_active || active_count == 0U) {
-        if (speaker_active_source_id() == 0U) {
+        if (!s_bgm_active && !s_stream_active) {
             s_state = SPK_STATE_IDLE;
         }
         return 0U;
     }
 
-    mixed /= (int32_t)active_count;
-    if (mixed > 32767) {
-        mixed = 32767;
-    } else if (mixed < -32768) {
-        mixed = -32768;
-    }
-
-    *sample = (uint16_t)(int16_t)mixed;
-    return 1U;
-}
-
-static uint8_t speaker_active_source_id(void) {
-    uint8_t i;
-
-    for (i = 0U; i < SPK_MIX_PCM_SOURCES; i++) {
-        if (s_pcm_src[i].active) {
+    if (s_bgm_active && !s_bgm_paused) {
+        if (speaker_pcm_next_sample(&s_bgm_ctx, sample)) {
             return 1U;
         }
+
+        s_bgm_active = 0U;
+        s_bgm_ctx.data = NULL;
+        if (!s_sfx_active && !s_stream_active) {
+            s_state = SPK_STATE_IDLE;
+        }
+        return 0U;
     }
 
-    if (s_stream_active) {
-        return 1U;
+    if (s_stream_active && !s_bgm_paused) {
+        return speaker_stream_next_sample(sample);
     }
 
     return 0U;
 }
 
-/* ============================================================
- *  检查 DMA 半区切换, 从 PCM 源填充空闲半区
- * ============================================================ */
-static void speaker_dma_poll(void) {
-    uint32_t cnt;
-    uint8_t current_half;
-    uint32_t *fill_buf;
-    /* 读取 DMA 剩余传输计数 */
-    cnt = DMA_CHCNT(SPK_DMA, SPK_DMA_CH);
+static uint8_t speaker_active_source_id(void) {
+    uint8_t mask = 0U;
 
-    /* CHCNT > SPK_BUF_SAMPLES -> DMA 还在前半 (buf0)
-     * CHCNT <= SPK_BUF_SAMPLES -> DMA 已进入后半 (buf1) */
-    current_half = (cnt > SPK_BUF_SAMPLES) ? 0U : 1U;
-
-    if (current_half != s_dma_half) {
-        if (s_dma_half == 0U) {
-            fill_buf = s_buf;
-        } else {
-            fill_buf = &s_buf[SPK_BUF_SAMPLES];
-        }
-
-        if (speaker_active_source_id() == 0U) {
-            memset(fill_buf, 0, SPK_BUF_SAMPLES * sizeof(uint32_t));
-        }
-
-        s_dma_half = current_half;
+    if (s_sfx_active) {
+        mask |= 0x01U;
     }
-}
 
-/* ============================================================
- *  启动 DMA
- * ============================================================ */
-static void speaker_start_dma(void) {
-    dma_channel_enable(SPK_DMA, SPK_DMA_CH);
+    if (s_bgm_active) {
+        mask |= 0x02U;
+    }
+
+    if (s_stream_active) {
+        mask |= 0x04U;
+    }
+
+    return mask;
 }
 
 /* ============================================================
@@ -682,17 +468,18 @@ void speaker_init(void) {
     spi_i2s_interrupt_enable(SPK_SPI, SPI_I2S_INT_TP);
 
     s_state = SPK_STATE_IDLE;
-    memset(s_pcm_src, 0, sizeof(s_pcm_src));
-    speaker_stream_reset();
-    s_stream_active = 0U;
-    s_stream_ctx.active = 0U;
+    s_bgm_active = 0U;
+    s_sfx_active = 0U;
+    s_bgm_paused = 0U;
+    memset(&s_bgm_ctx, 0, sizeof(s_bgm_ctx));
+    memset(&s_sfx_ctx, 0, sizeof(s_sfx_ctx));
 }
 
 /* ============================================================
  *  API: 每帧更新 (主循环中调用)
  * ============================================================ */
 void speaker_update(void) {
-    /* 流式 BGM 需要主循环补充环形缓冲 */
+    /* 流式播放需要主循环补充环形缓冲 */
     speaker_stream_refill();
 }
 
@@ -705,13 +492,33 @@ void speaker_play_pcm(const uint16_t *pcm_data, uint32_t sample_count, uint8_t l
     }
 
     if (loop) {
-        if (speaker_pcm_start(pcm_data, sample_count, 1U, 1U, 0U) == 0) {
+        /* 切换到内存 PCM 前, 关闭可能存在的流式播放 */
+        speaker_stream_close();
+
+        /* loop=1 时通常作为背景音乐 */
+        s_bgm_ctx.data = pcm_data;
+        s_bgm_ctx.total_samples = sample_count;
+        s_bgm_ctx.position = 0U;
+        s_bgm_ctx.loop = 1U;
+        s_bgm_active = 1U;
+        s_bgm_paused = 0U;
+
+        if (!s_sfx_active) {
             s_state = SPK_STATE_PLAYING;
         }
     } else {
-        if (speaker_pcm_start(pcm_data, sample_count, 0U, 0U, 0U) == 0) {
-            s_state = SPK_STATE_PLAYING;
+        /* loop=0 时通常作为短音效 */
+        if (s_bgm_active || s_stream_active) {
+            s_bgm_paused = 1U;
         }
+
+        s_sfx_ctx.data = pcm_data;
+        s_sfx_ctx.total_samples = sample_count;
+        s_sfx_ctx.position = 0U;
+        s_sfx_ctx.loop = 0U;
+        s_sfx_active = 1U;
+
+        s_state = SPK_STATE_PLAYING;
     }
 }
 
@@ -721,13 +528,16 @@ void speaker_play_pcm(const uint16_t *pcm_data, uint32_t sample_count, uint8_t l
 void speaker_stop(void) {
     speaker_stream_close();
     s_state = SPK_STATE_IDLE;
-    for (uint8_t i = 0U; i < SPK_MIX_PCM_SOURCES; i++) {
-        speaker_pcm_release_slot(i);
-    }
+    s_bgm_active = 0U;
+    s_sfx_active = 0U;
+    s_bgm_paused = 0U;
+    memset(&s_bgm_ctx, 0, sizeof(s_bgm_ctx));
+    memset(&s_sfx_ctx, 0, sizeof(s_sfx_ctx));
 }
 
 /* ============================================================
  *  API: 从 SD 卡加载 PCM 到 SDRAM 后播放
+ *  适合短音效，播放结束后由调用者决定是否释放内存
  * ============================================================ */
 int speaker_play_pcm_file(const TCHAR *path, uint8_t loop) {
     FIL fil;
@@ -767,15 +577,13 @@ int speaker_play_pcm_file(const TCHAR *path, uint8_t loop) {
         return -1;
     }
 
-    if (speaker_pcm_start(pcm_buf, sample_count, loop, 0U, 1U) != 0) {
-        sdram_free(pcm_buf);
-        return -1;
-    }
+    speaker_play_pcm(pcm_buf, sample_count, loop);
     return 0;
 }
 
 /* ============================================================
  *  API: 从 SD 卡流式播放背景音乐
+ *  适合长音频，只保留小缓冲区
  * ============================================================ */
 int speaker_play_bgm_stream_file(const TCHAR *path, uint8_t loop) {
     FRESULT res;
@@ -784,7 +592,7 @@ int speaker_play_bgm_stream_file(const TCHAR *path, uint8_t loop) {
         return -1;
     }
 
-    speaker_stream_close();
+    speaker_stop();
 
     res = f_open(&s_stream_ctx.fil, path, FA_READ);
     if (res != FR_OK) {
@@ -829,8 +637,6 @@ void speaker_set_volume(uint8_t vol) {
  * ============================================================ */
 uint8_t speaker_is_playing(void) {
     uint32_t stream_pending;
-    uint8_t i;
-    uint8_t pcm_active = 0U;
 
     {
         uint32_t primask = speaker_irq_save();
@@ -838,14 +644,7 @@ uint8_t speaker_is_playing(void) {
         speaker_irq_restore(primask);
     }
 
-    for (i = 0U; i < SPK_MIX_PCM_SOURCES; i++) {
-        if (s_pcm_src[i].active) {
-            pcm_active = 1U;
-            break;
-        }
-    }
-
-    if (s_state != SPK_STATE_IDLE || pcm_active || s_stream_active || stream_pending > 0U) {
+    if (s_state != SPK_STATE_IDLE || s_stream_active || stream_pending > 0U) {
         return 1U;
     }
 
@@ -854,7 +653,7 @@ uint8_t speaker_is_playing(void) {
 
 /* ============================================================
  *  I2S 中断喂数据 (由 SPI1_IRQHandler 调用)
- *  立体声: 每两次 ISR 发送同一采样 (L + R)
+ *  单声道 PCM 通过重复采样方式输出到 I2S
  * ============================================================ */
 void speaker_i2s_feed(void) {
     static uint8_t isr_phase = 0U; /* 0=需要新采样, 1=重复上次 */
