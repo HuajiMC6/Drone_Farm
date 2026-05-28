@@ -368,10 +368,6 @@ farm_block_t *ui_farm_get_block(int x, int y) {
     return &g_farm_blocks[x][y];
 }
 
-void ui_farm_refresh_field(int x, int y) {
-    ui_field_update(x, y);
-}
-
 void ui_farm_refresh_all(void) {
     for (int i = 0; i < FARM_GRID_N; i++) {
         for (int j = 0; j < FARM_GRID_N; j++) {

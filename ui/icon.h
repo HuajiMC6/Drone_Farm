@@ -59,5 +59,7 @@ LV_IMG_DECLARE(icon_pesticide_leafroller);
 LV_IMG_DECLARE(icon_pesticide_locust);
 
 extern lv_img_dsc_t *img_prop_scarecrow;
+extern lv_img_dsc_t *img_load_bg;
+extern lv_img_dsc_t *img_load_btn;
 
 #endif

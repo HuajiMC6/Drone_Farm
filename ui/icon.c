@@ -6,10 +6,14 @@
 extern int read_file_to_array(const char *filename, uint8_t *buffer, uint32_t max_size);
 
 lv_img_dsc_t *img_prop_scarecrow;
+lv_img_dsc_t *img_load_bg;
+lv_img_dsc_t *img_load_btn;
 
 // 外部图标加载
 void icon_init(void) {
     img_prop_scarecrow = icon_sd_load("0:/images/img_prop_scarecrow.bin", LV_IMG_CF_TRUE_COLOR_ALPHA, 100, 122);
+    img_load_bg = icon_sd_load("0:/images/img_load_bg.bin", LV_IMG_CF_TRUE_COLOR, 1024, 600);
+    img_load_btn = icon_sd_load("0:/images/img_load_btn.bin", LV_IMG_CF_TRUE_COLOR_ALPHA, 272, 85);
 }
 
 /*

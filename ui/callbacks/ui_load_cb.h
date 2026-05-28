@@ -4,6 +4,6 @@
 #include "lvgl.h"
 #include "player.h"
 
-void ui_load_test_cb(lv_event_t *e);
+void ui_load_btn_cb(lv_event_t *e);
 
 #endif
