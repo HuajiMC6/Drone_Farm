@@ -105,7 +105,8 @@ static void ui_field_update_bars(farm_block_t *block) {
             lv_obj_add_flag(block->death_bar, LV_OBJ_FLAG_HIDDEN);
         }
 
-        if (death_percentage == 75) {
+        // 当死亡进度达到75%且作物正在感染虫害时，弹出警告提示玩家作物即将死亡
+        if (death_percentage == 75 && field_is_damaged(block->field)) {
             char message[64];
             snprintf(message, sizeof(message), "The crop in (%d, %d) is about to die!", block->x + 1, block->y + 1);
             ui_message_show(message, UI_MESSAGE_TYPE_WARNING, UI_MESSAGE_CONFIRM);

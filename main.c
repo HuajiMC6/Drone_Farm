@@ -4,7 +4,7 @@
 #include "player.h"
 #include "ui.h"
 
-void heartbeat_timer_cb(lv_timer_t *timer);
+static void heartbeat_timer_init(void);
 
 static lv_timer_t *g_heartbeat_timer = NULL;
 
@@ -46,10 +46,9 @@ int main() {
 
     /* UI Initializaiton */
     ui_init();
-    ui_update_timer_init();
 
     /* Heartbeat Timer Init */
-    g_heartbeat_timer = lv_timer_create(heartbeat_timer_cb, 1000, NULL);
+    heartbeat_timer_init();
     // 默认先暂停，等进入主页面后再恢复
     game_pause();
 
@@ -70,13 +69,19 @@ int main() {
     }
 }
 
-void heartbeat_timer_cb(lv_timer_t *timer) {
+static void heartbeat_timer_cb(lv_timer_t *timer) {
     farm_grow();
 
     // 定时保存游戏状态
     farm_save();
     player_save();
     drone_save();
+}
+
+static void heartbeat_timer_init(void) {
+    if (!g_heartbeat_timer) {
+        g_heartbeat_timer = lv_timer_create(heartbeat_timer_cb, 1000, NULL);
+    }
 }
 
 void game_start(void) {

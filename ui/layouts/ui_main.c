@@ -24,6 +24,9 @@
 #define FARM_GRID_N farm_get_instance()->current_size
 #define FARM_BLOCK_SIZE 80
 
+lv_timer_t *ui_timer_update_100ms;
+lv_timer_t *ui_timer_update_1s;
+
 static lv_obj_t *g_screen_main = NULL;
 static lv_obj_t *g_main_layer = NULL;
 
@@ -176,9 +179,20 @@ void ui_main_handle_event(event_t *event) {
 
 // 主界面更新定时器注册
 void ui_main_update_timer_init(void) {
-    lv_timer_create(ui_update_100ms, 100, NULL);
-    lv_timer_create(ui_update_1s, 1000, NULL);
-    // lv_timer_pause(ui_timer_update_100ms);
+    ui_timer_update_100ms = lv_timer_create(ui_update_100ms, 100, NULL);
+    ui_timer_update_1s = lv_timer_create(ui_update_1s, 1000, NULL);
+}
+
+// 启动更新定时器
+void ui_main_update_timer_start(void) {
+    lv_timer_resume(ui_timer_update_100ms);
+    lv_timer_resume(ui_timer_update_1s);
+}
+
+// 暂停更新定时器
+void ui_main_update_timer_pause(void) {
+    lv_timer_pause(ui_timer_update_100ms);
+    lv_timer_pause(ui_timer_update_1s);
 }
 
 // 根据无人机状态显示/隐藏主界面上的悬浮按钮
