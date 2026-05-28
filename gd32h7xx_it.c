@@ -1,5 +1,6 @@
 #include "gd32h7xx_it.h"
 #include "drivers.h"
+#include "lv_port_disp_template.h"
 
 /*!
     \brief      this function handles NMI exception
@@ -135,6 +136,8 @@ void DMA0_Channel0_IRQHandler(void) {
             DMA_CHM0ADDR(DMA0, DMA_CH0) = (uint32_t)gdma.des;
 
             dma_channel_enable(DMA0, DMA_CH0);
+        } else {
+            lv_port_disp_flush_ready();
         }
     }
 }

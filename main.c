@@ -57,14 +57,16 @@ int main() {
     joystick_init();
 
     while (1) {
-        delay_us(2000);
-        lv_timer_handler();
-
-        // 扬声器播放状态更新 (DMA 缓冲区填充)
+        /* 在 LVGL 渲染前先补充音频流缓冲, 避免渲染阻塞导致欠载
+         * 环形缓冲 16384 采样 (~372ms) 足够覆盖任一帧的渲染耗时 */
         speaker_update();
 
-        // UI层处理游戏逻辑事件
+        lv_timer_handler();
+
+        /* UI层处理游戏逻辑事件 */
         ui_event_handler(event_get());
+
+        delay_us(2000);
     }
 }
 
