@@ -34,6 +34,10 @@ static lv_obj_t *shop_btn = NULL;
 static lv_obj_t *storage_btn = NULL;
 static lv_obj_t *plant_btn = NULL;
 static lv_obj_t *setting_btn = NULL;
+static lv_obj_t *harvest_btn = NULL;
+static lv_obj_t *farm_upgrade_btn = NULL;
+static lv_obj_t *debug_btn = NULL;
+
 static lv_obj_t *g_seed_items[CROP_TYPE_NONE];
 static lv_obj_t *g_seed_count_labels[CROP_TYPE_NONE];
 
@@ -114,15 +118,19 @@ lv_obj_t *ui_main_screen_create(void) {
     ui_drone_module_create(g_main_layer, g_screen_main);
 
     // 悬浮按钮
-    shop_btn = ui_icon_btn_create(g_screen_main, 56, 56, &icon_shop_btn, 40, 380);
-    storage_btn = ui_icon_btn_create(g_screen_main, 56, 56, &icon_storage_btn, 40, 460);
-    plant_btn = ui_icon_btn_create(g_screen_main, 56, 56, &icon_plant_btn, 920, 450);
-    setting_btn = ui_icon_btn_create(g_screen_main, 47, 47, &icon_setting_btn, 920, 40);
+    shop_btn = ui_icon_btn_create(g_screen_main, 56, 56, &icon_btn_shop, 40, 380);
+    storage_btn = ui_icon_btn_create(g_screen_main, 56, 56, &icon_btn_storage, 40, 460);
+    farm_upgrade_btn = ui_icon_btn_create(g_screen_main, 56, 56, &icon_btn_farm_upgrade, 40, 170);
+    plant_btn = ui_icon_btn_create(g_screen_main, 56, 56, &icon_btn_plant, 920, 450);
+    harvest_btn = ui_icon_btn_create(g_screen_main, 56, 56, &icon_btn_harvest, 920, 370);
+    setting_btn = ui_icon_btn_create(g_screen_main, 56, 56, &icon_btn_setting, 920, 40);
+    debug_btn = ui_icon_btn_create(g_screen_main, 56, 56, &icon_btn_debug, 920, 280);
 
     lv_obj_add_event_cb(plant_btn, ui_main_floating_button_click_cb, LV_EVENT_CLICKED, &g_plant_window_toggle);
     lv_obj_add_event_cb(storage_btn, ui_main_floating_button_click_cb, LV_EVENT_CLICKED, &g_storage_window_toggle);
     lv_obj_add_event_cb(shop_btn, ui_main_floating_button_click_cb, LV_EVENT_CLICKED, &g_shop_window_toggle);
     lv_obj_add_event_cb(setting_btn, ui_main_floating_button_click_cb, LV_EVENT_CLICKED, &g_setting_window_toggle);
+    lv_obj_add_event_cb(harvest_btn, ui_main_harvest_all_click_cb, LV_EVENT_CLICKED, NULL);
 
     // 装饰物
     ui_decorations_create();
@@ -202,11 +210,17 @@ static void ui_main_icon_btns_hide(bool hide) {
         lv_obj_add_flag(storage_btn, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(plant_btn, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(setting_btn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(harvest_btn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(farm_upgrade_btn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(debug_btn, LV_OBJ_FLAG_HIDDEN);
     } else {
         lv_obj_clear_flag(shop_btn, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(storage_btn, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(plant_btn, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(setting_btn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(harvest_btn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(farm_upgrade_btn, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(debug_btn, LV_OBJ_FLAG_HIDDEN);
     }
 }
 

@@ -323,6 +323,30 @@ void ui_main_field_size_upgrade_click_cb(lv_event_t *e) {
     }
 }
 
+// 一键收获
+void ui_main_harvest_all_click_cb(lv_event_t *e) {
+    int outputs[CROP_TYPE_NONE] = {0};
+    bool result = player_harvest_all(outputs);
+
+    if (!result) {
+        ui_message_show("No ripe crops to harvest!", UI_MESSAGE_TYPE_ERROR, UI_MESSAGE_TOAST);
+        return;
+    }
+
+    char message[128] = "Harvest successful! You got ";
+    for (crop_type_t i = 0; i < CROP_TYPE_NONE; i++) {
+        if (outputs[i] > 0) {
+            char crop_message[32];
+            snprintf(crop_message, sizeof(crop_message), "%s x%d", crop_type_name(i), outputs[i]);
+            strncat(message, crop_message, sizeof(message) - strlen(message) - 1);
+            if (i < CROP_TYPE_NONE - 1) {
+                strncat(message, ", ", sizeof(message) - strlen(message) - 1);
+            }
+        }
+    }
+    ui_message_show(message, UI_MESSAGE_TYPE_SUCCESS, UI_MESSAGE_TOAST);
+}
+
 // for debug ---
 
 void ui_setting_reset_game_cb(lv_event_t *e) {

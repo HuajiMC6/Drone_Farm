@@ -17,10 +17,13 @@ LV_IMG_DECLARE(icon_farm_bg);
 LV_IMG_DECLARE(icon_gold_bar_bg);
 LV_IMG_DECLARE(icon_exp_bar_bg);
 
-LV_IMG_DECLARE(icon_plant_btn);
-LV_IMG_DECLARE(icon_shop_btn);
-LV_IMG_DECLARE(icon_storage_btn);
-LV_IMG_DECLARE(icon_setting_btn);
+LV_IMG_DECLARE(icon_btn_plant);
+LV_IMG_DECLARE(icon_btn_shop);
+LV_IMG_DECLARE(icon_btn_storage);
+LV_IMG_DECLARE(icon_btn_setting);
+LV_IMG_DECLARE(icon_btn_farm_upgrade);
+LV_IMG_DECLARE(icon_btn_harvest);
+LV_IMG_DECLARE(icon_btn_debug);
 
 LV_IMG_DECLARE(icon_crop_corn);
 LV_IMG_DECLARE(icon_crop_corn_seed);

@@ -30,6 +30,7 @@ void ui_main_seed_drag_event_cb(lv_event_t *e);
 void ui_main_drone_click_cb(lv_event_t *e);
 void ui_main_crop_bar_draw_part_end_cb(lv_event_t *e);
 void ui_main_field_size_upgrade_click_cb(lv_event_t *e);
+void ui_main_harvest_all_click_cb(lv_event_t *e);
 
 void ui_setting_reset_game_cb(lv_event_t *e);
 void ui_setting_add_coins_cb(lv_event_t *e);
