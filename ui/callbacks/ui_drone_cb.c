@@ -88,3 +88,8 @@ void ui_drone_storage_upgrade_click_cb(lv_event_t *e) {
     ui_message_show("Upgrade successful!", UI_MESSAGE_TYPE_SUCCESS, UI_MESSAGE_TOAST);
     ui_drone_window_refresh();
 }
+
+void ui_drone_toggle_window_cb(lv_event_t *e) {
+    lv_event_stop_bubbling(e);
+    ui_drone_window_toggle();
+}

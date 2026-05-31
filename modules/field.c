@@ -5,7 +5,7 @@
 #include <stdlib.h>
 
 static int ready_time(crop_type_t type);
-static double calculate_possibility(double a, double b, double c, double t,double tolerance);
+static double calculate_possibility(double a, double b, double c, double t, double tolerance);
 static double get_damage_possibility(crop_damage_t damage, double growing_percent, double tolerance);
 static crop_damage_t max_possibility(field_t *field);
 static void stage_upgrade(field_t *field);
@@ -14,6 +14,7 @@ static void load_ready_time_upgrade(field_t *field);
 static void load_tolerance_upgrade(field_t *field);
 
 // 初始化
+// 创建并初始化一个地块对象（堆分配，零初始化）
 field_t *field_init(int x, int y) {
     field_t *field = calloc(1, sizeof(field_t)); // 所有字节置0
     field->x = x;
@@ -26,6 +27,7 @@ field_t *field_init(int x, int y) {
 }
 
 // 清空
+// 清空地块：移除作物，重置所有状态字段
 bool field_remove(field_t *field) {
     field->crop_type = CROP_TYPE_NONE;
     field->growing_time = 0;
@@ -43,6 +45,7 @@ bool field_remove(field_t *field) {
 }
 
 // 种植
+// 在地块上种植指定作物
 bool field_plant(field_t *field, crop_type_t type) {
     if (field->crop_type != CROP_TYPE_NONE)
         return false;
@@ -66,6 +69,7 @@ bool field_plant(field_t *field, crop_type_t type) {
 }
 
 // 生长
+// 驱动地块作物生长一个单位时间
 void field_grow(field_t *field) {
     if (field->crop_type == CROP_TYPE_NONE || field->stage == CROP_STAGE_READY) {
         field->damage = CROP_DAMAGE_NONE;
@@ -83,7 +87,7 @@ void field_grow(field_t *field) {
 
     // 产量因子变化
     if (field_is_damaged(field))
-        field->factor -= field_damage_decline_rate * (1.0 - field->tolerance);//慢点死
+        field->factor -= field_damage_decline_rate * (1.0 - field->tolerance); // 慢点死
     else
         field->factor += field_damage_recovery_rate;
 
@@ -111,6 +115,7 @@ void field_grow(field_t *field) {
 }
 
 // 收获
+// 收获成熟作物并返回产量，同时清空地块
 int field_harvest(field_t *field) {
     if (field->crop_type == CROP_TYPE_NONE || field->stage != CROP_STAGE_READY)
         return 0;
@@ -121,6 +126,7 @@ int field_harvest(field_t *field) {
 }
 
 // 喷农药
+// 对地块使用农药，清除当前虫害
 void field_use_pesticide(field_t *field) {
     if (field->crop_type == CROP_TYPE_NONE || field->stage == CROP_STAGE_READY)
         return;
@@ -131,6 +137,7 @@ void field_use_pesticide(field_t *field) {
 }
 
 // 产量升级
+// 升级地块产量等级
 bool field_output_upgrade(field_t *field) {
     if (field->output_level >= 3)
         return false;
@@ -141,6 +148,7 @@ bool field_output_upgrade(field_t *field) {
 }
 
 // 产速升级
+// 升级地块成熟速度等级
 bool field_ready_time_upgrade(field_t *field) {
     if (field->ready_time_level >= 3)
         return false;
@@ -150,6 +158,7 @@ bool field_ready_time_upgrade(field_t *field) {
 }
 
 // 耐虫性升级
+// 升级地块耐虫性等级
 bool field_tolerance_upgrade(field_t *field) {
     if (field->tolerance_level >= 3)
         return false;
@@ -158,22 +167,26 @@ bool field_tolerance_upgrade(field_t *field) {
     return true;
 }
 
+// 获取地块当前虫害类型
 crop_damage_t field_get_damage(field_t *field) {
     return field->damage;
 }
 
+// 标记地块已被无人机检测
 void field_detect(field_t *field) {
     field->is_detected = true;
     event_send(EVENT_ON_PEST_DETECTED, field);
 }
 
 // 判断田地是否患病
+// 判断地块是否受到虫害
 bool field_is_damaged(const field_t *field) {
     // 通过虫害类型判断是否患病
     return field->damage != CROP_DAMAGE_NONE;
 }
 
 // 获取死亡进度百分比
+// 获取作物死亡进度百分比（0~100）
 int field_get_death_percentage(field_t *field) {
     if (field->crop_type == CROP_TYPE_NONE)
         return 0;
@@ -184,7 +197,8 @@ int field_get_death_percentage(field_t *field) {
 }
 
 // 阶段判断与更新
-static void stage_upgrade(field_t *field) { // 也就1刻的事儿，不管1e-6了
+// 根据生长百分比更新作物阶段
+static void stage_upgrade(field_t *field) {
     double percent = field->growing_percent;
     for (crop_stage_t stage = CROP_STAGE_SEED; stage < CROP_STAGE_READY; stage++) {
         if (percent < crop_stage_thresholds[stage]) {
@@ -196,6 +210,7 @@ static void stage_upgrade(field_t *field) { // 也就1刻的事儿，不管1e-6�
 }
 
 // 打表
+// 查表获取作物成熟所需时间
 static int ready_time(crop_type_t type) {
     if (type >= CROP_TYPE_NONE)
         return 0;
@@ -203,7 +218,8 @@ static int ready_time(crop_type_t type) {
 }
 
 // 二次函数
-static double calculate_possibility(double a, double b, double c, double t,double tolerance) {
+// 二次函数计算虫害感染概率基准值
+static double calculate_possibility(double a, double b, double c, double t, double tolerance) {
     double percent = a * (t - b) * (t - b) + c - tolerance;
     if (percent > 1)
         return 1;
@@ -214,15 +230,17 @@ static double calculate_possibility(double a, double b, double c, double t,doubl
 }
 
 // 计算概率
+// 计算指定虫害在当前生长阶段的感染概率
 static double get_damage_possibility(crop_damage_t damage, double growing_percent, double tolerance) {
     if (damage >= CROP_DAMAGE_NONE)
         return 0.0;
     crop_damage_profile_t profile = crop_damage_profiles[damage];
     double base_percentage = calculate_possibility(profile.a, profile.b, profile.c, growing_percent, tolerance);
-    return base_percentage * (1.0-tolerance);
+    return base_percentage * (1.0 - tolerance);
 }
 
 // 找最大可能病
+// 返回当前最可能感染的虫害类型
 static crop_damage_t max_possibility(field_t *field) {
     double max = 0;
     crop_damage_t result = 0;
@@ -237,6 +255,7 @@ static crop_damage_t max_possibility(field_t *field) {
 }
 
 // 产量等级数据获取
+// 根据产量升级等级更新地块产量系数
 static void load_output_upgrade(field_t *field) {
     int level = field->output_level;
     double new_extra = field_output_upgrade_bonus[level];
@@ -248,12 +267,14 @@ static void load_output_upgrade(field_t *field) {
 }
 
 // 产速等级数据获取
+// 根据产速升级等级更新地块成熟时间
 static void load_ready_time_upgrade(field_t *field) {
     int level = field->ready_time_level;
     field->ready_time = field_ready_time_upgrade_ratio[level] * ready_time(field->crop_type);
 }
 
 // 耐虫性等级数据获取
+// 根据耐虫性升级等级更新地块耐受值
 static void load_tolerance_upgrade(field_t *field) {
     int level = field->tolerance_level;
     field->tolerance = field_tolerance_upgrade_value[level];

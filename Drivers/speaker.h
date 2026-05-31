@@ -35,7 +35,12 @@ void speaker_update(void);
  *   // 播放循环背景音乐
  *   speaker_play_pcm(bgm_data, bgm_data_sample_count, 1);
  */
-void speaker_play_pcm(const uint16_t *pcm_data, uint32_t sample_count, uint8_t loop);
+/* 返回分配到的槽位索引 (0~3), 可用于 speaker_stop_slot() 单独停止;
+   -1 表示分配失败 (槽位已满) */
+int speaker_play_pcm(const uint16_t *pcm_data, uint32_t sample_count, uint8_t loop);
+
+/* 停止指定槽位的播放 (slot_index 由 speaker_play_pcm 返回) */
+void speaker_stop_slot(uint8_t slot_index);
 
 /* 停止所有播放 */
 void speaker_stop(void);
@@ -56,6 +61,7 @@ void speaker_i2s_feed(void);
  *
  * path:  音频文件路径, 例如 "0:/audio/click.pcm"
  * loop:  0 = 单次播放, 1 = 循环播放
+ * 返回:  槽位索引 (0~3) 用于 speaker_stop_slot(), -1 表示失败
  */
 int speaker_play_pcm_file(const TCHAR *path, uint8_t loop);
 

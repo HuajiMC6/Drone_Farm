@@ -8,6 +8,7 @@ static unsigned int event_tail = 0;
 static unsigned int event_count = 0;
 static event_t event_out;
 
+// 向事件队列发送一个事件（环形缓冲区，满时覆盖旧事件）
 void event_send(event_type_t type, void *data) {
     event_sequence[event_tail].type = type;
     event_sequence[event_tail].data = data;
@@ -21,6 +22,7 @@ void event_send(event_type_t type, void *data) {
     }
 }
 
+// 从事件队列取出一个事件（队列空时返回 NULL）
 event_t *event_get() {
     if (event_count == 0U) {
         return 0;

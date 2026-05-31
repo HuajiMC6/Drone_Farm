@@ -13,6 +13,7 @@ static void player_set_coins(int coins);
 static void player_set_experience(int experience);
 static void player_level_update();
 
+// 玩家模块初始化：恢复存档或创建新档
 void player_init() {
     if (s_player != NULL) {
         return;
@@ -33,6 +34,7 @@ void player_init() {
     for (int i = 0; i < CROP_TYPE_NONE; i++) s_player->seed_bag[i] = s_player->harvest_bag[i] = 0;
 }
 
+// 获取玩家单例实例，首次调用自动初始化
 player_t *player_get_instance() {
     if (s_player == NULL) {
         player_init();
@@ -40,6 +42,7 @@ player_t *player_get_instance() {
     return s_player;
 }
 
+// 购买种子（扣除金币，加入种子背包）
 bool player_buy_seed(crop_type_t seed_type, int n) {
     int total_price = n * seed_price[seed_type] * level_discount[s_player->level_stage];
     if (s_player->coins >= total_price) {
@@ -51,6 +54,7 @@ bool player_buy_seed(crop_type_t seed_type, int n) {
     return false;
 }
 
+// 购买农药（扣除金币，加入农药背包）
 bool player_buy_pesticide(crop_pesticide_t pesticide_type, int n) {
     int total_price = n * pesticide_price[pesticide_type] * level_discount[s_player->level_stage];
     if (s_player->coins >= total_price) {
@@ -62,6 +66,7 @@ bool player_buy_pesticide(crop_pesticide_t pesticide_type, int n) {
     return false;
 }
 
+// 在地块上种植：消耗一枚种子并触发种植
 bool player_plant(field_t *field, crop_type_t crop_type) {
     if (s_player->seed_bag[crop_type] > 0) {
         if (field_plant(field, crop_type)) {
@@ -74,6 +79,7 @@ bool player_plant(field_t *field, crop_type_t crop_type) {
     return false;
 }
 
+// 收获单个地块的成熟作物，产物加入收获背包
 bool player_harvest(field_t *field, int *p_output) {
     if (field->stage == CROP_STAGE_READY) {
         crop_type_t crop_type = field->crop_type;
@@ -91,6 +97,7 @@ bool player_harvest(field_t *field, int *p_output) {
     return false;
 }
 
+// 一键收获全农场所有成熟作物
 bool player_harvest_all(int outputs[CROP_TYPE_NONE]) {
     farm_t *farm = farm_get_instance();
     int count = 0;
@@ -105,6 +112,7 @@ bool player_harvest_all(int outputs[CROP_TYPE_NONE]) {
     return count != 0; // 仅代表是否收获了作物不代表出不出错
 }
 
+// 出售收获背包中的作物换取金币
 bool player_sold(crop_type_t crop_type, int n, int *total_earning) {
     if (s_player->harvest_bag[crop_type] >= n) {
         *total_earning = n * harvest_price[crop_type];
@@ -116,12 +124,14 @@ bool player_sold(crop_type_t crop_type, int n, int *total_earning) {
     return false;
 }
 
+// 增加使用农药获得的经验值
 void player_use_pesticide_exp() {
     player_set_experience(s_player->experience + use_pesticide_exp_earn);
 }
 
 // 购买升级
 // drone update
+// 购买无人机速度升级
 bool player_buy_drone_speed_update() {
     drone_t *drone = drone_get_instance();
     if (drone->speed_level >= DRONE_SPEED_LEVEL_MAX)
@@ -136,6 +146,7 @@ bool player_buy_drone_speed_update() {
     return false;
 }
 
+// 购买无人机容量升级
 bool player_buy_drone_storage_update() {
     drone_t *drone = drone_get_instance();
     if (drone->storage_level >= DRONE_STORAGE_LEVEL_MAX)
@@ -150,6 +161,7 @@ bool player_buy_drone_storage_update() {
     return false;
 }
 
+// 购买无人机算法升级
 bool player_buy_drone_algorithm_update() {
     drone_t *drone = drone_get_instance();
     if (drone->algorithm_level >= DRONE_ALGORITHM_LEVEL_MAX)
@@ -165,6 +177,7 @@ bool player_buy_drone_algorithm_update() {
 }
 
 // farm update
+// 购买农场大小升级
 bool player_buy_farm_size_update() {
     farm_t *farm = farm_get_instance();
     if (farm->size_level >= FARM_SIZE_LEVEL_MAX)
@@ -180,6 +193,7 @@ bool player_buy_farm_size_update() {
 }
 
 // field update
+// 购买地块产量升级
 bool player_buy_field_output_upgrade(field_t *field) {
     if (field->output_level >= FIELD_UPGRADE_LEVEL_MAX)
         return false;
@@ -193,6 +207,7 @@ bool player_buy_field_output_upgrade(field_t *field) {
     return false;
 }
 
+// 购买地块成熟速度升级
 bool player_buy_field_ready_time_upgrade(field_t *field) {
     if (field->ready_time_level >= FIELD_UPGRADE_LEVEL_MAX)
         return false;
@@ -206,6 +221,7 @@ bool player_buy_field_ready_time_upgrade(field_t *field) {
     return false;
 }
 
+// 购买地块耐虫性升级
 bool player_buy_field_tolerance_upgrade(field_t *field) {
     if (field->tolerance_level >= FIELD_UPGRADE_LEVEL_MAX)
         return false;
@@ -219,25 +235,30 @@ bool player_buy_field_tolerance_upgrade(field_t *field) {
     return false;
 }
 
+// 设置金币并发送变更事件
 static void player_set_coins(int coins) {
     s_player->coins = coins;
     event_send(EVENT_ON_PLAYER_COIN_CHANGE, s_player);
 }
 
+// 设置经验值并触发等级更新
 static void player_set_experience(int experience) {
     s_player->experience = experience;
     player_level_update();
     event_send(EVENT_ON_PLAYER_EXPERIENCE_CHANGE, s_player);
 }
 
+// 获取玩家展示等级（从1开始）
 int player_get_level() {
     return s_player->level + 1; // level从0开始计数，但对玩家展示时从1开始
 }
 
+// 获取玩家当前经验值
 int player_get_experience() {
     return s_player->experience;
 }
 
+// 获取下一级所需经验值（满级返回-1）
 int player_get_next_level_experience() {
     if (s_player->level >= PLAYER_EXPERIENCE_LEVELS - 1) {
         return -1; // 已满级
@@ -245,6 +266,7 @@ int player_get_next_level_experience() {
     return experience_level[s_player->level];
 }
 
+// 获取当前等级起始经验值
 int player_get_this_level_experience() {
     if (s_player->level == 0) {
         return 0;
@@ -266,6 +288,7 @@ static void player_level_update() { // 每次碰到与经验相关操作都调�
     }
 };
 
+// 将玩家状态保存到 SD 卡
 bool player_save() {
     if (!s_player)
         return false;
@@ -284,6 +307,7 @@ bool player_save() {
     return true;
 }
 
+// 从 SD 卡恢复玩家状态
 bool player_load() {
     FIL fil;
     UINT br;
@@ -304,6 +328,7 @@ bool player_load() {
     return true;
 }
 
+// 删除玩家存档文件
 bool player_delete() {
     // 删除玩家存档文件；文件不存在时也视为已经删除成功
     FRESULT res = f_unlink("0:/player_save.dat");

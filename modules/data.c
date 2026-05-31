@@ -45,17 +45,17 @@ const int player_level_stage_thresholds[PLAYER_LEVEL_STAGE_THRESHOLD_COUNT] = {1
 
 /* 玩家/无人机/农场基础数值 */
 const int player_starting_coins = 500;                                         /* 玩家初始金钱 */
-const int drone_speed_values[DRONE_LEVEL_COUNT] = {10, 20, 30, 50};            /* 无人机不同等级的速度 */
+const int drone_speed_values[DRONE_LEVEL_COUNT] = {10, 15, 20, 30};            /* 无人机不同等级的速度 */
 const int drone_storage_capacity_values[DRONE_LEVEL_COUNT] = {10, 20, 30, 50}; /* 无人机存储容量 */
 const int farm_size_by_level[FARM_LEVEL_COUNT] = {4, 5, 6, 7};                 /* 农场不同等级的地块数 */
 
 /* 地块基础产量与损伤模型参数 */
-const int field_base_output = 100;                   /* 基础产量 */
+const int field_base_output = 10;                    /* 基础产量 */
 const double field_factor_threshold = 0.3;           /* 产量系数阈值 */
 const double field_damage_decline_rate = 0.005;      /* 损伤随时间自然下降速率 */
 const double field_damage_recovery_rate = 0.005;     /* 损伤恢复速率 */
 const int field_damage_probability_scale = 100;      /* 概率缩放基数 */
-const int field_damage_probability_multiplier = 150; /* 概率乘数 */
+const int field_damage_probability_multiplier = 100; /* 概率乘数 */
 const double field_default_factor = 1.0;             /* 默认产量系数 */
 const double field_default_tolerance = 0.0;          /* 默认容忍度 */
 

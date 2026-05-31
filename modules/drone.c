@@ -10,6 +10,7 @@
 static drone_t s_drone_storage;
 static drone_t *s_drone = NULL;
 
+// 获取无人机单例实例，首次调用自动初始化
 drone_t *drone_get_instance() {
     if (s_drone == NULL) {
         drone_init();
@@ -17,6 +18,7 @@ drone_t *drone_get_instance() {
     return s_drone;
 }
 
+// 无人机模块初始化：绑定静态存储并恢复存档
 void drone_init() {
     if (s_drone == NULL) {
         s_drone = &s_drone_storage;
@@ -38,6 +40,7 @@ void drone_init() {
     }
 }
 
+// 切换无人机状态并发送对应事件
 void drone_state_switch(drone_state_t drone_state) {
     s_drone->drone_state = drone_state;
     if (drone_state == DRONE_STATE_FREE) {
@@ -49,6 +52,7 @@ void drone_state_switch(drone_state_t drone_state) {
     }
 }
 
+// 检测当前位置地块的虫害类型，标记为已检测
 crop_damage_t drone_detect_damage() {
     farm_t *farm = farm_get_instance();
     pos_t matrix_pos = {s_drone->current_pos.x / GAME_CELL_SIZE, s_drone->current_pos.y / GAME_CELL_SIZE};
@@ -62,6 +66,7 @@ crop_damage_t drone_detect_damage() {
     }
 }
 
+// 获取无人机检测到的所有虫害数量统计
 void drone_get_detected_pest_counts(uint8_t counts[CROP_DAMAGE_NONE]) {
     for (int i = 0; i < CROP_DAMAGE_NONE; i++) counts[i] = 0;
     for (int i = 0; i < GAME_GRID_SIZE; i++)
@@ -73,6 +78,7 @@ void drone_get_detected_pest_counts(uint8_t counts[CROP_DAMAGE_NONE]) {
         }
 }
 
+// 升级无人机算法等级（player 接口）
 bool drone_algorithm_update() { // player接口
     if (s_drone->algorithm_level >= DRONE_ALGORITHM_LEVEL_MAX)
         return false;
@@ -80,6 +86,7 @@ bool drone_algorithm_update() { // player接口
     return true;
 }
 
+// 升级无人机飞行速度（player 接口）
 bool drone_speed_update() { // player接口
     if (s_drone->speed_level >= DRONE_SPEED_LEVEL_MAX)
         return false;
@@ -88,6 +95,7 @@ bool drone_speed_update() { // player接口
     return true;
 }
 
+// 升级无人机农药容量（player 接口）
 bool drone_storage_update() { // player接口
     if (s_drone->storage_level >= DRONE_STORAGE_LEVEL_MAX)
         return false;
@@ -96,11 +104,12 @@ bool drone_storage_update() { // player接口
     return true;
 }
 
+// 计算两点间的曼哈顿距离
 static int manhattan_dist(pos_t a, pos_t b) { // 曼哈顿距离
     return abs(a.x - b.x) + abs(a.y - b.y);
 }
 
-// 对路径执行 2-opt 优化（开放路径，起点固定）
+// 对路径执行 2-opt 局部优化（开放路径，起点固定）
 static void two_opt_optimize(pos_t *path, int count) {
     if (count < 2)
         return;
@@ -130,6 +139,7 @@ static void two_opt_optimize(pos_t *path, int count) {
     }
 }
 
+// 基于贪心+2-opt 优化的喷洒路径规划
 static pos_t *optimized_greedy_algorithm(int *out_len) {
     farm_t *farm = farm_get_instance();
     int n = farm->current_size;
@@ -186,10 +196,12 @@ static pos_t *optimized_greedy_algorithm(int *out_len) {
     return path;
 }
 
+// 获取无人机自动喷洒路径（前端可视化用）
 pos_t *drone_auto_path(int *out_len) { // 前端接口，用来前端写路径可视化，即飞行轨迹，并非喷药
     return optimized_greedy_algorithm(out_len);
 }
 
+// 确保对指定位置地块使用农药（有药则施药）
 bool drone_ensure_pesticide(pos_t pos) {
     farm_t *farm = farm_get_instance();
     field_t *field = farm->fields[pos.x][pos.y];
@@ -208,6 +220,7 @@ bool drone_ensure_pesticide(pos_t pos) {
     return false;
 }
 
+// 向无人机装载指定农药（player 接口）
 bool drone_add_pesticide(crop_pesticide_t pesticide, int n) { // player接口
     player_t *player = player_get_instance();
     if (player->pesticide_bag[pesticide] >= n &&
@@ -220,6 +233,7 @@ bool drone_add_pesticide(crop_pesticide_t pesticide, int n) { // player接口
     return false;
 }
 
+// 从无人机卸载指定农药返回背包
 bool drone_remove_pesticide(crop_pesticide_t pesticide, int n) {
     player_t *player = player_get_instance();
     if (s_drone->pesticide_storage[pesticide] >= n) {
@@ -231,6 +245,7 @@ bool drone_remove_pesticide(crop_pesticide_t pesticide, int n) {
     return false;
 }
 
+// 根据摇杆向量移动无人机，边界自动钳制
 void drone_move(pos_t vector) {
     pos_t new_pos = {s_drone->current_pos.x + (vector.x * s_drone->speed) / GAME_CELL_SIZE,
                      s_drone->current_pos.y + (vector.y * s_drone->speed) / GAME_CELL_SIZE};
@@ -246,6 +261,7 @@ void drone_move(pos_t vector) {
         s_drone->current_pos.y = 0;
 }
 
+// 将无人机状态保存到 SD 卡
 bool drone_save() {
     if (!s_drone)
         return false;
@@ -264,6 +280,7 @@ bool drone_save() {
     return true;
 }
 
+// 从 SD 卡恢复无人机状态
 bool drone_load() {
     FIL fil;
     UINT br;
@@ -285,6 +302,7 @@ bool drone_load() {
     return true;
 }
 
+// 删除无人机存档文件
 bool drone_delete() {
     // 删除无人机存档文件；文件不存在时也视为已经删除成功
     FRESULT res = f_unlink("0:/drone_save.dat");

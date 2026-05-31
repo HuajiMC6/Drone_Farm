@@ -2,6 +2,7 @@
 #include "data.h"
 #include "event.h"
 #include "ff.h"
+#include "save_utils.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,6 +10,7 @@
 static farm_t s_farm_storage;
 static farm_t *s_farm = NULL;
 
+// 农场模块初始化：创建所有地块并恢复存档
 void farm_init() {
     if (s_farm == NULL) {
         s_farm = &s_farm_storage;
@@ -24,6 +26,7 @@ void farm_init() {
     }
 }
 
+// 获取农场单例实例，首次调用自动初始化
 farm_t *farm_get_instance() {
     if (s_farm == NULL) {
         farm_init();
@@ -31,6 +34,7 @@ farm_t *farm_get_instance() {
     return s_farm;
 }
 
+// 升级农场大小（拓展地块数）
 bool farm_size_update() {
     if (s_farm->size_level >= FARM_SIZE_LEVEL_MAX)
         return false;
@@ -41,6 +45,7 @@ bool farm_size_update() {
     return true;
 }
 
+// 驱动全农场所有已种植地块生长一个单位时间
 void farm_grow() {
     for (int i = 0; i < s_farm->current_size; i++)
         for (int j = 0; j < s_farm->current_size; j++)
@@ -48,30 +53,24 @@ void farm_grow() {
                 field_grow(s_farm->fields[i][j]);
 }
 
+// 获取当前农场尺寸（单边地块数）
 int get_farm_size() {
     return s_farm->current_size;
 }
 
+// 将农场状态及所有地块数据保存到 SD 卡
 bool farm_save() {
     if (!s_farm)
         return false;
 
     FIL fil;
-    UINT bw;
     if (f_open(&fil, "0:/farm_save.dat", FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
         return false;
 
-    int size = s_farm->current_size;
-
     // 写入农场头部
-    if (f_write(&fil, &size, sizeof(int), &bw) != FR_OK || bw != sizeof(int)) {
-        f_close(&fil);
-        return false;
-    }
-    if (f_write(&fil, &s_farm->size_level, sizeof(int), &bw) != FR_OK || bw != sizeof(int)) {
-        f_close(&fil);
-        return false;
-    }
+    int size = s_farm->current_size;
+    SAVE_CHECK(save_write_int(&fil, size));
+    SAVE_CHECK(save_write_int(&fil, s_farm->size_level));
 
     // 逐个地块写入
     for (int i = 0; i < size; i++)
@@ -80,87 +79,30 @@ bool farm_save() {
             if (!f)
                 continue;
 
-            if (f_write(&fil, &f->x, sizeof(int), &bw) != FR_OK || bw != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
-            if (f_write(&fil, &f->y, sizeof(int), &bw) != FR_OK || bw != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
-
-            if (f_write(&fil, &f->output_level, sizeof(int), &bw) != FR_OK || bw != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
-            if (f_write(&fil, &f->ready_time_level, sizeof(int), &bw) != FR_OK || bw != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
-            if (f_write(&fil, &f->tolerance_level, sizeof(int), &bw) != FR_OK || bw != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
-
-            int crop = (int)f->crop_type;
-            if (f_write(&fil, &crop, sizeof(int), &bw) != FR_OK || bw != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
-
-            if (f_write(&fil, &f->ready_time, sizeof(int), &bw) != FR_OK || bw != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
-            if (f_write(&fil, &f->growing_time, sizeof(int), &bw) != FR_OK || bw != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
-            if (f_write(&fil, &f->growing_percent, sizeof(double), &bw) != FR_OK || bw != sizeof(double)) {
-                f_close(&fil);
-                return false;
-            }
-
-            int stage = (int)f->stage;
-            if (f_write(&fil, &stage, sizeof(int), &bw) != FR_OK || bw != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
-
-            int damage = (int)f->damage;
-            if (f_write(&fil, &damage, sizeof(int), &bw) != FR_OK || bw != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
-
-            int detected = f->is_detected ? 1 : 0;
-            if (f_write(&fil, &detected, sizeof(int), &bw) != FR_OK || bw != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
-
-            if (f_write(&fil, &f->base_output, sizeof(int), &bw) != FR_OK || bw != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
-            if (f_write(&fil, &f->factor, sizeof(double), &bw) != FR_OK || bw != sizeof(double)) {
-                f_close(&fil);
-                return false;
-            }
-
-            if (f_write(&fil, &f->tolerance, sizeof(double), &bw) != FR_OK || bw != sizeof(double)) {
-                f_close(&fil);
-                return false;
-            }
+            SAVE_CHECK(save_write_int(&fil, f->x));
+            SAVE_CHECK(save_write_int(&fil, f->y));
+            SAVE_CHECK(save_write_int(&fil, f->output_level));
+            SAVE_CHECK(save_write_int(&fil, f->ready_time_level));
+            SAVE_CHECK(save_write_int(&fil, f->tolerance_level));
+            SAVE_CHECK(save_write_int(&fil, (int)f->crop_type));
+            SAVE_CHECK(save_write_int(&fil, f->ready_time));
+            SAVE_CHECK(save_write_int(&fil, f->growing_time));
+            SAVE_CHECK(save_write_double(&fil, f->growing_percent));
+            SAVE_CHECK(save_write_int(&fil, (int)f->stage));
+            SAVE_CHECK(save_write_int(&fil, (int)f->damage));
+            SAVE_CHECK(save_write_int(&fil, f->is_detected ? 1 : 0));
+            SAVE_CHECK(save_write_int(&fil, f->base_output));
+            SAVE_CHECK(save_write_double(&fil, f->factor));
+            SAVE_CHECK(save_write_double(&fil, f->tolerance));
         }
 
     f_close(&fil);
     return true;
 }
 
+// 从 SD 卡恢复农场状态及所有地块数据
 bool farm_load() {
     FIL fil;
-    UINT br;
     if (f_open(&fil, "0:/farm_save.dat", FA_READ) != FR_OK)
         return false;
 
@@ -168,108 +110,55 @@ bool farm_load() {
     if (!s_farm) {
         s_farm = &s_farm_storage;
     }
-
     farm_t *farm = s_farm;
 
+    // 读取农场头部
     int size;
-    if (f_read(&fil, &size, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
-        f_close(&fil);
-        return false;
-    }
-    if (f_read(&fil, &farm->size_level, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
-        f_close(&fil);
-        return false;
-    }
+    SAVE_CHECK(save_read_int(&fil, &size));
+    SAVE_CHECK(save_read_int(&fil, &farm->size_level));
     farm->current_size = size;
 
+    // 逐个地块读取
     for (int i = 0; i < size; i++)
         for (int j = 0; j < size; j++) {
             field_t *f = farm->fields[i][j];
             if (!f)
                 continue;
 
-            if (f_read(&fil, &f->x, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
-            if (f_read(&fil, &f->y, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
+            int tmp;
 
-            if (f_read(&fil, &f->output_level, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
-            if (f_read(&fil, &f->ready_time_level, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
-            if (f_read(&fil, &f->tolerance_level, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
+            SAVE_CHECK(save_read_int(&fil, &f->x));
+            SAVE_CHECK(save_read_int(&fil, &f->y));
+            SAVE_CHECK(save_read_int(&fil, &f->output_level));
+            SAVE_CHECK(save_read_int(&fil, &f->ready_time_level));
+            SAVE_CHECK(save_read_int(&fil, &f->tolerance_level));
 
-            int crop;
-            if (f_read(&fil, &crop, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
-            f->crop_type = (crop_type_t)crop;
+            SAVE_CHECK(save_read_int(&fil, &tmp));
+            f->crop_type = (crop_type_t)tmp;
 
-            if (f_read(&fil, &f->ready_time, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
-            if (f_read(&fil, &f->growing_time, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
-            if (f_read(&fil, &f->growing_percent, sizeof(double), &br) != FR_OK || br != sizeof(double)) {
-                f_close(&fil);
-                return false;
-            }
+            SAVE_CHECK(save_read_int(&fil, &f->ready_time));
+            SAVE_CHECK(save_read_int(&fil, &f->growing_time));
+            SAVE_CHECK(save_read_double(&fil, &f->growing_percent));
 
-            int stage;
-            if (f_read(&fil, &stage, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
-            f->stage = (crop_stage_t)stage;
+            SAVE_CHECK(save_read_int(&fil, &tmp));
+            f->stage = (crop_stage_t)tmp;
 
-            int damage;
-            if (f_read(&fil, &damage, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
-            f->damage = (crop_damage_t)damage;
+            SAVE_CHECK(save_read_int(&fil, &tmp));
+            f->damage = (crop_damage_t)tmp;
 
-            int detected;
-            if (f_read(&fil, &detected, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
-            f->is_detected = detected ? true : false;
+            SAVE_CHECK(save_read_int(&fil, &tmp));
+            f->is_detected = tmp ? true : false;
 
-            if (f_read(&fil, &f->base_output, sizeof(int), &br) != FR_OK || br != sizeof(int)) {
-                f_close(&fil);
-                return false;
-            }
-            if (f_read(&fil, &f->factor, sizeof(double), &br) != FR_OK || br != sizeof(double)) {
-                f_close(&fil);
-                return false;
-            }
-
-            if (f_read(&fil, &f->tolerance, sizeof(double), &br) != FR_OK || br != sizeof(double)) {
-                f_close(&fil);
-                return false;
-            }
+            SAVE_CHECK(save_read_int(&fil, &f->base_output));
+            SAVE_CHECK(save_read_double(&fil, &f->factor));
+            SAVE_CHECK(save_read_double(&fil, &f->tolerance));
         }
 
     f_close(&fil);
     return true;
 }
 
+// 删除农场存档文件
 bool farm_delete() {
     // 删除农场存档文件；文件不存在时也视为已经删除成功
     FRESULT res = f_unlink("0:/farm_save.dat");

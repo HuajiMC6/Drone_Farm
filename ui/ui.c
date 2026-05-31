@@ -17,6 +17,15 @@ void game_pause(void);
 static lv_obj_t *g_screen_load = NULL;
 static lv_obj_t *g_screen_main = NULL;
 
+extern lv_indev_t *indev_touchpad;
+
+static void ui_audio_feedback_cb(lv_indev_drv_t *drv, uint8_t event_code) {
+    (void)drv;
+    if (event_code == LV_EVENT_CLICKED) {
+        bubble_audio_play();
+    }
+}
+
 // UI入口
 void ui_init(void) {
     icon_init();            // 初始化图标资源
@@ -29,6 +38,11 @@ void ui_init(void) {
     ui_screen_switch(UI_SCREEN_LOAD); // 进入加载页面
 
     bgm_music_play(); // 进入游戏时播放bgm
+
+    /* 输入设备 feedback_cb: 每次点击屏幕时触发音效 */
+    if (indev_touchpad) {
+        indev_touchpad->driver->feedback_cb = ui_audio_feedback_cb;
+    }
 }
 
 // 切换界面

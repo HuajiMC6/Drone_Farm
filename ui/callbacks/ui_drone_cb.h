@@ -17,5 +17,6 @@ void ui_drone_mode_button_click_cb(lv_event_t *e);
 void ui_drone_pesticide_button_click_cb(lv_event_t *e);
 void ui_drone_speed_upgrade_click_cb(lv_event_t *e);
 void ui_drone_storage_upgrade_click_cb(lv_event_t *e);
+void ui_drone_toggle_window_cb(lv_event_t *e);
 
 #endif

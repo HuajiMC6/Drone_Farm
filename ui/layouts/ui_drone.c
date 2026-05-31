@@ -1,5 +1,6 @@
 #include "ui_drone.h"
 
+#include "audio.h"
 #include "player.h"
 #include "ui_common.h"
 #include "ui_drone_cb.h"
@@ -13,6 +14,7 @@
 #include "joystick.h"
 
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 static lv_obj_t *g_drone_window = NULL;
@@ -49,6 +51,7 @@ static drone_mode_btn_desc_t g_drone_spray_btn_desc = {.target_state = DRONE_STA
 #define DRONE_COORD_SCALNG_FACTOR (80.0 / 100.0) /* FARM_BLOCK_SIZE / 100 */
 
 static bool drone_timer_active = false;
+static int g_drone_flying_audio_slot = -1;
 
 static lv_obj_t *g_drone = NULL;
 static lv_obj_t *g_drone_still = NULL;
@@ -89,7 +92,6 @@ static void ui_drone_spray_reset(void);
 static bool ui_drone_spray_prepare(void);
 static bool ui_drone_move_towards_target(pos_t cell);
 static pos_t ui_drone_grid_center(pos_t cell);
-static void ui_drone_toggle_window_cb(lv_event_t *e);
 
 static void ui_drone_btn_set_text(lv_obj_t *btn, const char *text) {
     if (!btn || !lv_obj_is_valid(btn)) {
@@ -124,8 +126,16 @@ static void ui_drone_panel_refresh(drone_panel_ctx_t *ctx) {
             lv_label_set_text(ctx->speed_price_label, "Achieved Max Level");
             lv_obj_add_state(ctx->speed_upgrade_btn, LV_STATE_DISABLED);
         } else {
-            lv_label_set_text_fmt(ctx->speed_price_label, "Upgrade Cost: %d",
-                                  drone_speed_update_price[drone->speed_level]);
+            int price = drone_speed_update_price[drone->speed_level];
+            double discount = level_discount[player_get_instance()->level_stage];
+            int discount_price = (int)(price * discount);
+            char buf[48];
+            if (discount_price < price) {
+                snprintf(buf, sizeof(buf), "Upgrade Cost: %d (x%.2f)", discount_price, discount);
+            } else {
+                snprintf(buf, sizeof(buf), "Upgrade Cost: %d", price);
+            }
+            lv_label_set_text(ctx->speed_price_label, buf);
             lv_obj_clear_state(ctx->speed_upgrade_btn, LV_STATE_DISABLED);
         }
     }
@@ -137,8 +147,16 @@ static void ui_drone_panel_refresh(drone_panel_ctx_t *ctx) {
             lv_label_set_text(ctx->storage_price_label, "Achieved Max Level");
             lv_obj_add_state(ctx->storage_upgrade_btn, LV_STATE_DISABLED);
         } else {
-            lv_label_set_text_fmt(ctx->storage_price_label, "Upgrade Cost: %d",
-                                  drone_storage_update_price[drone->storage_level]);
+            int price = drone_storage_update_price[drone->storage_level];
+            double discount = level_discount[player_get_instance()->level_stage];
+            int discount_price = (int)(price * discount);
+            char buf[48];
+            if (discount_price < price) {
+                snprintf(buf, sizeof(buf), "Upgrade Cost: %d (x%.2f)", discount_price, discount);
+            } else {
+                snprintf(buf, sizeof(buf), "Upgrade Cost: %d", price);
+            }
+            lv_label_set_text(ctx->storage_price_label, buf);
             lv_obj_clear_state(ctx->storage_upgrade_btn, LV_STATE_DISABLED);
         }
     }
@@ -676,11 +694,10 @@ void ui_drone_hud_create(lv_obj_t *parent) {
    无人机对象创建 & 飞行状态管理
    ================================================================ */
 
-static void ui_drone_toggle_window_cb(lv_event_t *e) {
-    lv_event_stop_bubbling(e);
-
+void ui_drone_window_toggle(void) {
     if (!g_drone_window || !lv_obj_is_valid(g_drone_window)) {
         g_drone_window = ui_drone_window_create();
+        return; /* 窗口创建时已自动 show，直接返回 */
     }
 
     if (ui_window_is_visible(g_drone_window)) {
@@ -729,6 +746,11 @@ static void ui_drone_switch_state(bool flying) {
 
 static void ui_drone_reset_to_still(void) {
     ui_drone_switch_state(false);
+
+    if (g_drone_flying_audio_slot >= 0) {
+        audio_stop_slot((uint8_t)g_drone_flying_audio_slot);
+        g_drone_flying_audio_slot = -1;
+    }
 }
 
 void ui_drone_set_pos(lv_coord_t x, lv_coord_t y, bool anim, void *anim_cb) {
@@ -953,6 +975,7 @@ void ui_drone_handle_event(event_t *event) {
             break;
         case EVENT_ON_DRONE_TO_FREE:
             drone_timer_active = false;
+
             ui_drone_set_pos(-40, 40, true, ui_drone_reset_to_still);
             ui_drone_hud_set_visible(false);
             ui_drone_window_refresh();
@@ -960,6 +983,9 @@ void ui_drone_handle_event(event_t *event) {
         case EVENT_ON_DRONE_TO_MOVING:
             if (drone_get_instance()->drone_state == DRONE_STATE_DETECTING) {
                 ui_drone_spray_reset();
+            }
+            if (g_drone_flying_audio_slot < 0) {
+                g_drone_flying_audio_slot = drone_flying_audio_play();
             }
             ui_drone_set_pos(0, 0, true, ui_drone_timer_resume);
             if (g_drone_window && lv_obj_is_valid(g_drone_window) && ui_window_is_visible(g_drone_window)) {

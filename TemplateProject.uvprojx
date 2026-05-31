@@ -514,6 +514,21 @@
               <FileType>1</FileType>
               <FilePath>.\ui\layouts\ui_farm.c</FilePath>
             </File>
+            <File>
+              <FileName>ui_setting.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\layouts\ui_setting.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_setting_cb.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\callbacks\ui_setting_cb.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_farm_cb.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\ui\callbacks\ui_farm_cb.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -718,11 +733,6 @@
               <FileName>icon_pesticide_mite.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\ui\icon\icon_pesticide_mite.c</FilePath>
-            </File>
-            <File>
-              <FileName>icon_btn_debug.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\ui\icon\icon_btn_debug.c</FilePath>
             </File>
             <File>
               <FileName>icon_btn_farm_upgrade.c</FileName>

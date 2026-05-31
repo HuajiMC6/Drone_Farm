@@ -133,8 +133,7 @@ static void speaker_stream_refill(void);
 static uint8_t speaker_pcm_next_sample(speaker_pcm_ctx_t *ctx, uint16_t *sample);
 static uint8_t speaker_active_source_id(void);
 static void speaker_pcm_release_slot(uint8_t slot_index);
-static int speaker_pcm_start(const uint16_t *pcm_data, uint32_t sample_count, uint8_t loop, uint8_t is_bgm,
-                             uint8_t owned);
+static int speaker_pcm_start(const uint16_t *pcm_data, uint32_t sample_count, uint8_t loop, uint8_t owned);
 static speaker_mix_pcm_src_t *speaker_pcm_alloc_slot(uint8_t prefer_slot);
 
 /* ============================================================
@@ -210,16 +209,9 @@ static void speaker_pcm_release_slot(uint8_t slot_index) {
 static speaker_mix_pcm_src_t *speaker_pcm_alloc_slot(uint8_t prefer_slot) {
     uint8_t i;
 
-    if (prefer_slot == 0U) {
-        /* speaker_pcm_release_slot 内部已处理延迟释放 */
-        speaker_pcm_release_slot(0U);
-        return &s_pcm_src[0];
-    }
-
-    for (i = 1U; i < SPK_MIX_PCM_SOURCES; i++) {
+    /* 从 prefer_slot 开始搜索空闲槽位, 处理 ISR 推迟的 sdram_free */
+    for (i = prefer_slot; i < SPK_MIX_PCM_SOURCES; i++) {
         if (!s_pcm_src[i].active) {
-            /* 槽位重分配前先处理 ISR 推迟的 sdram_free,
-             * 否则旧指针会泄漏 / 新指针会被误释放 */
             if (s_pending_free_mask & (uint8_t)(1U << i)) {
                 s_pending_free_mask &= ~(uint8_t)(1U << i);
                 if (s_pcm_src[i].owned && s_pcm_src[i].pcm.data != NULL) {
@@ -235,20 +227,21 @@ static speaker_mix_pcm_src_t *speaker_pcm_alloc_slot(uint8_t prefer_slot) {
     return NULL;
 }
 
-static int speaker_pcm_start(const uint16_t *pcm_data, uint32_t sample_count, uint8_t loop, uint8_t is_bgm,
-                             uint8_t owned) {
+static int speaker_pcm_start(const uint16_t *pcm_data, uint32_t sample_count, uint8_t loop, uint8_t owned) {
     speaker_mix_pcm_src_t *slot;
-    uint8_t slot_index;
+    int slot_index;
 
     if (pcm_data == NULL || sample_count == 0U) {
         return -1;
     }
 
-    slot_index = (is_bgm != 0U) ? 0U : 1U;
-    slot = speaker_pcm_alloc_slot(slot_index);
+    /* 从槽位0开始搜索, 所有槽位平等竞争 */
+    slot = speaker_pcm_alloc_slot(0U);
     if (slot == NULL) {
         return -1;
     }
+
+    slot_index = (int)(slot - s_pcm_src);
 
     slot->pcm.data = pcm_data;
     slot->pcm.total_samples = sample_count;
@@ -257,7 +250,7 @@ static int speaker_pcm_start(const uint16_t *pcm_data, uint32_t sample_count, ui
     slot->owned = owned;
     slot->active = 1U;
 
-    return 0;
+    return slot_index;
 }
 
 static uint8_t speaker_pcm_next_sample_mixed(uint16_t *sample, speaker_pcm_ctx_t *ctx) {
@@ -600,20 +593,29 @@ void speaker_update(void) {
 /* ============================================================
  *  API: 播放 PCM 音频
  * ============================================================ */
-void speaker_play_pcm(const uint16_t *pcm_data, uint32_t sample_count, uint8_t loop) {
+int speaker_play_pcm(const uint16_t *pcm_data, uint32_t sample_count, uint8_t loop) {
+    int slot;
+
     if (pcm_data == NULL || sample_count == 0U) {
-        return;
+        return -1;
     }
 
-    if (loop) {
-        if (speaker_pcm_start(pcm_data, sample_count, 1U, 1U, 0U) == 0) {
-            s_state = SPK_STATE_PLAYING;
-        }
-    } else {
-        if (speaker_pcm_start(pcm_data, sample_count, 0U, 0U, 0U) == 0) {
-            s_state = SPK_STATE_PLAYING;
-        }
+    /* 循环和非循环统一从槽位0开始搜索, 支持多个音效并行混音 */
+    slot = speaker_pcm_start(pcm_data, sample_count, loop, 0U);
+    if (slot >= 0) {
+        s_state = SPK_STATE_PLAYING;
     }
+    return slot;
+}
+
+/* ============================================================
+ *  API: 停止指定槽位 (由 speaker_play_pcm 返回的索引)
+ * ============================================================ */
+void speaker_stop_slot(uint8_t slot_index) {
+    if (slot_index >= SPK_MIX_PCM_SOURCES) {
+        return;
+    }
+    speaker_pcm_release_slot(slot_index);
 }
 
 /* ============================================================
@@ -673,11 +675,14 @@ int speaker_play_pcm_file(const TCHAR *path, uint8_t loop) {
         return -1;
     }
 
-    if (speaker_pcm_start(pcm_buf, sample_count, loop, 0U, 1U) != 0) {
-        sdram_free(pcm_buf);
-        return -1;
+    {
+        int slot = speaker_pcm_start(pcm_buf, sample_count, loop, 1U);
+        if (slot < 0) {
+            sdram_free(pcm_buf);
+            return -1;
+        }
+        return slot;
     }
-    return 0;
 }
 
 /* ============================================================

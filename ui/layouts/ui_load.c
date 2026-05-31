@@ -15,12 +15,12 @@ lv_obj_t *ui_load_screen_create(void) {
 
     lv_obj_t *no_img_description = lv_label_create(screen);
     lv_label_set_text(no_img_description,
-                      "Since you don't have the image resources, here's a extremely simple loading screen for you!");
+                      "Since you didn't plug in the SD card, here's a extremely simple loading screen for you!");
     lv_obj_center(no_img_description);
     lv_obj_align_to(no_img_description, screen, LV_ALIGN_TOP_MID, 0, 160);
 
     lv_obj_t *no_img_btn = lv_btn_create(screen);
-    lv_obj_set_size(no_img_btn, 272, 85);
+    lv_obj_set_size(no_img_btn, 262, 75);
     lv_obj_align_to(no_img_btn, screen, LV_ALIGN_BOTTOM_MID, 0, -75);
     lv_obj_set_style_bg_color(no_img_btn, lv_color_hex(0xfac757), 0);
     lv_obj_set_style_border_color(no_img_btn, lv_color_hex(0x8a6333), 0);
@@ -28,7 +28,6 @@ lv_obj_t *ui_load_screen_create(void) {
     lv_label_set_text(btn_label, "Start Game");
     lv_obj_set_style_text_font(btn_label, &lv_font_montserrat_30, 0);
     lv_obj_center(btn_label);
-    lv_obj_add_event_cb(no_img_btn, icon_btns_click_audio_play, LV_EVENT_RELEASED, NULL);
     lv_obj_add_event_cb(no_img_btn, ui_load_btn_cb, LV_EVENT_CLICKED, NULL);
 
     /* 有图片资源时展示的高脂加载页 */
@@ -44,7 +43,6 @@ lv_obj_t *ui_load_screen_create(void) {
     lv_obj_align_to(btn, bg, LV_ALIGN_BOTTOM_MID, 0, -75);
     lv_obj_set_style_shadow_width(btn, 0, 0);
     lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, 0);
-    lv_obj_add_event_cb(btn, icon_btns_click_audio_play, LV_EVENT_RELEASED, NULL);
     lv_obj_add_event_cb(btn, ui_load_btn_cb, LV_EVENT_CLICKED, NULL);
 
     /* 开发团队信息 */

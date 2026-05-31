@@ -1,7 +1,9 @@
 #include "ui_farm.h"
 
 #include "icon.h"
+#include "player.h"
 #include "ui.h"
+#include "ui_farm_cb.h"
 #include "ui_main_cb.h"
 #include "ui_message.h"
 #include "ui_window.h"
@@ -58,7 +60,7 @@ static void ui_farm_flex_cont_height_refresh(void) {
 // 生长进度条
 static lv_obj_t *ui_crop_growing_bar(lv_obj_t *parent) {
     lv_obj_t *bar = lv_bar_create(parent);
-    lv_obj_add_event_cb(bar, ui_main_crop_bar_draw_part_end_cb, LV_EVENT_DRAW_PART_END, NULL);
+    lv_obj_add_event_cb(bar, ui_farm_crop_bar_draw_part_end_cb, LV_EVENT_DRAW_PART_END, NULL);
     lv_obj_set_size(bar, 75, 8);
     lv_obj_set_align(bar, LV_ALIGN_BOTTOM_MID);
     lv_obj_set_pos(bar, 0, -2);
@@ -70,7 +72,7 @@ static lv_obj_t *ui_crop_growing_bar(lv_obj_t *parent) {
 // 死亡倒计时进度条（仅在作物即将死亡时显示）
 static lv_obj_t *ui_crop_death_bar(lv_obj_t *parent) {
     lv_obj_t *bar = lv_bar_create(parent);
-    lv_obj_add_event_cb(bar, ui_main_crop_bar_draw_part_end_cb, LV_EVENT_DRAW_PART_END, NULL);
+    lv_obj_add_event_cb(bar, ui_farm_crop_bar_draw_part_end_cb, LV_EVENT_DRAW_PART_END, NULL);
     lv_obj_set_size(bar, 75, 8);
     lv_obj_set_align(bar, LV_ALIGN_BOTTOM_MID);
     lv_obj_set_pos(bar, 0, -10);
@@ -89,6 +91,7 @@ static void ui_field_update_bars(farm_block_t *block) {
         lv_bar_set_range(block->growing_bar, 0, block->field->ready_time);
         lv_bar_set_value(block->growing_bar, block->field->growing_time, LV_ANIM_OFF);
 
+        int old_death_percentage = lv_bar_get_value(block->death_bar);
         int death_percentage = field_get_death_percentage(block->field);
         if (death_percentage > 50) {
             lv_obj_clear_flag(block->death_bar, LV_OBJ_FLAG_HIDDEN);
@@ -98,7 +101,8 @@ static void ui_field_update_bars(farm_block_t *block) {
         }
 
         // 当死亡进度达到75%且作物正在感染虫害时，弹出警告提示玩家作物即将死亡
-        if (death_percentage == 75 && field_is_damaged(block->field)) {
+        if (death_percentage != old_death_percentage /* 防止重复提示 */
+            && death_percentage == 75 && field_is_damaged(block->field)) {
             char message[64];
             snprintf(message, sizeof(message), "The crop in (%d, %d) is about to die!", block->x + 1, block->y + 1);
             ui_message_show(message, UI_MESSAGE_TYPE_WARNING, UI_MESSAGE_CONFIRM);
@@ -161,8 +165,8 @@ static void ui_farm_grid_create(lv_obj_t *parent) {
             lv_obj_add_flag(bg_layer, LV_OBJ_FLAG_CLICKABLE);
             lv_obj_set_style_pad_all(bg_layer, -2, 0);
             lv_obj_set_style_border_width(bg_layer, 2, LV_STATE_CHECKED);
-            lv_obj_add_event_cb(bg_layer, ui_main_field_block_click_cb, LV_EVENT_CLICKED, g_screen_main);
-            lv_obj_add_event_cb(bg_layer, ui_main_field_block_long_press_cb, LV_EVENT_LONG_PRESSED, NULL);
+            lv_obj_add_event_cb(bg_layer, ui_farm_field_block_click_cb, LV_EVENT_CLICKED, g_screen_main);
+            lv_obj_add_event_cb(bg_layer, ui_farm_field_block_long_press_cb, LV_EVENT_LONG_PRESSED, NULL);
             lv_obj_set_user_data(bg_layer, block);
 
             block->obj = ui_div_create(bg_layer);
@@ -261,13 +265,13 @@ static lv_obj_t *ui_field_upgrade_window_create(void) {
     g_field_upgrade_window = win;
 
     g_field_upgrade_window_ctx.output_label = ui_field_upgrade_window_item_create(
-        body, ui_main_filed_output_upgrade_click_cb, &g_field_upgrade_window_ctx.current_field,
+        body, ui_farm_output_upgrade_click_cb, &g_field_upgrade_window_ctx.current_field,
         &g_field_upgrade_window_ctx.output_price_label, &g_field_upgrade_window_ctx.output_upgrade_btn);
     g_field_upgrade_window_ctx.ready_time_label = ui_field_upgrade_window_item_create(
-        body, ui_main_ready_time_upgrade_click_cb, &g_field_upgrade_window_ctx.current_field,
+        body, ui_farm_ready_time_upgrade_click_cb, &g_field_upgrade_window_ctx.current_field,
         &g_field_upgrade_window_ctx.ready_time_price_label, &g_field_upgrade_window_ctx.ready_time_upgrade_btn);
     g_field_upgrade_window_ctx.tolerance_label = ui_field_upgrade_window_item_create(
-        body, ui_main_tolerance_upgrade_click_cb, &g_field_upgrade_window_ctx.current_field,
+        body, ui_farm_tolerance_upgrade_click_cb, &g_field_upgrade_window_ctx.current_field,
         &g_field_upgrade_window_ctx.tolerance_price_label, &g_field_upgrade_window_ctx.tolerance_upgrade_btn);
 
     return win;
@@ -295,11 +299,19 @@ void ui_field_upgrade_window_refresh(farm_block_t *block) {
     snprintf(buf, sizeof(buf), "Tolerance: Lv.%d", field->tolerance_level);
     lv_label_set_text(g_field_upgrade_window_ctx.tolerance_label, buf);
 
+    double discount = level_discount[player_get_instance()->level_stage];
+
     if (field->output_level >= 3) {
         snprintf(buf, sizeof(buf), "Achieved Max Level");
         lv_obj_add_state(g_field_upgrade_window_ctx.output_upgrade_btn, LV_STATE_DISABLED);
     } else {
-        snprintf(buf, sizeof(buf), "Upgrade Cost: %d", field_output_upgrade_price[field->output_level]);
+        int price = field_output_upgrade_price[field->output_level];
+        int discount_price = (int)(price * discount);
+        if (discount_price < price) {
+            snprintf(buf, sizeof(buf), "Up Cost: %d (x%.2f)", discount_price, discount);
+        } else {
+            snprintf(buf, sizeof(buf), "Up Cost: %d", price);
+        }
         lv_obj_clear_state(g_field_upgrade_window_ctx.output_upgrade_btn, LV_STATE_DISABLED);
     }
     lv_label_set_text(g_field_upgrade_window_ctx.output_price_label, buf);
@@ -308,7 +320,13 @@ void ui_field_upgrade_window_refresh(farm_block_t *block) {
         snprintf(buf, sizeof(buf), "Achieved Max Level");
         lv_obj_add_state(g_field_upgrade_window_ctx.ready_time_upgrade_btn, LV_STATE_DISABLED);
     } else {
-        snprintf(buf, sizeof(buf), "Upgrade Cost: %d", field_ready_time_upgrade_price[field->ready_time_level]);
+        int price = field_ready_time_upgrade_price[field->ready_time_level];
+        int discount_price = (int)(price * discount);
+        if (discount_price < price) {
+            snprintf(buf, sizeof(buf), "Up Cost: %d (x%.2f)", discount_price, discount);
+        } else {
+            snprintf(buf, sizeof(buf), "Up Cost: %d", price);
+        }
         lv_obj_clear_state(g_field_upgrade_window_ctx.ready_time_upgrade_btn, LV_STATE_DISABLED);
     }
     lv_label_set_text(g_field_upgrade_window_ctx.ready_time_price_label, buf);
@@ -317,7 +335,13 @@ void ui_field_upgrade_window_refresh(farm_block_t *block) {
         snprintf(buf, sizeof(buf), "Achieved Max Level");
         lv_obj_add_state(g_field_upgrade_window_ctx.tolerance_upgrade_btn, LV_STATE_DISABLED);
     } else {
-        snprintf(buf, sizeof(buf), "Upgrade Cost: %d", field_tolerance_upgrade_price[field->tolerance_level]);
+        int price = field_tolerance_upgrade_price[field->tolerance_level];
+        int discount_price = (int)(price * discount);
+        if (discount_price < price) {
+            snprintf(buf, sizeof(buf), "Up Cost: %d (x%.2f)", discount_price, discount);
+        } else {
+            snprintf(buf, sizeof(buf), "Up Cost: %d", price);
+        }
         lv_obj_clear_state(g_field_upgrade_window_ctx.tolerance_upgrade_btn, LV_STATE_DISABLED);
     }
     lv_label_set_text(g_field_upgrade_window_ctx.tolerance_price_label, buf);
@@ -362,6 +386,16 @@ void ui_farm_refresh_all(void) {
     for (int i = 0; i < FARM_GRID_N; i++) {
         for (int j = 0; j < FARM_GRID_N; j++) {
             ui_field_update_bars(&g_farm_blocks[i][j]);
+        }
+    }
+}
+
+void ui_farm_clear_field_selection(lv_obj_t *parent) {
+    lv_obj_t *child;
+    uint8_t idx = 0;
+    while ((child = lv_obj_get_child(parent, idx++)) != NULL) {
+        if (lv_obj_has_flag(child, LV_OBJ_FLAG_CHECKABLE)) {
+            lv_obj_clear_state(child, LV_STATE_CHECKED);
         }
     }
 }
