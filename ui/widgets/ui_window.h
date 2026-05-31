@@ -11,5 +11,6 @@ lv_obj_t *ui_window_get_current(void);
 bool ui_window_is_visible(lv_obj_t *window);
 void ui_window_set_display_relative(lv_obj_t *window);
 void ui_window_follow_scroll(lv_obj_t *window, lv_obj_t *target);
+void ui_window_disable_keep_alive(lv_obj_t *window);
 
 #endif

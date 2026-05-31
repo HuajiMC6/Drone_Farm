@@ -246,10 +246,6 @@ void ui_drone_hud_set_visible(bool visible) {
     }
 }
 
-/* 旧 factory 已迁移到 ui_common，这里用宏兼容旧调用名，保持 diff 最小 */
-#define ui_drone_transparent_container_create ui_transparent_cont_create
-#define ui_drone_card_create(p, w, h, pad) ui_card_create(p, w, h)
-
 // 创建状态胶囊和对应文本标签
 static lv_obj_t *ui_drone_state_chip_create(lv_obj_t *parent, lv_obj_t **state_label) {
     lv_obj_t *state_chip = lv_obj_create(parent);
@@ -273,7 +269,7 @@ static lv_obj_t *ui_drone_state_chip_create(lv_obj_t *parent, lv_obj_t **state_l
 static void ui_drone_info_item_create(lv_obj_t *parent, const char *title, lv_obj_t **value_label,
                                       lv_obj_t **price_label, lv_obj_t **btn, lv_event_cb_t btn_event_cb,
                                       lv_coord_t w) {
-    lv_obj_t *item = ui_drone_transparent_container_create(parent, w, 52);
+    lv_obj_t *item = ui_transparent_cont_create(parent, w, 52);
     lv_obj_set_style_pad_all(item, 0, 0);
     lv_obj_set_style_pad_right(item, 34, 0);
 
@@ -296,10 +292,7 @@ static void ui_drone_info_item_create(lv_obj_t *parent, const char *title, lv_ob
 
     *btn = lv_btn_create(item);
     lv_obj_set_size(*btn, 28, 28);
-    lv_obj_set_style_bg_color(*btn, lv_color_hex(0xf4cdca), 0);
-    lv_obj_set_style_border_color(*btn, lv_color_hex(0xb66258), 0);
-    lv_obj_set_style_border_width(*btn, 1, 0);
-    lv_obj_set_style_radius(*btn, 8, 0);
+    lv_obj_add_style(*btn, &ui_style_btn_pink, 0);
     lv_obj_align(*btn, LV_ALIGN_TOP_RIGHT, -4, 2);
     lv_obj_t *btn_label = lv_label_create(*btn);
     lv_label_set_text(btn_label, "+");
@@ -309,17 +302,13 @@ static void ui_drone_info_item_create(lv_obj_t *parent, const char *title, lv_ob
     }
 }
 
-// 创建模式按钮并绑定统一回调通过 desc 区分 Detect 或 Spray
-#define ui_drone_mode_button_create(p, w, text, desc)                                                                  \
-    ui_btn_factory(p, w, 34, text, lv_color_hex(0xefcd76), lv_color_hex(0x8a6333), ui_drone_mode_button_click_cb, desc)
-
 // 创建一条图标名称数值统计项并使用 grid 保持列对齐
 static void ui_drone_stat_entry_create(lv_obj_t *parent, lv_coord_t w, const void *icon_src, const char *name,
                                        lv_obj_t **name_label, lv_obj_t **value_label) {
     static lv_coord_t col_dsc[] = {LV_GRID_CONTENT, LV_GRID_FR(1), LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
     static lv_coord_t row_dsc[] = {LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
 
-    lv_obj_t *entry = ui_drone_transparent_container_create(parent, w, LV_SIZE_CONTENT);
+    lv_obj_t *entry = ui_transparent_cont_create(parent, w, LV_SIZE_CONTENT);
     lv_obj_set_layout(entry, LV_LAYOUT_GRID);
     lv_obj_set_grid_dsc_array(entry, col_dsc, row_dsc);
     lv_obj_set_style_pad_column(entry, 6, 0);
@@ -337,10 +326,10 @@ static void ui_drone_stat_entry_create(lv_obj_t *parent, lv_coord_t w, const voi
     lv_obj_set_grid_cell(*value_label, LV_GRID_ALIGN_END, 2, 1, LV_GRID_ALIGN_CENTER, 0, 1);
 }
 
-// 创建模式控制行左侧为名称右侧为操作按钮
+// 创建模式控制行，左侧为名称，右侧为操作按钮
 static void ui_drone_mode_row_create(lv_obj_t *parent, const char *name, lv_coord_t btn_w, lv_obj_t **btn_out,
                                      drone_mode_btn_desc_t *desc) {
-    lv_obj_t *row = ui_drone_transparent_container_create(parent, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_t *row = ui_transparent_cont_create(parent, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_set_layout(row, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -348,8 +337,13 @@ static void ui_drone_mode_row_create(lv_obj_t *parent, const char *name, lv_coor
     lv_obj_t *name_label = lv_label_create(row);
     lv_label_set_text(name_label, name);
 
-    *btn_out = ui_drone_mode_button_create(row, btn_w,
-                                           desc == &g_drone_detect_btn_desc ? "Start Detect" : "Start Spray", desc);
+    *btn_out = lv_btn_create(row);
+    lv_obj_add_style(*btn_out, &ui_style_btn_yellow, 0);
+    lv_obj_set_size(*btn_out, btn_w, 34);
+    lv_obj_t *btn_label = lv_label_create(*btn_out);
+    lv_label_set_text(btn_label, desc == &g_drone_detect_btn_desc ? "Start Detect" : "Start Spray");
+    lv_obj_center(btn_label);
+    lv_obj_add_event_cb(*btn_out, ui_drone_mode_button_click_cb, LV_EVENT_CLICKED, desc);
 }
 
 // 创建农药装载行包含名称减号当前装载量加号并使用 grid 管理列对齐
@@ -358,7 +352,7 @@ static void ui_drone_pesticide_row_create(lv_obj_t *parent, crop_pesticide_t i, 
                                    LV_GRID_TEMPLATE_LAST};
     static lv_coord_t row_dsc[] = {LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
 
-    lv_obj_t *row = ui_drone_transparent_container_create(parent, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_t *row = ui_transparent_cont_create(parent, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_set_layout(row, LV_LAYOUT_GRID);
     lv_obj_set_grid_dsc_array(row, col_dsc, row_dsc);
     lv_obj_set_style_pad_column(row, 6, 0);
@@ -369,10 +363,7 @@ static void ui_drone_pesticide_row_create(lv_obj_t *parent, crop_pesticide_t i, 
 
     lv_obj_t *minus_btn = lv_btn_create(row);
     lv_obj_set_size(minus_btn, 28, 28);
-    lv_obj_set_style_bg_color(minus_btn, lv_color_hex(0xefcd76), 0);
-    lv_obj_set_style_border_color(minus_btn, lv_color_hex(0x8a6333), 0);
-    lv_obj_set_style_border_width(minus_btn, 1, 0);
-    lv_obj_set_style_radius(minus_btn, 8, 0);
+    lv_obj_add_style(minus_btn, &ui_style_btn_yellow, 0);
     lv_obj_set_grid_cell(minus_btn, LV_GRID_ALIGN_CENTER, 1, 1, LV_GRID_ALIGN_CENTER, 0, 1);
     lv_obj_t *minus_label = lv_label_create(minus_btn);
     lv_label_set_text(minus_label, "-");
@@ -385,10 +376,7 @@ static void ui_drone_pesticide_row_create(lv_obj_t *parent, crop_pesticide_t i, 
 
     lv_obj_t *add_btn = lv_btn_create(row);
     lv_obj_set_size(add_btn, 28, 28);
-    lv_obj_set_style_bg_color(add_btn, lv_color_hex(0xf4cdca), 0);
-    lv_obj_set_style_border_color(add_btn, lv_color_hex(0xb66258), 0);
-    lv_obj_set_style_border_width(add_btn, 1, 0);
-    lv_obj_set_style_radius(add_btn, 8, 0);
+    lv_obj_add_style(add_btn, &ui_style_btn_pink, 0);
     lv_obj_set_grid_cell(add_btn, LV_GRID_ALIGN_CENTER, 3, 1, LV_GRID_ALIGN_CENTER, 0, 1);
     lv_obj_t *add_label = lv_label_create(add_btn);
     lv_label_set_text(add_label, "+");
@@ -425,25 +413,25 @@ lv_obj_t *ui_drone_window_create(void) {
     lv_obj_set_size(div, 714, 432);
 
     // 左右面板容器：仅负责分区，不承担视觉样式。
-    lv_obj_t *left_panel = ui_drone_transparent_container_create(body, 382, 366);
+    lv_obj_t *left_panel = ui_transparent_cont_create(body, 382, 366);
     lv_obj_set_layout(left_panel, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(left_panel, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(left_panel, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
     lv_obj_set_style_pad_row(left_panel, 4, 0);
 
-    lv_obj_t *right_panel = ui_drone_transparent_container_create(body, 304, 366);
+    lv_obj_t *right_panel = ui_transparent_cont_create(body, 304, 366);
     lv_obj_set_layout(right_panel, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(right_panel, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(right_panel, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
 
     // Base Info 卡片：头部（标题+状态）+ 底部（速度/容量）。
-    lv_obj_t *base_card = ui_drone_card_create(left_panel, 382, 96, 8);
+    lv_obj_t *base_card = ui_card_create(left_panel, 382, 96);
     lv_obj_set_layout(base_card, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(base_card, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(base_card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
     lv_obj_set_style_pad_row(base_card, 6, 0);
 
-    lv_obj_t *base_header = ui_drone_transparent_container_create(base_card, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_t *base_header = ui_transparent_cont_create(base_card, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_set_layout(base_header, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(base_header, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(base_header, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -454,7 +442,7 @@ lv_obj_t *ui_drone_window_create(void) {
 
     ui_drone_state_chip_create(base_header, &g_drone_window_ctx.state_label);
 
-    lv_obj_t *base_values = ui_drone_transparent_container_create(base_card, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_t *base_values = ui_transparent_cont_create(base_card, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_set_layout(base_values, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(base_values, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_column(base_values, 10, 0);
@@ -467,7 +455,7 @@ lv_obj_t *ui_drone_window_create(void) {
                               ui_drone_storage_upgrade_click_cb, 174);
 
     // 虫害/装药统计卡片：按 2x2 行列生成，避免手写坐标。
-    lv_obj_t *pest_card = ui_drone_card_create(left_panel, 382, 116, 8);
+    lv_obj_t *pest_card = ui_card_create(left_panel, 382, 116);
     lv_obj_set_layout(pest_card, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(pest_card, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(pest_card, 6, 0);
@@ -476,13 +464,13 @@ lv_obj_t *ui_drone_window_create(void) {
     lv_label_set_text(g_drone_window_ctx.pest_card_title, "Last Scan Pest Count");
     lv_obj_set_style_text_color(g_drone_window_ctx.pest_card_title, lv_color_hex(0x5b421f), 0);
 
-    lv_obj_t *pest_rows = ui_drone_transparent_container_create(pest_card, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_t *pest_rows = ui_transparent_cont_create(pest_card, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_set_layout(pest_rows, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(pest_rows, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(pest_rows, 4, 0);
 
     for (crop_damage_t r = 0; r < 2; r++) {
-        lv_obj_t *row = ui_drone_transparent_container_create(pest_rows, LV_PCT(100), LV_SIZE_CONTENT);
+        lv_obj_t *row = ui_transparent_cont_create(pest_rows, LV_PCT(100), LV_SIZE_CONTENT);
         lv_obj_set_layout(row, LV_LAYOUT_FLEX);
         lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -497,7 +485,7 @@ lv_obj_t *ui_drone_window_create(void) {
     }
 
     // 模式控制卡片：两行（Detect/Recall、Auto Spray）。
-    lv_obj_t *mode_card = ui_drone_card_create(left_panel, 382, 146, 8);
+    lv_obj_t *mode_card = ui_card_create(left_panel, 382, 146);
     lv_obj_set_layout(mode_card, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(mode_card, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(mode_card, 14, 0);
@@ -510,7 +498,7 @@ lv_obj_t *ui_drone_window_create(void) {
     ui_drone_mode_row_create(mode_card, "Auto Spray", 132, &g_drone_window_ctx.spray_btn, &g_drone_spray_btn_desc);
 
     // 右侧背包卡片：上半为装载调节列表，下半为背包 grid list。
-    lv_obj_t *bag_card = ui_drone_card_create(right_panel, 304, 366, 8);
+    lv_obj_t *bag_card = ui_card_create(right_panel, 304, 366);
     lv_obj_set_layout(bag_card, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(bag_card, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(bag_card, 6, 0);
@@ -603,7 +591,7 @@ void ui_drone_hud_create(lv_obj_t *parent) {
     lv_obj_add_flag(root, LV_OBJ_FLAG_HIDDEN);
 
     // 左侧 HUD：统计信息
-    lv_obj_t *left_panel = ui_drone_transparent_container_create(root, 202, 267);
+    lv_obj_t *left_panel = ui_transparent_cont_create(root, 202, 267);
     lv_obj_set_style_pad_all(left_panel, 4, 0);
     lv_obj_set_style_bg_color(left_panel, lv_color_hex(0xf6dc8f), 0);
     lv_obj_set_style_bg_opa(left_panel, LV_OPA_COVER, 0);
@@ -614,7 +602,7 @@ void ui_drone_hud_create(lv_obj_t *parent) {
     lv_obj_set_style_pad_row(left_panel, 4, 0);
 
     // 右侧 HUD：模式控制。
-    lv_obj_t *right_panel = ui_drone_transparent_container_create(root, 210, 158);
+    lv_obj_t *right_panel = ui_transparent_cont_create(root, 210, 158);
     lv_obj_set_style_pad_all(right_panel, 4, 0);
     lv_obj_set_style_bg_color(right_panel, lv_color_hex(0xf6dc8f), 0);
     lv_obj_set_style_bg_opa(right_panel, LV_OPA_COVER, 0);
@@ -624,7 +612,7 @@ void ui_drone_hud_create(lv_obj_t *parent) {
     lv_obj_set_flex_flow(right_panel, LV_FLEX_FLOW_COLUMN);
 
     // HUD 虫害统计卡片。
-    lv_obj_t *pest_card = ui_drone_card_create(left_panel, 192, 126, 8);
+    lv_obj_t *pest_card = ui_card_create(left_panel, 192, 126);
     lv_obj_set_layout(pest_card, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(pest_card, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(pest_card, 6, 0);
@@ -632,7 +620,7 @@ void ui_drone_hud_create(lv_obj_t *parent) {
     g_drone_hud_ctx.pest_card_title = lv_label_create(pest_card);
     lv_label_set_text(g_drone_hud_ctx.pest_card_title, "Last Scan Pest Count");
     lv_obj_set_style_text_color(g_drone_hud_ctx.pest_card_title, lv_color_hex(0x5b421f), 0);
-    lv_obj_t *pest_rows = ui_drone_transparent_container_create(pest_card, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_t *pest_rows = ui_transparent_cont_create(pest_card, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_set_layout(pest_rows, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(pest_rows, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(pest_rows, 6, 0);
@@ -645,7 +633,7 @@ void ui_drone_hud_create(lv_obj_t *parent) {
     }
 
     // HUD 装药统计卡片，始终展示无人机当前装药量。
-    lv_obj_t *loaded_card = ui_drone_card_create(left_panel, 192, 126, 8);
+    lv_obj_t *loaded_card = ui_card_create(left_panel, 192, 126);
     lv_obj_set_layout(loaded_card, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(loaded_card, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(loaded_card, 6, 0);
@@ -654,7 +642,7 @@ void ui_drone_hud_create(lv_obj_t *parent) {
     lv_label_set_text(g_drone_hud_ctx.pesticide_card_title, "Loaded Pesticide Count");
     lv_obj_set_style_text_color(g_drone_hud_ctx.pesticide_card_title, lv_color_hex(0x5b421f), 0);
 
-    lv_obj_t *loaded_rows = ui_drone_transparent_container_create(loaded_card, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_t *loaded_rows = ui_transparent_cont_create(loaded_card, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_set_layout(loaded_rows, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(loaded_rows, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(loaded_rows, 6, 0);
@@ -668,7 +656,7 @@ void ui_drone_hud_create(lv_obj_t *parent) {
     }
 
     // HUD 模式卡片：复用统一模式行构建函数。
-    lv_obj_t *mode_card = ui_drone_card_create(right_panel, 199, 148, 8);
+    lv_obj_t *mode_card = ui_card_create(right_panel, 199, 148);
     lv_obj_set_layout(mode_card, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(mode_card, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(mode_card, 16, 0);

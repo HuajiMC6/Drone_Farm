@@ -34,13 +34,7 @@ typedef struct {
     field_t *current_field;
 } ui_field_upgrade_window_ctx_t;
 
-typedef struct {
-    lv_obj_t *btn;
-    lv_obj_t *price_label;
-} ui_farm_size_upgrade_ctx_t;
-
 static ui_field_upgrade_window_ctx_t g_field_upgrade_window_ctx;
-static ui_farm_size_upgrade_ctx_t g_farm_size_upgrade_ctx;
 
 static void ui_farm_flex_cont_height_refresh(void);
 static void ui_farm_grid_create(lv_obj_t *parent);
@@ -52,8 +46,6 @@ static void ui_field_update(int x, int y);
 static void ui_field_update_bars(farm_block_t *block);
 static lv_obj_t *ui_crop_growing_bar(lv_obj_t *parent);
 static lv_obj_t *ui_crop_death_bar(lv_obj_t *parent);
-static void ui_farm_size_upgrade_btn_create(void);
-void ui_farm_size_upgrade_btn_refresh(void);
 
 static void ui_farm_flex_cont_height_refresh(void) {
     if (FARM_GRID_N * FARM_BLOCK_SIZE + 200 > 600) {
@@ -261,7 +253,6 @@ static lv_obj_t *ui_field_upgrade_window_create(void) {
     lv_obj_set_style_pad_row(body, 8, 0);
     lv_obj_set_flex_align(body, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
     lv_obj_t *win = ui_window_create("Field Info", body, false);
-    ui_window_set_display_relative(win);
     lv_obj_set_size(win, 200, 180);
 
     ui_window_hide(win);
@@ -354,7 +345,6 @@ void ui_farm_module_create(lv_obj_t *screen_main, lv_obj_t *main_layer) {
     ui_farm_grid_create(g_main_layer);
     lv_obj_add_flag(g_main_layer, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(g_main_layer, ui_main_screen_click_cb, LV_EVENT_CLICKED, farm_grid);
-    ui_farm_size_upgrade_btn_create();
 }
 
 lv_obj_t *ui_farm_get_grid(void) {
@@ -399,52 +389,8 @@ void ui_farm_handle_event(event_t *event) {
         }
         case EVENT_ON_FARM_SIZE_UPGRADE:
             ui_farm_grid_update();
-            ui_farm_size_upgrade_btn_refresh();
             break;
         default:
             break;
     }
-}
-
-void ui_farm_size_upgrade_btn_refresh(void) {
-    if (farm_get_instance()->size_level >= FARM_SIZE_LEVEL_MAX) {
-        if (g_farm_size_upgrade_ctx.btn && lv_obj_is_valid(g_farm_size_upgrade_ctx.btn)) {
-            lv_obj_add_state(g_farm_size_upgrade_ctx.btn, LV_STATE_DISABLED);
-            lv_label_set_text(g_farm_size_upgrade_ctx.price_label, "Max Level");
-        }
-    } else {
-        if (g_farm_size_upgrade_ctx.price_label && lv_obj_is_valid(g_farm_size_upgrade_ctx.price_label)) {
-            lv_label_set_text_fmt(g_farm_size_upgrade_ctx.price_label, "Cost: %d",
-                                  farm_size_update_price[farm_get_instance()->size_level]);
-        }
-        if (g_farm_size_upgrade_ctx.btn && lv_obj_is_valid(g_farm_size_upgrade_ctx.btn)) {
-            lv_obj_clear_state(g_farm_size_upgrade_ctx.btn, LV_STATE_DISABLED);
-        }
-    }
-    lv_obj_align_to(g_farm_size_upgrade_ctx.btn, farm_grid, LV_ALIGN_OUT_BOTTOM_MID, 0, 25);
-    lv_obj_align_to(g_farm_size_upgrade_ctx.price_label, g_farm_size_upgrade_ctx.btn, LV_ALIGN_BOTTOM_MID, 0, 0);
-}
-
-static void ui_farm_size_upgrade_btn_create(void) {
-    lv_obj_t *btn = lv_btn_create(g_main_layer);
-    lv_obj_set_size(btn, 170, 40);
-    lv_obj_set_style_bg_color(btn, lv_color_hex(0xfac757), 0);
-    lv_obj_set_style_border_color(btn, lv_color_hex(0x8a6333), 0);
-    lv_obj_set_style_border_width(btn, 1, 0);
-    lv_obj_set_style_radius(btn, 8, 0);
-    lv_obj_set_style_pad_all(btn, 3, 0);
-
-    lv_obj_t *btn_label = lv_label_create(btn);
-    lv_label_set_text(btn_label, "Upgrade Farm Size");
-    lv_obj_align_to(btn_label, btn, LV_ALIGN_TOP_MID, 0, 0);
-
-    lv_obj_t *price_label = lv_label_create(btn);
-    lv_obj_set_style_text_color(price_label, lv_color_hex(0xb66258), 0);
-    lv_obj_set_style_text_font(price_label, &lv_font_montserrat_12, 0);
-    lv_obj_add_event_cb(btn, ui_main_field_size_upgrade_click_cb, LV_EVENT_CLICKED, NULL);
-
-    g_farm_size_upgrade_ctx.btn = btn;
-    g_farm_size_upgrade_ctx.price_label = price_label;
-
-    ui_farm_size_upgrade_btn_refresh();
 }

@@ -1,5 +1,6 @@
 #include "ui.h"
 #include "audio.h"
+#include "ui_common.h"
 #include "ui_drone.h"
 #include "ui_farm.h"
 
@@ -20,6 +21,7 @@ static lv_obj_t *g_screen_main = NULL;
 void ui_init(void) {
     icon_init();            // 初始化图标资源
     ui_update_timer_init(); // 初始化UI更新定时器
+    ui_style_init();        // 初始化UI全局样式
 
     g_screen_load = ui_load_screen_create();
     g_screen_main = ui_main_screen_create();

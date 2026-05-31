@@ -1,5 +1,22 @@
 #include "ui_common.h"
 
+lv_style_t ui_style_btn_yellow;
+lv_style_t ui_style_btn_pink;
+
+void ui_style_init(void) {
+    lv_style_init(&ui_style_btn_yellow);
+    lv_style_set_bg_color(&ui_style_btn_yellow, lv_color_hex(0xefcd76));
+    lv_style_set_border_color(&ui_style_btn_yellow, lv_color_hex(0x8a6333));
+    lv_style_set_border_width(&ui_style_btn_yellow, 1);
+    lv_style_set_radius(&ui_style_btn_yellow, 8);
+
+    lv_style_init(&ui_style_btn_pink);
+    lv_style_set_bg_color(&ui_style_btn_pink, lv_color_hex(0xf4cdca));
+    lv_style_set_border_color(&ui_style_btn_pink, lv_color_hex(0xb66258));
+    lv_style_set_border_width(&ui_style_btn_pink, 1);
+    lv_style_set_radius(&ui_style_btn_pink, 8);
+}
+
 lv_obj_t *ui_div_create(lv_obj_t *parent) {
     lv_obj_t *div = lv_obj_create(parent);
     lv_obj_set_style_bg_opa(div, 0, 0);

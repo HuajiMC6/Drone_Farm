@@ -45,6 +45,7 @@ static lv_obj_t *g_plant_window = NULL;
 static lv_obj_t *g_shop_window = NULL;
 static lv_obj_t *g_storage_window = NULL;
 static lv_obj_t *g_setting_window = NULL;
+static lv_obj_t *g_farm_upgrade_window = NULL;
 
 static lv_obj_t *g_gold_bar_label = NULL;
 
@@ -61,6 +62,7 @@ ui_player_exp_ctx_t g_player_exp_ctx;
 static lv_obj_t *ui_seed_table_create(lv_obj_t *parent);
 static lv_obj_t *ui_plant_window_create(void);
 static lv_obj_t *ui_setting_window_create(void);
+static lv_obj_t *ui_farm_upgrade_window_create(void);
 static void ui_gold_bar_create(lv_obj_t *parent);
 static void ui_gold_bar_refresh(void);
 static void ui_exp_bar_create(lv_obj_t *parent);
@@ -84,13 +86,17 @@ static ui_window_toggle_desc_t g_setting_window_toggle = {
     .create = ui_setting_window_create,
     .window_ref = &g_setting_window,
 };
+static ui_window_toggle_desc_t g_farm_upgrade_window_toggle = {
+    .create = ui_farm_upgrade_window_create,
+    .window_ref = &g_farm_upgrade_window,
+};
 
 lv_obj_t *ui_main_screen_create(void) {
     if (g_screen_main && lv_obj_is_valid(g_screen_main)) {
         return g_screen_main;
     }
 
-    /* 这个地方的布局优化了1mol次，走了十年弯路，特此记录，原来大道至简...我悟了...吗？... */
+    /* 这个地方的布局优化了1mol次，走了十年弯路，特此记录🤳，原来大道至简😭...... */
 
     g_screen_main = lv_obj_create(NULL);
     lv_obj_set_style_bg_img_src(g_screen_main, &icon_farm_bg, 0);
@@ -131,6 +137,8 @@ lv_obj_t *ui_main_screen_create(void) {
     lv_obj_add_event_cb(shop_btn, ui_main_floating_button_click_cb, LV_EVENT_CLICKED, &g_shop_window_toggle);
     lv_obj_add_event_cb(setting_btn, ui_main_floating_button_click_cb, LV_EVENT_CLICKED, &g_setting_window_toggle);
     lv_obj_add_event_cb(harvest_btn, ui_main_harvest_all_click_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(farm_upgrade_btn, ui_main_floating_button_click_cb, LV_EVENT_CLICKED,
+                        &g_farm_upgrade_window_toggle);
 
     // 装饰物
     ui_decorations_create();
@@ -486,6 +494,58 @@ static void ui_decorations_create(void) {
     g_prop_scarecrow = lv_img_create(g_main_layer);
     lv_img_set_src(g_prop_scarecrow, img_prop_scarecrow);
     lv_obj_set_pos(g_prop_scarecrow, 70, 120);
+}
+
+// 田地升级弹窗创建
+static lv_obj_t *ui_farm_upgrade_window_create(void) {
+    lv_obj_t *body = ui_div_create(g_screen_main);
+    lv_obj_set_flex_flow(body, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(body, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_all(body, 12, 0);
+    lv_obj_set_style_pad_row(body, 6, 0);
+
+    farm_t *farm = farm_get_instance();
+    lv_obj_t *current_size = lv_label_create(body);
+    lv_label_set_text_fmt(current_size, "Current Size: %dx%d", farm->current_size, farm->current_size);
+
+    lv_obj_t *next_size = lv_label_create(body);
+    lv_obj_t *spacer = ui_transparent_cont_create(body, LV_PCT(100), 10);
+    if (farm->size_level < FARM_SIZE_LEVEL_MAX) {
+        lv_label_set_text_fmt(next_size, "Next Size: %dx%d", farm_size_by_level[farm->size_level + 1],
+                              farm_size_by_level[farm->size_level + 1]);
+
+        lv_obj_t *price_label = lv_label_create(body);
+        int price = farm_size_update_price[farm->size_level];
+        double discount = level_discount[player_get_instance()->level_stage];
+        int discount_price = (int)(price * discount);
+        if (discount_price < price) {
+            lv_label_set_text_fmt(price_label, "Upgrade Price: %d (x%.2f)", discount_price, discount);
+        } else {
+            lv_label_set_text_fmt(price_label, "Upgrade Price: %d", price);
+        }
+        lv_obj_set_style_text_color(price_label, lv_color_hex(0xb66258), 0);
+
+        lv_obj_t *upgrade_btn = lv_btn_create(body);
+        lv_obj_set_size(upgrade_btn, 120, 40);
+        lv_obj_add_style(upgrade_btn, &ui_style_btn_yellow, 0);
+        lv_obj_t *upgrade_btn_label = lv_label_create(upgrade_btn);
+        lv_label_set_text(upgrade_btn_label, "Upgrade");
+        lv_obj_center(upgrade_btn_label);
+        lv_obj_add_event_cb(upgrade_btn, ui_main_farm_upgrade_btn_click_cb, LV_EVENT_CLICKED, NULL);
+    } else {
+        lv_label_set_text(next_size, "Max Size Reached");
+        lv_obj_set_style_text_color(next_size, lv_color_hex(0xb66258), 0);
+        lv_obj_set_style_text_font(next_size, &lv_font_montserrat_20, 0);
+    }
+
+    lv_obj_t *div = ui_window_create("FARM UPGRADE", body, true);
+    lv_obj_set_size(div, 250, 200);
+    lv_obj_center(div);
+
+    ui_window_disable_keep_alive(div); // 这个窗口关闭时直接删除对象，不保持存活
+
+    g_farm_upgrade_window = div;
+    return div;
 }
 
 // 田地大小升级按钮刷新

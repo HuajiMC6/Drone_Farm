@@ -20,6 +20,11 @@ typedef struct {
     bool is_detected;
 } farm_block_t;
 
+// UI全局样式
+extern lv_style_t ui_style_btn_yellow;
+extern lv_style_t ui_style_btn_pink;
+void ui_style_init(void);
+
 /* ──────── 工具函数 ──────── */
 lv_obj_t *ui_div_create(lv_obj_t *parent);
 

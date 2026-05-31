@@ -465,11 +465,6 @@
               <FilePath>.\ui\callbacks\ui_storage_cb.c</FilePath>
             </File>
             <File>
-              <FileName>ui_window_cb.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\ui\callbacks\ui_window_cb.c</FilePath>
-            </File>
-            <File>
               <FileName>icon.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\ui\icon.c</FilePath>

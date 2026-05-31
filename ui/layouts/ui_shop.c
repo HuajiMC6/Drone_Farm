@@ -327,6 +327,7 @@ lv_obj_t *ui_shop_window_create(void) {
 
     g_shop_window_ctx.qty_minus_btn = lv_btn_create(qty_row);
     lv_obj_set_size(g_shop_window_ctx.qty_minus_btn, 36, 30);
+    lv_obj_add_style(g_shop_window_ctx.qty_minus_btn, &ui_style_btn_yellow, 0);
     lv_obj_t *minus_label = lv_label_create(g_shop_window_ctx.qty_minus_btn);
     lv_label_set_text(minus_label, "-");
     lv_obj_center(minus_label);
@@ -337,6 +338,7 @@ lv_obj_t *ui_shop_window_create(void) {
 
     g_shop_window_ctx.qty_plus_btn = lv_btn_create(qty_row);
     lv_obj_set_size(g_shop_window_ctx.qty_plus_btn, 36, 30);
+    lv_obj_add_style(g_shop_window_ctx.qty_plus_btn, &ui_style_btn_pink, 0);
     lv_obj_t *plus_label = lv_label_create(g_shop_window_ctx.qty_plus_btn);
     lv_label_set_text(plus_label, "+");
     lv_obj_center(plus_label);
@@ -365,6 +367,7 @@ lv_obj_t *ui_shop_window_create(void) {
 
     g_shop_window_ctx.buy_btn = lv_btn_create(right);
     lv_obj_set_size(g_shop_window_ctx.buy_btn, LV_PCT(100), 42);
+    lv_obj_add_style(g_shop_window_ctx.buy_btn, &ui_style_btn_yellow, 0);
     g_shop_window_ctx.buy_btn_label = lv_label_create(g_shop_window_ctx.buy_btn);
     lv_label_set_text(g_shop_window_ctx.buy_btn_label, "Select Item");
     lv_obj_center(g_shop_window_ctx.buy_btn_label);

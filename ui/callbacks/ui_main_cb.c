@@ -7,9 +7,6 @@
 #include "ui_message.h"
 #include "ui_window.h"
 
-/* UI层接口 */
-void ui_farm_size_upgrade_btn_refresh(void);
-
 static bool ui_main_obj_overlap(lv_obj_t *obj1, lv_obj_t *obj2, lv_coord_t hor_offset, lv_coord_t ver_offset);
 static void ui_main_toggle_window_from_desc(ui_window_toggle_desc_t *desc);
 
@@ -313,13 +310,15 @@ void ui_main_crop_bar_draw_part_end_cb(lv_event_t *e) {
     lv_draw_label(dsc->draw_ctx, &label_dsc, &txt_area, buf, NULL);
 }
 
-void ui_main_field_size_upgrade_click_cb(lv_event_t *e) {
+// 弹窗升级按钮回调
+void ui_main_farm_upgrade_btn_click_cb(lv_event_t *e) {
     bool result = player_buy_farm_size_update();
-    if (!result) {
-        ui_message_show("Not enough gold!", UI_MESSAGE_TYPE_ERROR, UI_MESSAGE_TOAST);
-    } else {
+    if (result) {
         ui_message_show("Upgrade successful!", UI_MESSAGE_TYPE_SUCCESS, UI_MESSAGE_TOAST);
-        ui_farm_size_upgrade_btn_refresh();
+        // 升级成功后关闭弹窗
+        ui_window_hide_current();
+    } else {
+        ui_message_show("Not enough gold!", UI_MESSAGE_TYPE_ERROR, UI_MESSAGE_TOAST);
     }
 }
 
