@@ -730,6 +730,10 @@ void speaker_set_volume(uint8_t vol) {
     s_volume = ((uint32_t)vol * 65536U) / 100U;
 }
 
+uint8_t speaker_get_volume(void) {
+    return (uint8_t)((s_volume * 100U) / 65536U);
+}
+
 /* ============================================================
  *  API: 查询是否正在播放
  * ============================================================ */

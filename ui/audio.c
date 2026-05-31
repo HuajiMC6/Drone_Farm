@@ -5,6 +5,10 @@ void audio_set_volume(uint8_t vol) {
     speaker_set_volume(vol);
 }
 
+uint8_t audio_get_volume(void) {
+    return speaker_get_volume();
+}
+
 // 播放背景音乐
 void bgm_music_play(void) {
     speaker_play_bgm_stream_file(AUDIO_BGM, 1);

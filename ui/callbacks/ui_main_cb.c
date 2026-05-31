@@ -10,6 +10,8 @@
 static bool ui_main_obj_overlap(lv_obj_t *obj1, lv_obj_t *obj2, lv_coord_t hor_offset, lv_coord_t ver_offset);
 static void ui_main_toggle_window_from_desc(ui_window_toggle_desc_t *desc);
 
+void debug_heartbeat_timer_set_period(uint32_t period_ms);
+
 void ui_reset(void);
 
 /* 长按标志位，避免长按后触发click事件 */
@@ -361,23 +363,54 @@ void ui_setting_add_coins_cb(lv_event_t *e) {
     }
 }
 
-void debug_heartbear_timer_set_period(uint32_t period_ms);
+void ui_setting_add_level_cb(lv_event_t *e) {
+    player_t *player = player_get_instance();
+    if (!player || player->level >= PLAYER_EXPERIENCE_LEVELS - 1)
+        return;
 
-void debug_timer_period_slider_event_cb(lv_event_t *e) {
-    lv_obj_t *slider = lv_event_get_current_target(e);
-    lv_obj_t *label = lv_event_get_user_data(e);
+    /* 经验拉到当前等级阈值，触发升级 */
+    player->experience = experience_level[player->level];
+    player->level++;
 
-    int value = lv_slider_get_value(slider);
-    char buf[16];
-    int ms = 19 * value + 50;
-    lv_snprintf(buf, sizeof(buf), "%dms", ms);
-    lv_label_set_text(label, buf);
-
-    debug_heartbear_timer_set_period(ms);
+    /* 更新等级段 */
+    player->level_stage = PLAYER_LEVEL_STAGE_THRESHOLD_COUNT;
+    for (int i = 0; i < PLAYER_LEVEL_STAGE_THRESHOLD_COUNT; i++) {
+        if (player->level < player_level_stage_thresholds[i]) {
+            player->level_stage = i;
+            break;
+        }
+    }
 }
 
-void debug_screenshot_cb(lv_event_t *e) {
-    ui_window_hide_current(); // 截图前隐藏当前窗口，保证截图界面干净
+void ui_setting_game_speed_cb(lv_event_t *e) {
+    lv_obj_t *target = lv_event_get_target(e);
+    lv_obj_t **btns = (lv_obj_t **)lv_event_get_user_data(e);
+
+    /* 通过 target 反查按钮索引 */
+    int idx = -1;
+    for (int i = 0; i < 4; i++) {
+        if (btns[i] == target) {
+            idx = i;
+            break;
+        }
+    }
+    if (idx < 0)
+        return;
+
+    /* 倍率 → 心跳周期映射: 0.5x→2000ms, 1x→1000ms, 2x→500ms, 5x→200ms */
+    static const uint32_t periods[] = {2000, 1000, 500, 200};
+    debug_heartbeat_timer_set_period(periods[idx]);
+
+    /* 更新按钮高亮 */
+    for (int i = 0; i < 4; i++) {
+        if (!btns[i])
+            continue;
+        if (i == idx) {
+            lv_obj_add_style(btns[i], &ui_style_btn_yellow, 0);
+        } else {
+            lv_obj_remove_style(btns[i], &ui_style_btn_yellow, 0);
+        }
+    }
 }
 
 void debug_volume_slider_event_cb(lv_event_t *e) {
@@ -386,7 +419,7 @@ void debug_volume_slider_event_cb(lv_event_t *e) {
 
     int value = lv_slider_get_value(slider);
     char buf[16];
-    lv_snprintf(buf, sizeof(buf), "Volume: %d%%", value);
+    lv_snprintf(buf, sizeof(buf), "%d%%", value);
     lv_label_set_text(label, buf);
 
     audio_set_volume(value);

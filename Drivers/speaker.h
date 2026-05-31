@@ -43,6 +43,9 @@ void speaker_stop(void);
 /* 设置音量 (0~100), 0=静音, 100=最大 (默认100) */
 void speaker_set_volume(uint8_t vol);
 
+/* 查询当前音量 (0~100) */
+uint8_t speaker_get_volume(void);
+
 /* 查询是否正在播放 */
 uint8_t speaker_is_playing(void);
 
