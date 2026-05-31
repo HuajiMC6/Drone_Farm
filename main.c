@@ -62,8 +62,11 @@ int main() {
 
         lv_timer_handler();
 
-        /* UI层处理游戏逻辑事件 */
-        ui_event_handler(event_get());
+        /* UI层处理游戏逻辑事件 —— 一次处理完所有积压事件，防止队列溢出丢事件 */
+        event_t *event;
+        while ((event = event_get()) != NULL) {
+            ui_event_handler(event);
+        }
 
         delay_us(2000);
     }
