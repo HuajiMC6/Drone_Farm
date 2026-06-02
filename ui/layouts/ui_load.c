@@ -1,3 +1,4 @@
+#include "ui_load.h"
 #include "audio.h"
 #include "ui.h"
 #include "ui_load_cb.h"

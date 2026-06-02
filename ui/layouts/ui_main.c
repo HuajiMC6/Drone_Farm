@@ -1,4 +1,4 @@
-#include "ui.h"
+#include "ui_main.h"
 
 #include "audio.h"
 #include "data.h"
@@ -6,6 +6,7 @@
 #include "icon.h"
 #include "joystick.h"
 #include "player.h"
+#include "ui.h"
 #include "ui_common.h"
 #include "ui_drone.h"
 #include "ui_farm.h"
