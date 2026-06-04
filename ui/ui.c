@@ -5,6 +5,8 @@
 #include "ui_farm.h"
 #include "ui_load.h"
 #include "ui_main.h"
+#include "ui_shop.h"
+#include "ui_storage.h"
 
 // 游戏逻辑推进开关
 void game_start(void);
@@ -78,6 +80,8 @@ void ui_event_handler(event_t *event) {
     ui_main_handle_event(event);
     ui_farm_handle_event(event);
     ui_drone_handle_event(event);
+    ui_storage_handle_event(event);
+    ui_shop_handle_event(event);
 }
 
 // UI更新定时器统一初始化

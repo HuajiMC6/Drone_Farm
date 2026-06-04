@@ -170,16 +170,6 @@ void ui_main_handle_event(event_t *event) {
             if (event->type == EVENT_ON_PLAYER_SEED_CHANGE) {
                 ui_seed_table_refresh();
             }
-            if (event->type == EVENT_ON_PLAYER_HARVEST_BAG_CHANGE) {
-                ui_storage_window_refresh();
-            }
-            if (event->type == EVENT_ON_PLAYER_PESTICIDE_CHANGE) {
-                ui_drone_window_refresh();
-            }
-            if (event->type == EVENT_ON_PLAYER_COIN_CHANGE || event->type == EVENT_ON_PLAYER_LEVEL_UPGRADE ||
-                event->type == EVENT_ON_PLAYER_SEED_CHANGE) {
-                ui_shop_refresh();
-            }
             if (event->type == EVENT_ON_PLAYER_EXPERIENCE_CHANGE) {
                 ui_exp_bar_refresh();
             }

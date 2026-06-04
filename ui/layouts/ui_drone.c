@@ -17,8 +17,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// 无人机窗口对象句柄
 static lv_obj_t *g_drone_window = NULL;
+ui_window_toggle_desc_t g_drone_window_toggle = {.create = ui_drone_window_create, .window_ref = &g_drone_window};
 
+// 无人机信息面板上下文（窗口和 HUD 共用）
 typedef struct {
     lv_obj_t *obj;
     lv_obj_t *speed_label;
@@ -34,7 +37,9 @@ typedef struct {
     lv_obj_t *pesticide_row_name_labels[CROP_PESTICIDE_NONE];
     lv_obj_t *pesticide_result_labels[CROP_PESTICIDE_NONE];
     lv_obj_t *detect_btn;
+    lv_obj_t *detect_btn_label;
     lv_obj_t *spray_btn;
+    lv_obj_t *spray_btn_label;
     lv_obj_t *pesticide_load_labels[CROP_PESTICIDE_NONE];
     lv_obj_t *pesticide_bag_labels[CROP_PESTICIDE_NONE];
     ui_grid_list_t *pesticide_bag_list;
@@ -47,17 +52,19 @@ static drone_pesticide_btn_desc_t g_drone_pesticide_btn_desc[CROP_PESTICIDE_NONE
 static drone_mode_btn_desc_t g_drone_detect_btn_desc = {.target_state = DRONE_STATE_DETECTING};
 static drone_mode_btn_desc_t g_drone_spray_btn_desc = {.target_state = DRONE_STATE_AUTO};
 
-/* ── 无人机对象 & 飞行 / 喷洒上下文 ── */
-#define DRONE_COORD_SCALNG_FACTOR (80.0 / 100.0) /* FARM_BLOCK_SIZE / 100 */
+#define DRONE_COORD_SCALNG_FACTOR (80.0 / 100.0) // UI层坐标与无人机逻辑坐标的缩放比
 
+// 无人机定时器是否激活（飞行中激活，静止时关闭）
 static bool drone_timer_active = false;
+
+// 无人机飞行音效占用的音频槽位，-1 表示未占用，用于控制音效的播放和停止
 static int g_drone_flying_audio_slot = -1;
 
-static lv_obj_t *g_drone = NULL;
-static lv_obj_t *g_drone_still = NULL;
-static lv_obj_t *g_drone_flying = NULL;
+static lv_obj_t *g_drone = NULL;        // 无人机对象容器（同时包含静止图像和飞行动画，切换状态时控制显示隐藏）
+static lv_obj_t *g_drone_still = NULL;  // 无人机静止图像
+static lv_obj_t *g_drone_flying = NULL; // 无人机飞行帧动画
 
-uint8_t ui_drone_pest_count[CROP_DAMAGE_NONE];
+uint8_t ui_drone_pest_count[CROP_DAMAGE_NONE]; // 无人机最近一次扫描的虫害数量统计
 
 /* 每格喷洒前停留 tick 数（每个 tick = 100ms，即停留 500ms） */
 #define SPRAY_DWELL_TICKS 5
@@ -93,18 +100,7 @@ static bool ui_drone_spray_prepare(void);
 static bool ui_drone_move_towards_target(pos_t cell);
 static pos_t ui_drone_grid_center(pos_t cell);
 
-static void ui_drone_btn_set_text(lv_obj_t *btn, const char *text) {
-    if (!btn || !lv_obj_is_valid(btn)) {
-        return;
-    }
-
-    lv_obj_t *label = lv_obj_get_child(btn, 0);
-    if (!label) {
-        return;
-    }
-    lv_label_set_text(label, text);
-}
-
+// 无人机信息面板刷新
 static void ui_drone_panel_refresh(drone_panel_ctx_t *ctx) {
     if (!ctx || !ctx->obj || !lv_obj_is_valid(ctx->obj)) {
         return;
@@ -225,8 +221,8 @@ static void ui_drone_panel_refresh(drone_panel_ctx_t *ctx) {
         }
     }
 
-    if (ctx->detect_btn) {
-        ui_drone_btn_set_text(ctx->detect_btn, detecting ? "Recall" : "Start Detect");
+    if (ctx->detect_btn && ctx->detect_btn_label) {
+        lv_label_set_text(ctx->detect_btn_label, detecting ? "Recall" : "Start Detect");
         lv_obj_set_style_bg_color(ctx->detect_btn, detecting ? lv_color_hex(0x2f9a5f) : lv_color_hex(0xefcd76), 0);
         if (spraying) {
             lv_obj_add_state(ctx->detect_btn, LV_STATE_DISABLED);
@@ -235,8 +231,8 @@ static void ui_drone_panel_refresh(drone_panel_ctx_t *ctx) {
         }
     }
 
-    if (ctx->spray_btn) {
-        ui_drone_btn_set_text(ctx->spray_btn, spraying ? "Stop Spray" : "Start Spray");
+    if (ctx->spray_btn && ctx->spray_btn_label) {
+        lv_label_set_text(ctx->spray_btn_label, spraying ? "Stop Spray" : "Start Spray");
         lv_obj_set_style_bg_color(ctx->spray_btn, spraying ? lv_color_hex(0x2f9a5f) : lv_color_hex(0xefcd76), 0);
         if (detecting) {
             lv_obj_add_state(ctx->spray_btn, LV_STATE_DISABLED);
@@ -246,11 +242,13 @@ static void ui_drone_panel_refresh(drone_panel_ctx_t *ctx) {
     }
 }
 
+// 刷新窗口和 HUD
 void ui_drone_window_refresh(void) {
     ui_drone_panel_refresh(&g_drone_window_ctx);
     ui_drone_panel_refresh(&g_drone_hud_ctx);
 }
 
+// 显示或隐藏无人机 HUD（飞行中显示，静止时隐藏）
 void ui_drone_hud_set_visible(bool visible) {
     if (!g_drone_hud_ctx.obj || !lv_obj_is_valid(g_drone_hud_ctx.obj)) {
         return;
@@ -283,7 +281,7 @@ static lv_obj_t *ui_drone_state_chip_create(lv_obj_t *parent, lv_obj_t **state_l
     return state_chip;
 }
 
-// 创建基础信息项用于展示标题、数值、升级价格和按钮
+// 创建Base Info栏下的项目，用于展示标题、数值、升级价格和按钮
 static void ui_drone_info_item_create(lv_obj_t *parent, const char *title, lv_obj_t **value_label,
                                       lv_obj_t **price_label, lv_obj_t **btn, lv_event_cb_t btn_event_cb,
                                       lv_coord_t w) {
@@ -320,7 +318,7 @@ static void ui_drone_info_item_create(lv_obj_t *parent, const char *title, lv_ob
     }
 }
 
-// 创建一条图标名称数值统计项并使用 grid 保持列对齐
+// 创建一条“图标 + 名称 + 数值统计”项
 static void ui_drone_stat_entry_create(lv_obj_t *parent, lv_coord_t w, const void *icon_src, const char *name,
                                        lv_obj_t **name_label, lv_obj_t **value_label) {
     static lv_coord_t col_dsc[] = {LV_GRID_CONTENT, LV_GRID_FR(1), LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
@@ -346,7 +344,7 @@ static void ui_drone_stat_entry_create(lv_obj_t *parent, lv_coord_t w, const voi
 
 // 创建模式控制行，左侧为名称，右侧为操作按钮
 static void ui_drone_mode_row_create(lv_obj_t *parent, const char *name, lv_coord_t btn_w, lv_obj_t **btn_out,
-                                     drone_mode_btn_desc_t *desc) {
+                                     lv_obj_t **label_out, drone_mode_btn_desc_t *desc) {
     lv_obj_t *row = ui_transparent_cont_create(parent, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_set_layout(row, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
@@ -361,10 +359,12 @@ static void ui_drone_mode_row_create(lv_obj_t *parent, const char *name, lv_coor
     lv_obj_t *btn_label = lv_label_create(*btn_out);
     lv_label_set_text(btn_label, desc == &g_drone_detect_btn_desc ? "Start Detect" : "Start Spray");
     lv_obj_center(btn_label);
+    if (label_out)
+        *label_out = btn_label;
     lv_obj_add_event_cb(*btn_out, ui_drone_mode_button_click_cb, LV_EVENT_CLICKED, desc);
 }
 
-// 创建农药装载行包含名称减号当前装载量加号并使用 grid 管理列对齐
+// 创建农药装载行，包含名称，当前装载量，加减按钮
 static void ui_drone_pesticide_row_create(lv_obj_t *parent, crop_pesticide_t i, lv_obj_t **load_label) {
     static lv_coord_t col_dsc[] = {LV_GRID_FR(1), LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT,
                                    LV_GRID_TEMPLATE_LAST};
@@ -408,6 +408,7 @@ static void ui_drone_pesticide_row_create(lv_obj_t *parent, crop_pesticide_t i, 
                         &g_drone_pesticide_btn_desc[i][1]);
 }
 
+// 无人机窗口创建
 lv_obj_t *ui_drone_window_create(void) {
     drone_t *drone = drone_get_instance();
 
@@ -512,8 +513,9 @@ lv_obj_t *ui_drone_window_create(void) {
     lv_label_set_text(mode_title, "Mode Control");
     lv_obj_set_style_text_color(mode_title, lv_color_hex(0x5b421f), 0);
     ui_drone_mode_row_create(mode_card, "Detect / Recall", 132, &g_drone_window_ctx.detect_btn,
-                             &g_drone_detect_btn_desc);
-    ui_drone_mode_row_create(mode_card, "Auto Spray", 132, &g_drone_window_ctx.spray_btn, &g_drone_spray_btn_desc);
+                             &g_drone_window_ctx.detect_btn_label, &g_drone_detect_btn_desc);
+    ui_drone_mode_row_create(mode_card, "Auto Spray", 132, &g_drone_window_ctx.spray_btn,
+                             &g_drone_window_ctx.spray_btn_label, &g_drone_spray_btn_desc);
 
     // 右侧背包卡片：上半为装载调节列表，下半为背包 grid list。
     lv_obj_t *bag_card = ui_card_create(right_panel, 304, 366);
@@ -587,6 +589,7 @@ lv_obj_t *ui_drone_window_create(void) {
     return div;
 }
 
+// 无人机HUD创建（飞行时显示的悬浮信息面板）
 void ui_drone_hud_create(lv_obj_t *parent) {
     if (g_drone_hud_ctx.obj && lv_obj_is_valid(g_drone_hud_ctx.obj)) {
         return;
@@ -683,8 +686,10 @@ void ui_drone_hud_create(lv_obj_t *parent) {
     lv_label_set_text(mode_title, "Mode Control");
     lv_obj_set_style_text_color(mode_title, lv_color_hex(0x5b421f), 0);
 
-    ui_drone_mode_row_create(mode_card, "Detect", 126, &g_drone_hud_ctx.detect_btn, &g_drone_detect_btn_desc);
-    ui_drone_mode_row_create(mode_card, "Spray", 126, &g_drone_hud_ctx.spray_btn, &g_drone_spray_btn_desc);
+    ui_drone_mode_row_create(mode_card, "Detect", 126, &g_drone_hud_ctx.detect_btn, &g_drone_hud_ctx.detect_btn_label,
+                             &g_drone_detect_btn_desc);
+    ui_drone_mode_row_create(mode_card, "Spray", 126, &g_drone_hud_ctx.spray_btn, &g_drone_hud_ctx.spray_btn_label,
+                             &g_drone_spray_btn_desc);
 
     g_drone_hud_ctx.obj = root;
     ui_drone_panel_refresh(&g_drone_hud_ctx);
@@ -693,19 +698,6 @@ void ui_drone_hud_create(lv_obj_t *parent) {
 /* ================================================================
    无人机对象创建 & 飞行状态管理
    ================================================================ */
-
-void ui_drone_window_toggle(void) {
-    if (!g_drone_window || !lv_obj_is_valid(g_drone_window)) {
-        g_drone_window = ui_drone_window_create();
-        return; /* 窗口创建时已自动 show，直接返回 */
-    }
-
-    if (ui_window_is_visible(g_drone_window)) {
-        ui_window_hide(g_drone_window);
-    } else {
-        ui_window_show(g_drone_window);
-    }
-}
 
 static lv_obj_t *ui_drone_create(lv_obj_t *parent) {
     g_drone = ui_div_create(parent);
@@ -734,6 +726,7 @@ static lv_obj_t *ui_drone_create(lv_obj_t *parent) {
     return g_drone;
 }
 
+// 无人机状态切换：飞行时显示动画，静止时显示静态图。
 static void ui_drone_switch_state(bool flying) {
     if (flying) {
         lv_obj_add_flag(g_drone_still, LV_OBJ_FLAG_HIDDEN);
@@ -744,6 +737,7 @@ static void ui_drone_switch_state(bool flying) {
     }
 }
 
+// 无人机返回动画结束回调：无人机重置到静止状态，停止飞行动画和声音。
 static void ui_drone_reset_to_still(void) {
     ui_drone_switch_state(false);
 
@@ -753,6 +747,7 @@ static void ui_drone_reset_to_still(void) {
     }
 }
 
+// 移动无人机位置
 void ui_drone_set_pos(lv_coord_t x, lv_coord_t y, bool anim, void *anim_cb) {
     lv_obj_t *farm_grid = ui_farm_get_grid();
     if (!farm_grid || !g_drone) {
@@ -788,6 +783,7 @@ void ui_drone_set_pos(lv_coord_t x, lv_coord_t y, bool anim, void *anim_cb) {
         lv_anim_set_path_cb(&ay, lv_anim_path_ease_in_out);
         lv_anim_set_values(&ay, y_start, y_end);
 
+        // 根据哪个轴的动画时间更长来设置回调，确保动画完全结束时才执行回调
         if (x_time > y_time) {
             lv_anim_set_ready_cb(&ax, (lv_anim_ready_cb_t)anim_cb);
         } else {
@@ -803,10 +799,12 @@ void ui_drone_set_pos(lv_coord_t x, lv_coord_t y, bool anim, void *anim_cb) {
    喷洒逻辑
    ================================================================ */
 
+// 无人机启动动画结束回调：启动无人机100ms定时器，进入飞行状态。
 static void ui_drone_timer_resume(void) {
     drone_timer_active = true;
 }
 
+// 无人机喷洒流程重置：清理路径数据，重置状态和计时器。
 static void ui_drone_spray_reset(void) {
     if (g_drone_spray_ctx.path) {
         free(g_drone_spray_ctx.path);
@@ -819,6 +817,7 @@ static void ui_drone_spray_reset(void) {
     g_drone_spray_ctx.ticks = 0;
 }
 
+// 无人机喷洒准备：生成喷洒路径，初始化上下文状态。如果路径生成失败（无需要喷洒的格子），返回 false。
 static bool ui_drone_spray_prepare(void) {
     if (g_drone_spray_ctx.state != DRONE_AUTO_IDLE) {
         return true;
@@ -841,10 +840,12 @@ static bool ui_drone_spray_prepare(void) {
     return true;
 }
 
+// 工具函数：计算地块中心坐标（逻辑坐标系下）
 static pos_t ui_drone_grid_center(pos_t cell) {
     return (pos_t){.x = cell.x * 100 + 50, .y = cell.y * 100 + 50};
 }
 
+// 无人机向目标格子中心移动，返回是否已到达目标
 static bool ui_drone_move_towards_target(pos_t cell) {
     drone_t *drone = drone_get_instance();
     int step = drone->speed;
@@ -874,6 +875,7 @@ static bool ui_drone_move_towards_target(pos_t cell) {
    定时器更新
    ================================================================ */
 
+// 100ms更新定时器
 void ui_drone_update_100ms(void) {
 
     if (!drone_timer_active) {
@@ -959,6 +961,7 @@ void ui_drone_update_100ms(void) {
    事件处理 & 模块入口
    ================================================================ */
 
+// 无人机事件处理
 void ui_drone_handle_event(event_t *event) {
     if (!event) {
         return;
@@ -995,11 +998,15 @@ void ui_drone_handle_event(event_t *event) {
             ui_drone_window_refresh();
             ui_drone_switch_state(true);
             break;
+        case EVENT_ON_PLAYER_PESTICIDE_CHANGE:
+            ui_drone_window_refresh();
+            break;
         default:
             break;
     }
 }
 
+// 无人机模块创建：初始化全局变量，创建窗口和HUD，设置初始位置，获取初始虫害统计数据。
 void ui_drone_module_create(lv_obj_t *parent, lv_obj_t *screen) {
     g_parent = parent;
     g_screen = screen;

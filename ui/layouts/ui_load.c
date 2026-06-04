@@ -3,6 +3,7 @@
 #include "ui.h"
 #include "ui_load_cb.h"
 
+// 加载界面创建
 lv_obj_t *ui_load_screen_create(void) {
     lv_obj_t *screen = lv_obj_create(NULL);
 

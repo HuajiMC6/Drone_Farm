@@ -8,6 +8,7 @@
 
 #include "ui.h"
 
+// 商店窗口上下文
 typedef struct {
     lv_obj_t *obj;
     lv_obj_t *name_label;
@@ -36,6 +37,7 @@ static shop_item_desc_t g_shop_pesticide_desc[CROP_PESTICIDE_NONE];
 static int ui_shop_get_unit_price(shop_item_kind_t kind, uint8_t id, bool *available);
 static const char *ui_shop_get_item_name(shop_item_kind_t kind, uint8_t id);
 
+// 工具函数：获取商品单价
 static int ui_shop_get_unit_price(shop_item_kind_t kind, uint8_t id, bool *available) {
     if (available) {
         *available = true;
@@ -60,6 +62,7 @@ static int ui_shop_get_unit_price(shop_item_kind_t kind, uint8_t id, bool *avail
     return 0;
 }
 
+// 工具函数：获取商品名称
 static const char *ui_shop_get_item_name(shop_item_kind_t kind, uint8_t id) {
     switch (kind) {
         case SHOP_KIND_SEED:
@@ -71,6 +74,7 @@ static const char *ui_shop_get_item_name(shop_item_kind_t kind, uint8_t id) {
     }
 }
 
+// 商店窗口刷新
 void ui_shop_refresh(void) {
     if (!g_shop_window_ctx.obj || !lv_obj_is_valid(g_shop_window_ctx.obj)) {
         return;
@@ -157,6 +161,7 @@ void ui_shop_refresh(void) {
     }
 }
 
+// 处理商品被点击事件，更新选中状态和刷新右侧商品信息
 void ui_shop_item_click_handle(const shop_item_desc_t *desc, lv_obj_t *target) {
     if (!desc || !target) {
         return;
@@ -175,6 +180,7 @@ void ui_shop_item_click_handle(const shop_item_desc_t *desc, lv_obj_t *target) {
     ui_shop_refresh();
 }
 
+// 减少购买数量
 void ui_shop_qty_minus_click_handle(void) {
     if (!g_shop_window_ctx.has_selection) {
         return;
@@ -185,6 +191,7 @@ void ui_shop_qty_minus_click_handle(void) {
     ui_shop_refresh();
 }
 
+// 增加购买数量
 void ui_shop_qty_plus_click_handle(void) {
     if (!g_shop_window_ctx.has_selection) {
         return;
@@ -195,6 +202,7 @@ void ui_shop_qty_plus_click_handle(void) {
     ui_shop_refresh();
 }
 
+// 获取当前选中的购买信息（商品类型和数量），供购买事件处理使用
 bool ui_shop_get_selected_purchase(shop_item_desc_t *desc, int *qty) {
     if (!desc || !qty || !g_shop_window_ctx.has_selection) {
         return false;
@@ -213,11 +221,13 @@ bool ui_shop_get_selected_purchase(shop_item_desc_t *desc, int *qty) {
     return true;
 }
 
+// 购买成功后的处理
 void ui_shop_after_buy_success(shop_item_kind_t kind) {
     (void)kind;
     g_shop_window_ctx.selected_qty = 1;
 }
 
+// 商店窗口创建
 lv_obj_t *ui_shop_window_create(void) {
     lv_obj_t *body = lv_obj_create(lv_scr_act());
     lv_obj_set_style_bg_color(body, lv_color_hex(0xf6dc8f), 0);
@@ -279,7 +289,12 @@ lv_obj_t *ui_shop_window_create(void) {
 
         for (crop_type_t i = 0; i < CROP_TYPE_NONE; i++) {
             g_shop_seed_desc[i] = (shop_item_desc_t){.kind = SHOP_KIND_SEED, .id = i};
-            ui_grid_list_add_icon_item(seed_list, icon_get_crop_item(i), ui_shop_item_click_cb, &g_shop_seed_desc[i]);
+            lv_obj_t *item = ui_grid_list_add_icon_item(seed_list, icon_get_crop_item(i), ui_shop_item_click_cb,
+                                                        &g_shop_seed_desc[i]);
+            if (item) {
+                lv_obj_set_style_border_width(item, 2, LV_STATE_CHECKED);
+                lv_obj_set_style_border_color(item, lv_color_hex(0x8b5e3c), LV_STATE_CHECKED);
+            }
         }
     }
 
@@ -303,8 +318,12 @@ lv_obj_t *ui_shop_window_create(void) {
 
         for (crop_pesticide_t i = 0; i < CROP_PESTICIDE_NONE; i++) {
             g_shop_pesticide_desc[i] = (shop_item_desc_t){.kind = SHOP_KIND_PESTICIDE, .id = i};
-            ui_grid_list_add_icon_item(pesticide_list, icon_get_pesticide(i), ui_shop_item_click_cb,
-                                       &g_shop_pesticide_desc[i]);
+            lv_obj_t *item = ui_grid_list_add_icon_item(pesticide_list, icon_get_pesticide(i), ui_shop_item_click_cb,
+                                                        &g_shop_pesticide_desc[i]);
+            if (item) {
+                lv_obj_set_style_border_width(item, 2, LV_STATE_CHECKED);
+                lv_obj_set_style_border_color(item, lv_color_hex(0x8b5e3c), LV_STATE_CHECKED);
+            }
         }
     }
 
@@ -380,4 +399,21 @@ lv_obj_t *ui_shop_window_create(void) {
     ui_shop_refresh();
 
     return div;
+}
+
+// 商店事件处理
+void ui_shop_handle_event(event_t *event) {
+    if (!event) {
+        return;
+    }
+
+    switch (event->type) {
+        case EVENT_ON_PLAYER_COIN_CHANGE:
+        case EVENT_ON_PLAYER_LEVEL_UPGRADE:
+        case EVENT_ON_PLAYER_SEED_CHANGE:
+            ui_shop_refresh();
+            break;
+        default:
+            break;
+    }
 }
