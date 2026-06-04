@@ -20,6 +20,7 @@ static lv_obj_t *farm_grid = NULL;
 static farm_block_t g_farm_blocks[10][10];
 static lv_obj_t *g_field_upgrade_window = NULL;
 
+// 地块升级窗口上下文
 typedef struct {
     lv_obj_t *output_label;
     lv_obj_t *ready_time_label;
@@ -49,6 +50,7 @@ static void ui_field_update_bars(farm_block_t *block);
 static lv_obj_t *ui_crop_growing_bar(lv_obj_t *parent);
 static lv_obj_t *ui_crop_death_bar(lv_obj_t *parent);
 
+// 根据当前农田大小动态调整容器高度
 static void ui_farm_flex_cont_height_refresh(void) {
     if (FARM_GRID_N * FARM_BLOCK_SIZE + 200 > 600) {
         lv_obj_set_height(g_main_layer, FARM_GRID_N * FARM_BLOCK_SIZE + 200);
@@ -110,6 +112,7 @@ static void ui_field_update_bars(farm_block_t *block) {
     }
 }
 
+// 更新指定地块
 static void ui_field_update(int x, int y) {
     farm_block_t *block = &g_farm_blocks[x][y];
     block->is_planted = block->field->crop_type != CROP_TYPE_NONE;
@@ -134,6 +137,7 @@ static void ui_field_update(int x, int y) {
     }
 }
 
+// 创建农田
 static void ui_farm_grid_create(lv_obj_t *parent) {
     if (farm_grid != NULL) {
         return;
@@ -203,6 +207,7 @@ static void ui_farm_grid_create(lv_obj_t *parent) {
     }
 }
 
+// 更新农田网格（删除后重新创建）
 static void ui_farm_grid_update(void) {
     if (g_screen_main && farm_grid) {
         lv_obj_remove_event_cb_with_user_data(g_screen_main, ui_main_screen_click_cb, farm_grid);
@@ -218,6 +223,7 @@ static void ui_farm_grid_update(void) {
     }
 }
 
+// 地块升级窗口升级项ui模板创建
 static lv_obj_t *ui_field_upgrade_window_item_create(lv_obj_t *parent, lv_event_cb_t btn_event_cb,
                                                      void *event_user_data, lv_obj_t **price_label, lv_obj_t **btn) {
     lv_obj_t *cont = ui_div_create(parent);
@@ -247,6 +253,7 @@ static lv_obj_t *ui_field_upgrade_window_item_create(lv_obj_t *parent, lv_event_
     return label;
 }
 
+// 地块升级窗口创建
 static lv_obj_t *ui_field_upgrade_window_create(void) {
     lv_obj_t *body = lv_obj_create(lv_scr_act());
     lv_obj_set_style_bg_color(body, lv_color_hex(0xf6dc8f), 0);
@@ -277,6 +284,7 @@ static lv_obj_t *ui_field_upgrade_window_create(void) {
     return win;
 }
 
+// 地块升级窗口刷新并展示
 void ui_field_upgrade_window_refresh(farm_block_t *block) {
     if (!block || !block->field) {
         return;
@@ -350,6 +358,7 @@ void ui_field_upgrade_window_refresh(farm_block_t *block) {
     ui_window_show(g_field_upgrade_window);
 }
 
+// 切换地块刷新窗口对应地块
 void ui_field_upgrade_window_switch(farm_block_t *block) {
     if (!block || !ui_window_is_visible(g_field_upgrade_window)) {
         return;
@@ -362,6 +371,7 @@ void ui_field_upgrade_window_switch(farm_block_t *block) {
     }
 }
 
+// 农田模块创建
 void ui_farm_module_create(lv_obj_t *screen_main, lv_obj_t *main_layer) {
     g_screen_main = screen_main;
     g_main_layer = main_layer;
@@ -371,10 +381,12 @@ void ui_farm_module_create(lv_obj_t *screen_main, lv_obj_t *main_layer) {
     lv_obj_add_event_cb(g_main_layer, ui_main_screen_click_cb, LV_EVENT_CLICKED, farm_grid);
 }
 
+// 暴露给外部的接口：获取农田网格对象
 lv_obj_t *ui_farm_get_grid(void) {
     return farm_grid;
 }
 
+// 根据坐标获取对应的农田格子数据结构指针
 farm_block_t *ui_farm_get_block(int x, int y) {
     if (x < 0 || y < 0 || x >= 10 || y >= 10) {
         return NULL;
@@ -382,6 +394,7 @@ farm_block_t *ui_farm_get_block(int x, int y) {
     return &g_farm_blocks[x][y];
 }
 
+// 刷新农田所有地块的进度条状态
 void ui_farm_refresh_all(void) {
     for (int i = 0; i < FARM_GRID_N; i++) {
         for (int j = 0; j < FARM_GRID_N; j++) {
@@ -390,6 +403,7 @@ void ui_farm_refresh_all(void) {
     }
 }
 
+// 清除农田所有地块的选中状态（用于点击空白处时取消选中）
 void ui_farm_clear_field_selection(lv_obj_t *parent) {
     lv_obj_t *child;
     uint8_t idx = 0;
@@ -400,6 +414,7 @@ void ui_farm_clear_field_selection(lv_obj_t *parent) {
     }
 }
 
+// 农田模块事件处理
 void ui_farm_handle_event(event_t *event) {
     if (!event) {
         return;

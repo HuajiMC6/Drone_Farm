@@ -57,6 +57,10 @@ mid-report.md
 
 .VSCodeCounter
 
+resources/
+docs_temp/
+build/
+
 build/
 
 CMakeLists.txt

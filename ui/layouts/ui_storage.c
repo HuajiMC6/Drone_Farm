@@ -7,6 +7,7 @@
 #include "player.h"
 #include "ui.h"
 
+// 仓库窗口上下文
 typedef struct {
     ui_grid_list_t *list;
     lv_obj_t *obj;
@@ -33,10 +34,11 @@ static lv_obj_t *g_storage_items[CROP_TYPE_NONE];
 static lv_obj_t *g_storage_count_labels[CROP_TYPE_NONE];
 
 static void ui_storage_window_rebuild_list(player_t *player);
-static void ui_storage_window_select(crop_type_t type, lv_obj_t *target);
+void ui_storage_window_select(crop_type_t type, lv_obj_t *target);
 static void ui_storage_window_clear_selection(void);
 static void ui_storage_window_update_controls(player_t *player);
 
+// 仓库窗口刷新
 void ui_storage_window_refresh(void) {
     player_t *player = player_get_instance();
     if (!player || !g_storage_window_ctx.obj || !lv_obj_is_valid(g_storage_window_ctx.obj)) {
@@ -47,6 +49,7 @@ void ui_storage_window_refresh(void) {
     ui_storage_window_update_controls(player);
 }
 
+// 获取当前选中的销售信息（作物类型和数量），供销售事件处理使用
 bool ui_storage_get_selected_sell(crop_type_t *type, int *qty) {
     if (!type || !qty || g_storage_window_ctx.selected_type >= CROP_TYPE_NONE ||
         g_storage_window_ctx.selected_qty <= 0) {
@@ -58,6 +61,7 @@ bool ui_storage_get_selected_sell(crop_type_t *type, int *qty) {
     return true;
 }
 
+// 销售成功后的处理
 void ui_storage_after_sell_success(void) {
     if (g_storage_window_ctx.selected_qty < 1) {
         g_storage_window_ctx.selected_qty = 1;
@@ -66,6 +70,7 @@ void ui_storage_after_sell_success(void) {
     }
 }
 
+// 仓库仓库创建
 lv_obj_t *ui_storage_window_create(void) {
     lv_obj_t *screen = lv_scr_act();
     lv_obj_t *body = ui_div_create(screen);
@@ -152,6 +157,7 @@ lv_obj_t *ui_storage_window_create(void) {
     return div;
 }
 
+//
 static void ui_storage_window_clear_selection(void) {
     if (g_storage_window_ctx.selected_item_obj && lv_obj_is_valid(g_storage_window_ctx.selected_item_obj)) {
         lv_obj_clear_state(g_storage_window_ctx.selected_item_obj, LV_STATE_CHECKED);
@@ -162,6 +168,7 @@ static void ui_storage_window_clear_selection(void) {
     g_storage_window_ctx.selected_qty = 0;
 }
 
+// 仓库作物列表刷新
 static void ui_storage_window_rebuild_list(player_t *player) {
     ui_storage_window_ctx_t *ctx = &g_storage_window_ctx;
     if (!ctx->list || !ctx->list_obj || !lv_obj_is_valid(ctx->list_obj) || !player) {
@@ -249,6 +256,7 @@ static void ui_storage_window_rebuild_list(player_t *player) {
     }
 }
 
+// 仓库窗口底部售卖信息更新
 static void ui_storage_window_update_controls(player_t *player) {
     ui_storage_window_ctx_t *ctx = &g_storage_window_ctx;
     crop_type_t type = ctx->selected_type;
@@ -330,7 +338,8 @@ static void ui_storage_window_update_controls(player_t *player) {
     }
 }
 
-static void ui_storage_window_select(crop_type_t type, lv_obj_t *target) {
+// 切换选择的作物
+void ui_storage_window_select(crop_type_t type, lv_obj_t *target) {
     ui_storage_window_ctx_t *ctx = &g_storage_window_ctx;
     if (ctx->selected_item_obj && ctx->selected_item_obj != target && lv_obj_is_valid(ctx->selected_item_obj)) {
         lv_obj_clear_state(ctx->selected_item_obj, LV_STATE_CHECKED);
@@ -346,14 +355,7 @@ static void ui_storage_window_select(crop_type_t type, lv_obj_t *target) {
     ui_storage_window_update_controls(player_get_instance());
 }
 
-void ui_storage_item_click_handle(crop_type_t type, lv_obj_t *target) {
-    if (!target) {
-        return;
-    }
-
-    ui_storage_window_select(type, target);
-}
-
+// 减少选择数量
 void ui_storage_qty_minus_click_handle(void) {
     ui_storage_window_ctx_t *ctx = &g_storage_window_ctx;
     if (ctx->selected_type >= CROP_TYPE_NONE || ctx->selected_qty <= 1) {
@@ -364,6 +366,7 @@ void ui_storage_qty_minus_click_handle(void) {
     ui_storage_window_update_controls(player_get_instance());
 }
 
+// 增加选择数量
 void ui_storage_qty_plus_click_handle(void) {
     ui_storage_window_ctx_t *ctx = &g_storage_window_ctx;
     player_t *player = player_get_instance();
@@ -376,4 +379,15 @@ void ui_storage_qty_plus_click_handle(void) {
         ctx->selected_qty++;
     }
     ui_storage_window_update_controls(player);
+}
+
+// 仓库事件处理
+void ui_storage_handle_event(event_t *event) {
+    if (!event) {
+        return;
+    }
+
+    if (event->type == EVENT_ON_PLAYER_HARVEST_BAG_CHANGE) {
+        ui_storage_window_refresh();
+    }
 }

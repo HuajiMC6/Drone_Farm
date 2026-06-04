@@ -10,6 +10,7 @@ static lv_timer_t *g_heartbeat_timer = NULL;
 
 void game_start(void);
 void game_pause(void);
+void debug_heartbeat_timer_set_period(uint32_t period_ms);
 
 int main() {
     sys_init();
@@ -60,6 +61,7 @@ int main() {
          * 环形缓冲 16384 采样 (~372ms) 足够覆盖任一帧的渲染耗时 */
         speaker_update();
 
+        /* 处理 LVGL 定时器 */
         lv_timer_handler();
 
         /* UI层处理游戏逻辑事件 —— 一次处理完所有积压事件，防止队列溢出丢事件 */
@@ -72,6 +74,7 @@ int main() {
     }
 }
 
+// 心跳定时器回调：每秒推进一次游戏逻辑（农作物生长、无人机状态更新等），并存档游戏状态
 static void heartbeat_timer_cb(lv_timer_t *timer) {
     farm_grow();
 
@@ -81,26 +84,28 @@ static void heartbeat_timer_cb(lv_timer_t *timer) {
     drone_save();
 }
 
+// 心跳定时器初始化：创建一个周期为 1000ms 的定时器，回调函数为 heartbeat_timer_cb
 static void heartbeat_timer_init(void) {
     if (!g_heartbeat_timer) {
         g_heartbeat_timer = lv_timer_create(heartbeat_timer_cb, 1000, NULL);
     }
 }
 
+// 恢复心跳计时器，让游戏逻辑开始推进
 void game_start(void) {
-    // 恢复心跳计时器，让游戏逻辑开始推进
     if (g_heartbeat_timer) {
         lv_timer_resume(g_heartbeat_timer);
     }
 }
 
+// 暂停心跳计时器（LOAD 界面期间不推进游戏逻辑）
 void game_pause(void) {
-    // 暂停心跳计时器，LOAD 界面期间不推进游戏逻辑
     if (g_heartbeat_timer) {
         lv_timer_pause(g_heartbeat_timer);
     }
 }
 
+// 调整心跳计时器的周期（单位 ms），用于测试阶段加速游戏进程
 void debug_heartbeat_timer_set_period(uint32_t period_ms) {
     if (g_heartbeat_timer) {
         lv_timer_set_period(g_heartbeat_timer, period_ms);

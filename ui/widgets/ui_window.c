@@ -317,3 +317,33 @@ bool ui_window_is_visible(lv_obj_t *window) {
 
     return !lv_obj_has_flag(window, LV_OBJ_FLAG_HIDDEN);
 }
+
+/* 通用窗口切换：首次调用时创建并缓存，之后切换显示/隐藏 */
+void ui_window_toggle(ui_window_toggle_desc_t *desc) {
+    if (!desc || !desc->create) {
+        return;
+    }
+
+    lv_obj_t *window = NULL;
+    if (desc->window_ref) {
+        window = *desc->window_ref;
+        if (window && !lv_obj_is_valid(window)) {
+            *desc->window_ref = NULL;
+            window = NULL;
+        }
+    }
+
+    if (!window) {
+        window = desc->create();
+        if (desc->window_ref) {
+            *desc->window_ref = window;
+        }
+        return;
+    }
+
+    if (ui_window_is_visible(window)) {
+        ui_window_hide(window);
+    } else {
+        ui_window_show(window);
+    }
+}

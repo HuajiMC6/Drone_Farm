@@ -3,13 +3,11 @@
 #include "ui_common.h"
 #include "ui_drone.h"
 #include "ui_farm.h"
+#include "ui_load.h"
+#include "ui_main.h"
+#include "ui_shop.h"
+#include "ui_storage.h"
 
-lv_obj_t *ui_load_screen_create(void);
-lv_obj_t *ui_main_screen_create(void);
-void ui_main_handle_event(event_t *event);
-void ui_main_update_timer_init(void);
-void ui_main_update_timer_start(void);
-void ui_main_update_timer_pause(void);
 // 游戏逻辑推进开关
 void game_start(void);
 void game_pause(void);
@@ -82,6 +80,8 @@ void ui_event_handler(event_t *event) {
     ui_main_handle_event(event);
     ui_farm_handle_event(event);
     ui_drone_handle_event(event);
+    ui_storage_handle_event(event);
+    ui_shop_handle_event(event);
 }
 
 // UI更新定时器统一初始化

@@ -91,5 +91,5 @@ void ui_drone_storage_upgrade_click_cb(lv_event_t *e) {
 
 void ui_drone_toggle_window_cb(lv_event_t *e) {
     lv_event_stop_bubbling(e);
-    ui_drone_window_toggle();
+    ui_window_toggle(&g_drone_window_toggle);
 }

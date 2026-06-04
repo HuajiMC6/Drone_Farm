@@ -13,7 +13,7 @@ void ui_storage_item_click_cb(lv_event_t *e) {
         return;
     }
 
-    ui_storage_item_click_handle(*type, target);
+    ui_storage_window_select(*type, target);
 }
 
 void ui_storage_qty_minus_click_cb(lv_event_t *e) {
