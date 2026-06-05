@@ -44,8 +44,8 @@ static void disp_flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_
 
 void lv_port_disp_init(void) {
     /* 创建窗口 (SDL 由 main_win.c 统一初始化) */
-    g_window = SDL_CreateWindow("Farm Game (Windows Port)", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                                DISP_HOR_RES, DISP_VER_RES, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+    g_window = SDL_CreateWindow("Drone Farm (Windows Port)", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                                DISP_HOR_RES, DISP_VER_RES, SDL_WINDOW_SHOWN);
     if (!g_window) {
         fprintf(stderr, "[FATAL] SDL_CreateWindow failed: %s\n", SDL_GetError());
         return;
