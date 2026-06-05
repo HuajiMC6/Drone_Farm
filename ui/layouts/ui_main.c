@@ -410,7 +410,7 @@ static void ui_decorations_create(void) {
     // 稻草人
     g_prop_scarecrow = lv_img_create(g_main_layer);
     lv_img_set_src(g_prop_scarecrow, img_prop_scarecrow);
-    lv_obj_set_pos(g_prop_scarecrow, 70, 120);
+    lv_obj_set_pos(g_prop_scarecrow, 120, 120);
 }
 
 // 田地升级弹窗创建

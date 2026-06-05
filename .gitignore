@@ -60,3 +60,5 @@ mid-report.md
 resources/
 docs_temp/
 build/
+
+CmakeLists.txt
