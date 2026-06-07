@@ -272,15 +272,8 @@ lv_obj_t *ui_shop_window_create(void) {
     lv_obj_t *seed_card = ui_card_create_with_flex(left, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_t *seed_title = ui_label_colored(seed_card, "Seed Sales", lv_color_hex(0x5b421f));
 
-    ui_grid_list_cfg_t seed_cfg;
-    ui_grid_list_cfg_init(&seed_cfg);
-    seed_cfg.item_w = 100;
-    seed_cfg.item_h = 100;
-    seed_cfg.col_count = 2;
-    seed_cfg.row_count = (CROP_TYPE_NONE + 1) / 2;
-    seed_cfg.pad_col = 8;
-    seed_cfg.pad_row = 8;
-    seed_cfg.pad_all = 0;
+    ui_grid_list_cfg_t seed_cfg = ui_grid_list_cfg_make(100, 100, 2, (CROP_TYPE_NONE + 1) / 2);
+    ui_grid_list_cfg_set_pad(&seed_cfg, 8, 8, 0);
     ui_grid_list_t *seed_list = ui_grid_list_create(seed_card, &seed_cfg);
     if (seed_list) {
         lv_obj_t *seed_grid = ui_grid_list_get_obj(seed_list);
@@ -301,15 +294,8 @@ lv_obj_t *ui_shop_window_create(void) {
     lv_obj_t *pest_card = ui_card_create_with_flex(left, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_t *pest_title = ui_label_colored(pest_card, "Pesticide Sales", lv_color_hex(0x5b421f));
 
-    ui_grid_list_cfg_t pesticide_cfg;
-    ui_grid_list_cfg_init(&pesticide_cfg);
-    pesticide_cfg.item_w = 100;
-    pesticide_cfg.item_h = 100;
-    pesticide_cfg.col_count = 2;
-    pesticide_cfg.row_count = (CROP_PESTICIDE_NONE + 1) / 2;
-    pesticide_cfg.pad_col = 8;
-    pesticide_cfg.pad_row = 8;
-    pesticide_cfg.pad_all = 0;
+    ui_grid_list_cfg_t pesticide_cfg = ui_grid_list_cfg_make(100, 100, 2, (CROP_PESTICIDE_NONE + 1) / 2);
+    ui_grid_list_cfg_set_pad(&pesticide_cfg, 8, 8, 0);
     ui_grid_list_t *pesticide_list = ui_grid_list_create(pest_card, &pesticide_cfg);
     if (pesticide_list) {
         lv_obj_t *pesticide_grid = ui_grid_list_get_obj(pesticide_list);

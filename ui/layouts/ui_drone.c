@@ -538,15 +538,8 @@ lv_obj_t *ui_drone_window_create(void) {
     lv_label_set_text(bag_subtitle, "Backpack");
     lv_obj_set_style_text_color(bag_subtitle, lv_color_hex(0x5b421f), 0);
 
-    ui_grid_list_cfg_t bag_list_cfg;
-    ui_grid_list_cfg_init(&bag_list_cfg);
-    bag_list_cfg.item_w = 272;
-    bag_list_cfg.item_h = 30;
-    bag_list_cfg.col_count = 1;
-    bag_list_cfg.row_count = CROP_PESTICIDE_NONE;
-    bag_list_cfg.pad_col = 0;
-    bag_list_cfg.pad_row = 4;
-    bag_list_cfg.pad_all = 0;
+    ui_grid_list_cfg_t bag_list_cfg = ui_grid_list_cfg_make(272, 30, 1, CROP_PESTICIDE_NONE);
+    ui_grid_list_cfg_set_pad(&bag_list_cfg, 0, 4, 0);
 
     g_drone_window_ctx.pesticide_bag_list = ui_grid_list_create(bag_card, &bag_list_cfg);
     if (g_drone_window_ctx.pesticide_bag_list) {

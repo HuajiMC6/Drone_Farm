@@ -320,12 +320,7 @@ static lv_obj_t *ui_icon_btn_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h
 
 // 种子表创建
 static lv_obj_t *ui_seed_table_create(lv_obj_t *parent) {
-    ui_grid_list_cfg_t cfg;
-    ui_grid_list_cfg_init(&cfg);
-    cfg.item_w = 60;
-    cfg.item_h = 60;
-    cfg.col_count = 3;
-    cfg.row_count = 3;
+    ui_grid_list_cfg_t cfg = ui_grid_list_cfg_make(60, 60, 3, 3);
 
     ui_grid_list_t *list = ui_grid_list_create(parent, &cfg);
     if (!list) {

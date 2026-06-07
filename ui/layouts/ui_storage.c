@@ -92,15 +92,8 @@ lv_obj_t *ui_storage_window_create(void) {
 
     lv_obj_t *title = ui_label_colored(body, "Harvest Bag", lv_color_hex(0x5b421f));
 
-    ui_grid_list_cfg_t cfg;
-    ui_grid_list_cfg_init(&cfg);
-    cfg.item_w = 95;
-    cfg.item_h = 82;
-    cfg.col_count = 3;
-    cfg.row_count = 1;
-    cfg.pad_col = 8;
-    cfg.pad_row = 8;
-    cfg.pad_all = 0;
+    ui_grid_list_cfg_t cfg = ui_grid_list_cfg_make(95, 82, 3, 1);
+    ui_grid_list_cfg_set_pad(&cfg, 8, 8, 0);
     g_storage_window_ctx.list = ui_grid_list_create(body, &cfg);
     if (g_storage_window_ctx.list) {
         g_storage_window_ctx.list_obj = ui_grid_list_get_obj(g_storage_window_ctx.list);
@@ -175,14 +168,8 @@ static void ui_storage_window_rebuild_list(player_t *player) {
         return;
     }
 
-    ui_grid_list_cfg_t cfg;
-    ui_grid_list_cfg_init(&cfg);
-    cfg.item_w = 95;
-    cfg.item_h = 82;
-    cfg.col_count = 3;
-    cfg.pad_col = 8;
-    cfg.pad_row = 8;
-    cfg.pad_all = 0;
+    ui_grid_list_cfg_t cfg = ui_grid_list_cfg_make(95, 82, 3, 0);
+    ui_grid_list_cfg_set_pad(&cfg, 8, 8, 0);
 
     uint16_t visible_count = 0;
     for (crop_type_t i = 0; i < CROP_TYPE_NONE; i++) {
