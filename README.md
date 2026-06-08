@@ -2,12 +2,24 @@
 
 <div align="center">
 
+[![GitHub](https://img.shields.io/badge/GitHub-Drone_Farm-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/HuajiMX/Drone_Farm)
 ![Platform](https://img.shields.io/badge/Platform-GD32H7_(ARM_Cortex--M7)-blue?style=flat-square&logo=arm)
 ![Language](https://img.shields.io/badge/Language-C99-orange?style=flat-square&logo=c)
 ![GUI](https://img.shields.io/badge/GUI-LVGL_v8.2-green?style=flat-square&logo=lvgl)
 ![Status](https://img.shields.io/badge/Status-Completed-success?style=flat-square)
+[![Release](https://img.shields.io/github/v/release/HuajiMX/Drone_Farm?style=flat-square&logo=github)](https://github.com/HuajiMX/Drone_Farm/releases)
 
 **一款运行在嵌入式平台上的硬核农场经营模拟游戏 —— 种植、虫害、无人机、策略升级，应有尽有。**
+
+![轰轰烈烈的C语言大课设结束了！](./docs/shengmi.png)
+
+|游戏截图|游戏截图|游戏截图|
+|:--:|:--:|:--:|
+|![加载页](./docs/screenshot/load.png)|![主界面](./docs/screenshot/main.png)|![种植窗口](./docs/screenshot/plant.png)|
+|![无人机操作面板](./docs/screenshot/drone.png)|![无人机侦察状态](./docs/screenshot/detect.png)|![无人机自动喷洒状态](./docs/screenshot/spray.png)|
+|![商店窗口](./docs/screenshot/shop.png)|![仓库窗口](./docs/screenshot/storage.png)|![设置窗口](./docs/screenshot/setting.png)|
+
+<b>点击查看：[C语言课程设计报告](./docs/report.pdf)</b>
 
 </div>
 
