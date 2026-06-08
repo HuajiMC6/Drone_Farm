@@ -1,6 +1,6 @@
 #include "event.h"
 
-#define EVENT_QUEUE_SIZE 32
+#define EVENT_QUEUE_SIZE 512
 
 static event_t event_sequence[EVENT_QUEUE_SIZE];
 static unsigned int event_head = 0;
